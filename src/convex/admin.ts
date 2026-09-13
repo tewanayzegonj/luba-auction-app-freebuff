@@ -8,8 +8,10 @@ import {
   ROLES,
   roleValidator,
 } from "./schema";
-import { deposit, refundUser } from "./lib/finance";
+import { deposit, ensureWallet, refundUser } from "./lib/finance";
+import { ACCOUNT_CODES, postTransaction } from "./lib/ledger";
 import { insertAuditLog, insertNotification } from "./lib/notifications";
+import { isChapaConfigured } from "./chapa";
 import { settleAuctionInternal } from "./lib/settlement";
 
 /**
@@ -1478,5 +1480,349 @@ export const updatePrize = mutation({
       now: Date.now(),
     });
     return { ok: true };
+  },
+});
+
+// ─── User oversight: full profile drill-down (spec §41) ─────────────────────
+
+/**
+ * Complete profile for one user: identity, KYC, wallet projection, full bid
+ * history (all statuses), wins/settlements, and payment history. Everything
+ * an investigator or support agent needs in one read, all audited server-side.
+ */
+export const getUserProfileAdmin = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    const [bids, settlements, payments, wallets] = await Promise.all([
+      ctx.db
+        .query("auctionBids")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+      ctx.db
+        .query("winnerSettlements")
+        .withIndex("by_winner", (q) => q.eq("winnerUserId", args.userId))
+        .collect(),
+      ctx.db
+        .query("payments")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+      ctx.db
+        .query("wallets")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+    ]);
+
+    const auctionIds = [...new Set(bids.map((b) => b.auctionId))];
+    const auctions = await Promise.all(auctionIds.map((id) => ctx.db.get(id)));
+    const auctionById = new Map(
+      auctions.filter((a) => a !== null).map((a) => [a._id, a]),
+    );
+
+    const accepted = bids.filter((b) => b.status === "ACCEPTED");
+    const now = Date.now();
+
+    return {
+      user: {
+        id: user._id,
+        email: user.email ?? null,
+        name: user.name ?? null,
+        role: user.role ?? null,
+        status: user.status ?? "ACTIVE",
+        kycStatus: user.kycStatus ?? "UNVERIFIED",
+        kycNote: user.kycNote ?? null,
+        createdAt: user._creationTime,
+      },
+      wallet: wallets[0]
+        ? {
+            paidSantims: wallets[0].paidBalanceSantims,
+            promoSantims: wallets[0].promoBalanceSantims,
+            totalDepositedSantims: wallets[0].totalDepositedSantims,
+            totalSpentSantims: wallets[0].totalSpentSantims,
+          }
+        : null,
+      bidStats: {
+        total: bids.length,
+        accepted: accepted.length,
+        removed: bids.filter((b) => b.status === "REMOVED").length,
+        refunded: bids.filter((b) => b.status === "REFUNDED").length,
+        auctionsEntered: auctionIds.length,
+        feesPaidSantims: bids
+          .filter((b) => b.status !== "REMOVED")
+          .reduce((s, b) => s + b.bidServiceFeeSantims, 0),
+      },
+      bids: bids
+        .sort((a, b) => b.acceptedAt - a.acceptedAt)
+        .slice(0, 100)
+        .map((b) => {
+          const a = auctionById.get(b.auctionId);
+          return {
+            id: b._id,
+            auctionCode: a?.auctionCode ?? "—",
+            auctionTitle: a?.title ?? "—",
+            bidValueSantims: b.bidValueSantims,
+            feeSantims: b.bidServiceFeeSantims,
+            status: b.status,
+            acceptedAt: b.acceptedAt,
+          };
+        }),
+      wins: settlements.map((s) => {
+        const a = auctionById.get(s.auctionId);
+        return {
+          settlementId: s._id,
+          auctionCode: a?.auctionCode ?? "—",
+          winningBidValueSantims: s.winningBidValueSantims,
+          status: s.status,
+          overdue: s.status === "PENDING_PAYMENT" && s.paymentDeadline < now,
+          paymentDeadline: s.paymentDeadline,
+        };
+      }),
+      payments: payments
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 50)
+        .map((p) => ({
+          id: p._id,
+          amountSantims: p.amountSantims,
+          kind: p.kind,
+          provider: p.provider,
+          status: p.status,
+          createdAt: p.createdAt,
+        })),
+    };
+  },
+});
+
+/**
+ * Deduct from a user's paid balance (support corrections, chargebacks,
+ * error fixes). Uses a compensating DEBIT posting against the wallet —
+ * the ledger correction pattern (spec §20) — and refuses to drive a
+ * balance negative (Invariant 2).
+ */
+export const adminDeductWallet = mutation({
+  args: {
+    userId: v.id("users"),
+    amountSantims: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!Number.isInteger(args.amountSantims) || args.amountSantims <= 0) {
+      throw new Error("DEDUCT_AMOUNT_MUST_BE_POSITIVE");
+    }
+    if (!args.reason.trim()) throw new Error("REASON_REQUIRED");
+
+    // Refuse if the balance cannot absorb the deduction.
+    const wallet = await ctx.db
+      .query("wallets")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique();
+    const balance = wallet?.paidBalanceSantims ?? 0;
+    if (balance < args.amountSantims) {
+      throw new Error(
+        `INSUFFICIENT_BALANCE_${balance}_AVAILABLE_${args.amountSantims}_REQUESTED`,
+ );
+ }
+
+    await postTransaction(ctx, {
+      txType: "ADMIN_ADJUSTMENT",
+      description: `Admin deduction: ${args.reason}`,
+      reference: args.userId,
+      idempotencyKey: `ADMIN_DEDUCT:${crypto.randomUUID()}`,
+      now: Date.now(),
+      lines: [
+        {
+          accountCode: ACCOUNT_CODES.userPaid(args.userId),
+          accountName: "User paid balance",
+          accountType: "LIABILITY",
+          direction: "DEBIT",
+          amountSantims: args.amountSantims,
+        },
+        {
+          accountCode: ACCOUNT_CODES.revenue,
+          accountName: "Platform revenue",
+          accountType: "REVENUE",
+          direction: "CREDIT",
+          amountSantims: args.amountSantims,
+        },
+      ],
+    });
+
+    const w = await ensureWallet(ctx, args.userId);
+    ctx.db.patch(w._id, {
+      paidBalanceSantims: w.paidBalanceSantims - args.amountSantims,
+      updatedAt: Date.now(),
+    });
+
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "WALLET_DEDUCTED",
+      resource: `user:${args.userId}`,
+      details: `amount=${args.amountSantims} reason=${args.reason}`,
+      now: Date.now(),
+    });
+    await insertNotification(ctx, {
+      userId: args.userId,
+      type: "SYSTEM",
+      title: "Wallet adjusted",
+      body: `An adjustment reduced your wallet balance. Reason: ${args.reason}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Gateway controls (spec §22 provider seam, admin-operated) ──────────────
+
+const PAYMENT_GATEWAYS = ["chapa", "manual"] as const;
+
+type GatewayState = {
+  enabled: boolean;
+  configured: boolean;
+};
+
+/** Current gateway switches (admin view; booleans only, no secrets). */
+export const getGatewaySettings = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const rows = await ctx.db.query("platformSettings").collect();
+    const byKey = new Map(rows.map((r) => [r.key, r.value]));
+    return PAYMENT_GATEWAYS.map((gateway) => ({
+      gateway,
+      enabled: byKey.get(`GATEWAY_${gateway.toUpperCase()}_ENABLED`) ?? true,
+      configured: gateway === "chapa" ? isChapaConfigured() : true,
+    }));
+  },
+});
+
+/** Toggle a payment gateway on/off (admin only, audited). */
+export const setGatewayEnabled = mutation({
+  args: { gateway: v.string(), enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!PAYMENT_GATEWAYS.includes(args.gateway as (typeof PAYMENT_GATEWAYS)[number])) {
+      throw new Error("UNKNOWN_GATEWAY");
+    }
+    const key = `GATEWAY_${args.gateway.toUpperCase()}_ENABLED`;
+    const existing = await ctx.db
+      .query("platformSettings")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .unique();
+    if (existing) {
+      ctx.db.patch(existing._id, { value: args.enabled, updatedAt: Date.now() });
+    } else {
+      ctx.db.insert("platformSettings", {
+        key,
+        value: args.enabled,
+        updatedAt: Date.now(),
+      });
+    }
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "GATEWAY_TOGGLED",
+      resource: `gateway:${args.gateway}`,
+      details: `enabled=${args.enabled}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+/**
+ * Force-close an OPEN/CLOSING/PAUSED auction immediately (emergency stop).
+ * Bids stop, the auction goes to CLOSED, and normal settlement follows —
+ * the result is still resolved deterministically from accepted bids.
+ */
+export const forceCloseAuction = mutation({
+  args: { auctionId: v.id("auctions"), reason: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const auction = await ctx.db.get(args.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (
+      auction.status !== "OPEN" &&
+      auction.status !== "CLOSING" &&
+      auction.status !== "PAUSED"
+    ) {
+      throw new Error(`CANNOT_CLOSE_FROM_${auction.status}`);
+    }
+
+    const now = Date.now();
+    ctx.db.patch(args.auctionId, {
+      status: "CLOSED",
+      closesAt: now,
+      updatedAt: now,
+    });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_FORCE_CLOSED",
+      resource: `auction:${args.auctionId}`,
+      details: `code=${auction.auctionCode} reason=${args.reason}`,
+      now,
+    });
+    await ctx.db.insert("outboxEvents", {
+      eventType: "AUCTION_FORCE_CLOSED",
+      payload: { auctionId: args.auctionId, code: auction.auctionCode },
+      processed: false,
+      createdAt: now,
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Transaction ledger browser (spec §41 payments/reconciliation) ──────────
+
+/**
+ * Every monetary transaction on the platform with its balanced entries —
+ * the historical ledger view for spotting internal errors.
+ */
+export const listLedgerTransactions = query({
+  args: { txType: v.optional(v.string()), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const txs = await ctx.db.query("ledgerTransactions").collect();
+    const filtered = args.txType
+      ? txs.filter((t) => t.txType === args.txType)
+      : txs;
+    const slice = filtered
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, args.limit ?? 100);
+
+    const entries = await ctx.db.query("ledgerEntries").collect();
+    const accounts = await ctx.db.query("ledgerAccounts").collect();
+    const accountById = new Map(accounts.map((a) => [a._id, a]));
+    const entriesByTx = new Map<Id<"ledgerTransactions">, typeof entries>();
+    for (const e of entries) {
+      const list = entriesByTx.get(e.transactionId) ?? [];
+      list.push(e);
+      entriesByTx.set(e.transactionId, list);
+    }
+
+    return slice.map((t) => {
+      const txEntries = entriesByTx.get(t._id) ?? [];
+      const debits = txEntries
+        .filter((e) => e.direction === "DEBIT")
+        .reduce((s, e) => s + e.amountSantims, 0);
+      const credits = txEntries
+        .filter((e) => e.direction === "CREDIT")
+        .reduce((s, e) => s + e.amountSantims, 0);
+      return {
+        id: t._id,
+        txType: t.txType,
+        description: t.description,
+        reference: t.reference,
+        createdAt: t.createdAt,
+        balanced: debits === credits,
+        debitsSantims: debits,
+        creditsSantims: credits,
+        lines: txEntries.map((e) => ({
+          account: accountById.get(e.accountId)?.code ?? "?",
+          direction: e.direction,
+          amountSantims: e.amountSantims,
+        })),
+      };    });
   },
 });

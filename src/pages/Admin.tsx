@@ -92,6 +92,8 @@ function AdminConsole() {
   const finance = useQuery(api.admin.getFinanceDashboard, {});
   const settlements = useQuery(api.admin.listSettlementsAdmin, {});
   const notifSettings = useQuery(api.admin.getNotificationSettings, {});
+  const gateways = useQuery(api.admin.getGatewaySettings, {});
+  const ledgerTxs = useQuery(api.admin.listLedgerTransactions, { limit: 50 });
 
   const grantRole = useMutation(api.admin.grantRole);
   const setUserStatus = useMutation(api.admin.setUserStatus);
@@ -112,6 +114,9 @@ function AdminConsole() {
   const removeBid = useMutation(api.admin.removeBid);
   const setNotificationSetting = useMutation(api.admin.setNotificationSetting);
   const broadcastAnnouncement = useMutation(api.admin.broadcastAnnouncement);
+  const deductWallet = useMutation(api.admin.adminDeductWallet);
+  const setGatewayEnabled = useMutation(api.admin.setGatewayEnabled);
+  const forceClose = useMutation(api.admin.forceCloseAuction);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const attachImageToPrize = useMutation(api.files.attachImageToPrize);
 
@@ -124,6 +129,7 @@ function AdminConsole() {
     title: string;
   } | null>(null);
   const [announceOpen, setAnnounceOpen] = useState(false);
+  const [profileUser, setProfileUser] = useState<Id<"users"> | null>(null);
 
   const filteredUsers = (users ?? []).filter(
     (u) =>
@@ -298,7 +304,13 @@ function AdminConsole() {
                         className="border-b border-border/60 last:border-0 hover:bg-secondary/30"
                       >
                         <td className="px-4 py-3">
-                          <p className="font-medium">{u.email ?? "—"}</p>
+                          <button
+                            className="text-left font-medium underline-offset-2 hover:underline"
+                            onClick={() => setProfileUser(u.id)}
+                            title="View full profile"
+                          >
+                            {u.email ?? "—"}
+                          </button>
                           <p className="text-xs text-muted-foreground">
                             {u.name ?? "—"}
                           </p>
@@ -432,6 +444,30 @@ function AdminConsole() {
                               }}
                             >
                               Credit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={busy === `deduct-${u.id}`}
+                              onClick={() => {
+                                const input = window.prompt(
+                                  `DEDUCT amount in ETB from ${u.email}'s wallet (balance: ${formatETB(u.walletSantims)}):`,
+                                  "10",
+                                );
+                                if (!input) return;
+                                const s = Math.round(Number(input) * 100);
+                                if (!Number.isFinite(s) || s <= 0) {
+                                  toast.error("Invalid amount");
+                                  return;
+                                }
+                                const reason = window.prompt("Reason (audited, user is notified):", "Support correction");
+                                if (!reason) return;
+                                void act(`deduct-${u.id}`, () =>
+                                  deductWallet({ userId: u.id, amountSantims: s, reason }),
+                                );
+                              }}
+                            >
+                              Deduct
                             </Button>
                             <Button
                               variant="outline"
@@ -781,6 +817,28 @@ function AdminConsole() {
                           }}
                         >
                           Cancel & refund
+                        </Button>
+                      )}
+                      {(a.status === "OPEN" ||
+                        a.status === "CLOSING" ||
+                        a.status === "PAUSED") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-rose-300"
+                          disabled={busy === `force-${a.id}`}
+                          onClick={() => {
+                            const reason = window.prompt(
+                              `FORCE-CLOSE ${a.auctionCode} immediately? Bidding stops now and the winner is resolved from accepted bids. Reason:`,
+                              "Emergency stop",
+                            );
+                            if (!reason) return;
+                            void act(`force-${a.id}`, () =>
+                              forceClose({ auctionId: a.id, reason }),
+                            );
+                          }}
+                        >
+                          Force close
                         </Button>
                       )}
                       {(a.status === "CLOSED" || a.status === "SETTLING") && (
@@ -1151,6 +1209,10 @@ function AdminConsole() {
 
         <BidAuditDialog />
         <AnnounceDialog />
+        <UserProfileDialog
+          userId={profileUser}
+          onClose={() => setProfileUser(null)}
+        />
       </>
   );
 
