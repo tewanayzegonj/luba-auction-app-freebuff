@@ -1435,10 +1435,6 @@ function AdminConsole() {
           </CardContent>
         </Card>
 
-        <UserProfileDialog
-          userId={profileUser}
-          onClose={() => setProfileUser(null)}
-        />
         <BidAuditDialog />
         <AnnounceDialog />
         <UserProfileDialog
@@ -1448,7 +1444,7 @@ function AdminConsole() {
       </>
   );
 
-          function UserProfileDialog({
+  function UserProfileDialog({
     userId,
     onClose,
   }: {
