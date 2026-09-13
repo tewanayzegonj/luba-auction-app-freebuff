@@ -183,6 +183,61 @@ export async function chargeWinnerPayment(
 }
 
 /**
+ * Admin deduction: remove funds from a user's paid balance (fraud recovery,
+ * correcting an erroneous credit, chargeback). Mirrors a refund:
+ *   DEBIT  USER_PAID:userId
+ *   CREDIT PLATFORM_REVENUE
+ * The ledger guard refuses postings that would take the balance negative —
+ * you cannot deduct more than the user holds (Invariant 2).
+ */
+export async function deductUser(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    amountSantims: number;
+    reason: string;
+    reference: string;
+    idempotencyKey: string;
+    now: number;
+  },
+): Promise<void> {
+  const { userId, amountSantims, reason, reference, idempotencyKey, now } = args;
+  if (!Number.isInteger(amountSantims) || amountSantims <= 0) {
+    throw new Error("DEDUCT_AMOUNT_MUST_BE_POSITIVE");
+  }
+
+  await postTransaction(ctx, {
+    txType: "ADMIN_DEDUCTION",
+    description: `Deduction: ${reason}`,
+    reference,
+    idempotencyKey,
+    now,
+    lines: [
+      {
+        accountCode: ACCOUNT_CODES.userPaid(userId),
+        accountName: "User paid balance",
+        accountType: "LIABILITY",
+        direction: "DEBIT",
+        amountSantims,
+      },
+      {
+        accountCode: ACCOUNT_CODES.revenue,
+        accountName: "Platform revenue",
+        accountType: "REVENUE",
+        direction: "CREDIT",
+        amountSantims,
+      },
+    ],
+  });
+
+  const wallet = await ensureWallet(ctx, userId);
+  ctx.db.patch(wallet._id, {
+    paidBalanceSantims: wallet.paidBalanceSantims - amountSantims,
+    updatedAt: now,
+  });
+}
+
+/**
  * Refund a user's paid balance (e.g. bid fee refunds under the no-winner
  * policy). Reverses platform revenue:
  *   DEBIT  PLATFORM_REVENUE

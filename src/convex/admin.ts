@@ -8,7 +8,8 @@ import {
   ROLES,
   roleValidator,
 } from "./schema";
-import { deposit, refundUser } from "./lib/finance";
+import { deductUser, deposit, refundUser } from "./lib/finance";
+import { isChapaConfigured } from "./chapa";
 import { insertAuditLog, insertNotification } from "./lib/notifications";
 import { settleAuctionInternal } from "./lib/settlement";
 
