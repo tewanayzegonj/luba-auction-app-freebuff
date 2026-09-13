@@ -251,20 +251,7 @@ function formatSantims(santims: number): string {
  */
 export const initiateTopUp = mutation({
   args: initiateArgs,
-  handler: async (ctx, args) => {
-    // Admin gateway switches (spec §22 provider seam, §41 admin controls):
-    // a disabled gateway refuses new payments. In-flight payments still
-    // confirm — this gates initiation, not settlement.
-    const key = `GATEWAY_${args.provider.toUpperCase()}_ENABLED`;
-    const setting = await ctx.db
-      .query("platformSettings")
-      .withIndex("by_key", (q) => q.eq("key", key))
-      .unique();
-    if (setting && !setting.value) {
-      throw new Error(`GATEWAY_DISABLED_${args.provider.toUpperCase()}`);
-    }
-    return initiateTopUpCore(ctx, args);
-  },
+  handler: async (ctx, args) => initiateTopUpCore(ctx, args),
 });
 
 /**
