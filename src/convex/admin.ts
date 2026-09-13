@@ -3,7 +3,11 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
-import { ROLES, roleValidator } from "./schema";
+import {
+  noWinnerPolicyValidator,
+  ROLES,
+  roleValidator,
+} from "./schema";
 import { deposit, refundUser } from "./lib/finance";
 import { insertAuditLog, insertNotification } from "./lib/notifications";
 import { settleAuctionInternal } from "./lib/settlement";
@@ -411,5 +415,369 @@ export const adminAdjustWallet = mutation({
       now,
     });
     return { ok: true, adminId };
+  },
+});
+
+// ─── Campaign management (spec §10, §41) ────────────────────────────────────
+
+function validateCampaignConfig(
+  c: {
+    opensAt: number;
+    closesAt: number;
+    minBidSantims: number;
+    maxBidSantims: number;
+    bidIncrementSantims: number;
+    bidServiceFeeSantims: number;
+    maximumBidsPerUser: number;
+    winnerPaymentDeadline: number;
+  },
+): void {
+  if (!Number.isInteger(c.minBidSantims) || c.minBidSantims < 1) {
+    throw new Error("MIN_BID_INVALID");
+  }
+  if (!Number.isInteger(c.maxBidSantims) || c.maxBidSantims <= c.minBidSantims) {
+    throw new Error("MAX_BID_MUST_EXCEED_MIN");
+  }
+  if (
+    !Number.isInteger(c.bidIncrementSantims) ||
+    c.bidIncrementSantims < 0
+  ) {
+    throw new Error("INCREMENT_INVALID");
+  }
+  if (!Number.isInteger(c.bidServiceFeeSantims) || c.bidServiceFeeSantims <= 0) {
+    throw new Error("FEE_MUST_BE_POSITIVE");
+  }
+  if (
+    !Number.isInteger(c.maximumBidsPerUser) ||
+    c.maximumBidsPerUser < 1 ||
+    c.maximumBidsPerUser > 1000
+  ) {
+    throw new Error("BID_CAP_INVALID");
+  }
+  if (
+    !Number.isInteger(c.winnerPaymentDeadline) ||
+    c.winnerPaymentDeadline <= 0
+  ) {
+    throw new Error("PAYMENT_DEADLINE_INVALID");
+  }
+  if (c.closesAt <= c.opensAt) {
+    throw new Error("CLOSE_MUST_BE_AFTER_OPEN");
+  }
+}
+
+/** Create a prize for campaigns (spec §41 products/prizes). */
+export const createPrize = mutation({
+  args: {
+    title: v.string(),
+    description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    valueSantims: v.number(),
+    emoji: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    stock: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const title = args.title.trim();
+    if (!title) throw new Error("TITLE_REQUIRED");
+    if (!Number.isInteger(args.valueSantims) || args.valueSantims <= 0) {
+      throw new Error("VALUE_MUST_BE_POSITIVE");
+    }
+    if (!Number.isInteger(args.stock) || args.stock < 1) {
+      throw new Error("STOCK_MUST_BE_POSITIVE");
+    }
+
+    const now = Date.now();
+    const prizeId = await ctx.db.insert("prizes", {
+      title,
+      description: args.description?.trim() || undefined,
+      category: args.category?.trim() || undefined,
+      valueSantims: args.valueSantims,
+      emoji: args.emoji?.trim() || undefined,
+      imageUrl: args.imageUrl?.trim() || undefined,
+      stock: args.stock,
+      createdAt: now,
+    });
+
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "PRIZE_CREATED",
+      resource: `prize:${prizeId}`,
+      details: `title="${title}" value=${args.valueSantims} stock=${args.stock}`,
+      now,
+    });
+    return { prizeId };
+  },
+});
+
+/** Prize inventory with active-campaign usage counts. */
+export const listPrizes = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const prizes = await ctx.db.query("prizes").collect();
+    const auctions = await ctx.db.query("auctions").collect();
+
+    return prizes
+      .sort((a, b) => b._creationTime - a._creationTime)
+      .map((p) => {
+        const used = auctions.filter(
+          (a) => a.prizeId === p._id && a.status !== "CANCELLED",
+        ).length;
+        return { ...p, usedInAuctions: used };
+      });
+  },
+});
+
+/**
+ * Create a campaign (auction) with the full configurable rule set (spec §10).
+ * Every value the engine enforces comes from this row — no hard-coded rules.
+ */
+export const createAuction = mutation({
+  args: {
+    prizeId: v.id("prizes"),
+    title: v.string(),
+    description: v.optional(v.string()),
+    opensAt: v.number(),
+    closesAt: v.number(),
+    minBidSantims: v.number(),
+    maxBidSantims: v.number(),
+    bidIncrementSantims: v.number(),
+    bidServiceFeeSantims: v.number(),
+    maximumBidsPerUser: v.number(),
+    consecutiveBidPolicy: v.union(
+      v.literal("NONE"),
+      v.literal("THREE_THEN_BLOCK_TWO"),
+      v.literal("CUSTOM"),
+    ),
+    noWinnerPolicy: noWinnerPolicyValidator,
+    winnerPaymentDeadline: v.number(),
+    visibilityPolicy: v.union(v.literal("PUBLIC"), v.literal("PRIVATE")),
+    openImmediately: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+
+    const prize = await ctx.db.get(args.prizeId);
+    if (!prize) throw new Error("PRIZE_NOT_FOUND");
+    if (prize.stock < 1) throw new Error("PRIZE_OUT_OF_STOCK");
+
+    const title = args.title.trim();
+    if (!title) throw new Error("TITLE_REQUIRED");
+
+    validateCampaignConfig({
+      opensAt: args.opensAt,
+      closesAt: args.closesAt,
+      minBidSantims: args.minBidSantims,
+      maxBidSantims: args.maxBidSantims,
+      bidIncrementSantims: args.bidIncrementSantims,
+      bidServiceFeeSantims: args.bidServiceFeeSantims,
+      maximumBidsPerUser: args.maximumBidsPerUser,
+      winnerPaymentDeadline: args.winnerPaymentDeadline,
+    });
+
+    const now = Date.now();
+
+    // Unique auction code: LUBA-<year>-<6 random digits>.
+    let auctionCode = "";
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate = `LUBA-${new Date(now).getFullYear()}-${String(
+        Math.floor(100000 + Math.random() * 900000),
+      )}`;
+      const clash = await ctx.db
+        .query("auctions")
+        .withIndex("by_code", (q) => q.eq("auctionCode", candidate))
+        .unique();
+      if (!clash) {
+        auctionCode = candidate;
+        break;
+      }
+    }
+    if (!auctionCode) throw new Error("CODE_GENERATION_FAILED");
+
+    const openNow = args.openImmediately === true;
+    const auctionId = await ctx.db.insert("auctions", {
+      auctionCode,
+      title,
+      description: args.description?.trim() || undefined,
+      prizeId: args.prizeId,
+      opensAt: openNow ? Math.min(args.opensAt, now) : args.opensAt,
+      closesAt: args.closesAt,
+      status: openNow ? "OPEN" : "SCHEDULED",
+      minBidSantims: args.minBidSantims,
+      maxBidSantims: args.maxBidSantims,
+      bidIncrementSantims: args.bidIncrementSantims,
+      bidServiceFeeSantims: args.bidServiceFeeSantims,
+      maximumBidsPerUser: args.maximumBidsPerUser,
+      consecutiveBidPolicy: args.consecutiveBidPolicy,
+      noWinnerPolicy: args.noWinnerPolicy,
+      winnerPaymentDeadline: args.winnerPaymentDeadline,
+      visibilityPolicy: args.visibilityPolicy,
+      bidCount: 0,
+      uniqueBidCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_CREATED",
+      resource: `auction:${auctionId}`,
+      details: `code=${auctionCode} prize="${prize.title}" fee=${args.bidServiceFeeSantims} window=${args.opensAt}..${args.closesAt} status=${openNow ? "OPEN" : "SCHEDULED"}`,
+      now,
+    });
+    return { auctionId, auctionCode };
+  },
+});
+
+/** Every campaign for the console, newest first, with revenue estimate. */
+export const listAllAuctions = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const auctions = await ctx.db.query("auctions").collect();
+    const prizes = await ctx.db.query("prizes").collect();
+    const prizeById = new Map(prizes.map((p) => [p._id, p]));
+
+    return auctions
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((a) => {
+        const prize = prizeById.get(a.prizeId);
+        return {
+          id: a._id,
+          auctionCode: a.auctionCode,
+          title: a.title,
+          prizeTitle: prize?.title ?? "—",
+          prizeEmoji: prize?.emoji ?? "🎁",
+          status: a.status,
+          opensAt: a.opensAt,
+          closesAt: a.closesAt,
+          bidCount: a.bidCount,
+          uniqueBidCount: a.uniqueBidCount,
+          bidServiceFeeSantims: a.bidServiceFeeSantims,
+          maxBidsPerUser: a.maximumBidsPerUser,
+          noWinnerPolicy: a.noWinnerPolicy,
+          grossFeeRevenueSantims: a.bidCount * a.bidServiceFeeSantims,
+          createdAt: a.createdAt,
+        };
+      });
+  },
+});
+
+/**
+ * Edit the rule set of a campaign. Only SCHEDULED auctions are editable —
+ * once open, rules are frozen so bidders face a moving target (spec §29:
+ * policy is frozen when the auction becomes OPEN).
+ */
+export const updateAuctionRules = mutation({
+  args: {
+    auctionId: v.id("auctions"),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    opensAt: v.optional(v.number()),
+    closesAt: v.optional(v.number()),
+    minBidSantims: v.optional(v.number()),
+    maxBidSantims: v.optional(v.number()),
+    bidIncrementSantims: v.optional(v.number()),
+    bidServiceFeeSantims: v.optional(v.number()),
+    maximumBidsPerUser: v.optional(v.number()),
+    consecutiveBidPolicy: v.optional(
+      v.union(
+        v.literal("NONE"),
+        v.literal("THREE_THEN_BLOCK_TWO"),
+        v.literal("CUSTOM"),
+      ),
+    ),
+    noWinnerPolicy: v.optional(noWinnerPolicyValidator),
+    winnerPaymentDeadline: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const auction = await ctx.db.get(args.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (auction.status !== "SCHEDULED") {
+      throw new Error("ONLY_SCHEDULED_AUCTIONS_ARE_EDITABLE");
+    }
+
+    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    const changes: string[] = [];
+
+    const assign = (field: string, value: unknown) => {
+      if (value !== undefined) {
+        patch[field] = value;
+        changes.push(`${field}=${String(value)}`);
+      }
+    };
+
+    if (args.title !== undefined) {
+      const t = args.title.trim();
+      if (!t) throw new Error("TITLE_REQUIRED");
+      assign("title", t);
+    }
+    assign("description", args.description?.trim() || undefined);
+    assign("opensAt", args.opensAt);
+    assign("closesAt", args.closesAt);
+    assign("minBidSantims", args.minBidSantims);
+    assign("maxBidSantims", args.maxBidSantims);
+    assign("bidIncrementSantims", args.bidIncrementSantims);
+    assign("bidServiceFeeSantims", args.bidServiceFeeSantims);
+    assign("maximumBidsPerUser", args.maximumBidsPerUser);
+    assign("consecutiveBidPolicy", args.consecutiveBidPolicy);
+    assign("noWinnerPolicy", args.noWinnerPolicy);
+    assign("winnerPaymentDeadline", args.winnerPaymentDeadline);
+
+    // Validate the resulting combination.
+    validateCampaignConfig({
+      opensAt: (patch.opensAt as number) ?? auction.opensAt,
+      closesAt: (patch.closesAt as number) ?? auction.closesAt,
+      minBidSantims: (patch.minBidSantims as number) ?? auction.minBidSantims,
+      maxBidSantims: (patch.maxBidSantims as number) ?? auction.maxBidSantims,
+      bidIncrementSantims:
+        (patch.bidIncrementSantims as number) ?? auction.bidIncrementSantims,
+      bidServiceFeeSantims:
+        (patch.bidServiceFeeSantims as number) ?? auction.bidServiceFeeSantims,
+      maximumBidsPerUser:
+        (patch.maximumBidsPerUser as number) ?? auction.maximumBidsPerUser,
+      winnerPaymentDeadline:
+        (patch.winnerPaymentDeadline as number) ?? auction.winnerPaymentDeadline,
+    });
+
+    ctx.db.patch(args.auctionId, patch);
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_RULES_UPDATED",
+      resource: `auction:${args.auctionId}`,
+      details: changes.join(" ") || "no changes",
+      now: Date.now(),
+    });
+    return { ok: true, changed: changes.length };
+  },
+});
+
+/** Open a scheduled campaign immediately (flips SCHEDULED → OPEN). */
+export const openAuctionNow = mutation({
+  args: { auctionId: v.id("auctions") },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const auction = await ctx.db.get(args.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (auction.status !== "SCHEDULED") {
+      throw new Error("AUCTION_NOT_SCHEDULED");
+    }
+
+    const now = Date.now();
+    ctx.db.patch(args.auctionId, {
+      status: "OPEN",
+      opensAt: Math.min(auction.opensAt, now),
+      updatedAt: now,
+    });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_OPENED_EARLY",
+      resource: `auction:${args.auctionId}`,
+      details: `code=${auction.auctionCode}`,
+      now,
+    });
+    return { ok: true };
   },
 });
