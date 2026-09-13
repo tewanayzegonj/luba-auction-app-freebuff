@@ -421,6 +421,59 @@ export const adminAdjustWallet = mutation({
   },
 });
 
+/**
+ * Admin deduction: remove funds from a user's paid balance (fraud recovery,
+ * erroneous-credit correction). Ledger-guarded: cannot take the balance
+ * negative. Fully audited and notified.
+ */
+export const adminDeductWallet = mutation({
+  args: {
+    userId: v.id("users"),
+    amountSantims: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!Number.isInteger(args.amountSantims) || args.amountSantims <= 0) {
+      throw new Error("AMOUNT_MUST_BE_POSITIVE");
+    }
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("USER_NOT_FOUND");
+
+    const wallet = await ctx.db
+      .query("wallets")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique();
+    if (!wallet || wallet.paidBalanceSantims < args.amountSantims) {
+      throw new Error("INSUFFICIENT_USER_BALANCE");
+    }
+
+    const now = Date.now();
+    await deductUser(ctx, {
+      userId: args.userId,
+      amountSantims: args.amountSantims,
+      reason: args.reason,
+      reference: `admin:${adminId}`,
+      idempotencyKey: `ADMIN_DEDUCT:${crypto.randomUUID()}`,
+      now,
+    });
+
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "WALLET_DEDUCTED",
+      resource: `user:${args.userId}`,
+      details: `amount=${args.amountSantims} reason=${args.reason}`,
+      now,
+    });
+    await insertNotification(ctx, {
+      userId: args.userId,
+      type: "SYSTEM",
+      title: "Wallet adjusted",
+      body: `${Math.floor(args.amountSantims / 100)}.${String(args.amountSantims % 100).padStart(2, "0")} ETB was deducted from your wallet. Reason: ${args.reason}`,
+      now,
+    });
+    return { ok: true, adminId };
+
 // ─── Campaign management (spec §10, §41) ────────────────────────────────────
 
 function validateCampaignConfig(
