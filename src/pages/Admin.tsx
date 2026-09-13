@@ -1673,6 +1673,14 @@ function CampaignForm({
                 inputMode="numeric"
               />
             </Field>
+            <Field label="Starts in (hours, 0 = now)">
+              <Input
+                value={startInHours}
+                onChange={(e) => setStartInHours(e.target.value)}
+                className="font-mono"
+                inputMode="numeric"
+              />
+            </Field>
             <div className="flex items-end pb-1">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <Switch
@@ -1811,7 +1819,7 @@ function CampaignForm({
                 prizeImageFile,
                 title: title.trim(),
                 description: description.trim(),
-                opensAt: now,
+                opensAt,
                 closesAt,
                 minBidSantims: minS,
                 maxBidSantims: maxS,
