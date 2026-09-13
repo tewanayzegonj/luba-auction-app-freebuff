@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, query } from "./_generated/server";
 
 /**
  * Chapa payment adapter (spec §22 provider seam).
@@ -71,6 +71,22 @@ export function getChapaSecretKey(): string | undefined {
 export function isChapaConfigured(): boolean {
   return Boolean(getChapaSecretKey());
 }
+
+/**
+ * Setup status for the wallet UI. Reports only whether credentials exist —
+ * never the values themselves.
+ */
+export const getChapaStatus = query({
+  args: {},
+  handler: async () => {
+    const secretKey = getChapaSecretKey();
+    const webhookSecret = Boolean(process.env.CHAPA_WEBHOOK_SECRET);
+    return {
+      configured: Boolean(secretKey),
+      webhookSecretSet: webhookSecret,
+    };
+  },
+});
 
 /** Extract ETB santims from a Chapa decimal amount string like "400.00". */
 export function chapaAmountToSantims(amount: string): number | null {

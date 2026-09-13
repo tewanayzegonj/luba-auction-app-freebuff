@@ -66,6 +66,8 @@ export default function Dashboard() {
   );
   const [busy, setBusy] = useState<string | null>(null);
 
+  const chapaStatus = useQuery(api.chapa.getChapaStatus, {});
+
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length;
   const activeBidAuctionIds = new Set(
     (myBids ?? [])
@@ -527,6 +529,40 @@ export default function Dashboard() {
                       </Button>
                     ))}
                   </div>
+                  {chapaStatus && (
+                    <div
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-5",
+                        chapaStatus.configured && chapaStatus.webhookSecretSet
+                          ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
+                          : "border-amber-500/30 bg-amber-500/5 text-amber-200",
+                      )}
+                    >
+                      {chapaStatus.configured && chapaStatus.webhookSecretSet ? (
+                        <>
+                          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                          <span>
+                            <span className="font-semibold">Chapa is live.</span>{" "}
+                            telebirr, CBE Birr, M-Pesa, and card payments are
+                            active.
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="mt-0.5 size-4 shrink-0" />
+                          <span>
+                            <span className="font-semibold">
+                              Online payments pending setup.
+                            </span>{" "}
+                            {chapaStatus.configured
+                              ? "Add CHAPA_WEBHOOK_SECRET to receive payment confirmations."
+                              : "Add CHAPA_SECRET_KEY (and CHAPA_WEBHOOK_SECRET) in the project's Keys tab, then create a Chapa business account at chapa.co."}{" "}
+                            Until then, use the sandbox deposit below.
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    )}
                   <div className="rounded-xl border border-border bg-secondary/40 p-3">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       Payment method
