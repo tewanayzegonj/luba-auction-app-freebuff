@@ -1467,6 +1467,7 @@ function CampaignForm({
   const [description, setDescription] = useState("");
   const [durationDays, setDurationDays] = useState("3");
   const [openImmediately, setOpenImmediately] = useState(true);
+  const [startInHours, setStartInHours] = useState("0");
   const [minBid, setMinBid] = useState("1");
   const [maxBid, setMaxBid] = useState("100");
   const [increment, setIncrement] = useState("0.01");
@@ -1483,7 +1484,8 @@ function CampaignForm({
 
   const DAY = 86_400_000;
   const now = Date.now();
-  const closesAt = now + (Number(durationDays) || 3) * DAY;
+  const opensAt = now + Math.max(0, Number(startInHours) || 0) * 3_600_000;
+  const closesAt = opensAt + (Number(durationDays) || 3) * DAY;
 
   const money = (v: string): number | null => {
     if (!/^\d+(\.\d{1,2})?$/.test(v.trim())) return null;
