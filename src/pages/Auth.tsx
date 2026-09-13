@@ -116,10 +116,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     </span>
                   </div>
                   <CardTitle className="text-xl">
-                    Sign in to LUBA Ethiopia
+                    Sign in to Luba
                   </CardTitle>
                   <CardDescription>
-                    The lowest unique bid wins. Enter your email to get started.
+                    Enter your email and we'll send a one-time code. New here?
+                    That's the whole sign-up.
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleEmailSubmit}>
@@ -156,17 +157,18 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     <ul className="mt-5 space-y-2 text-xs leading-5 text-muted-foreground">
                       <li className="flex items-start gap-2">
                         <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                        We email you a one-time code — no password to forget.
+                        We email you a one-time code — there's no password to
+                        manage or leak.
                       </li>
                       <li className="flex items-start gap-2">
                         <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                        Every bid is confirmed instantly and recorded in an
-                        auditable ledger.
+                        Every accepted bid is confirmed instantly and recorded on
+                        an auditable ledger.
                       </li>
                       <li className="flex items-start gap-2">
                         <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                        Bidding on LUBA requires accepting the Terms and being
-                        18+.
+                        Bidding requires a verified account and acceptance of the
+                        terms. 18+.
                       </li>
                     </ul>
                   </CardContent>
@@ -261,9 +263,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               </>
             )}
 
-            <div className="rounded-b-lg border-t bg-muted px-6 py-4 py-4 text-center text-xs text-muted-foreground">
-              Secured by one-time codes. By continuing you accept LUBA's Terms
-              &amp; Conditions and confirm you are 18+.
+            <div className="rounded-b-lg border-t bg-muted px-6 py-4 text-center text-xs text-muted-foreground">
+              Secured by one-time codes. By continuing you accept Luba's Terms
+              &amp; Conditions and confirm you are 18 or older.
             </div>
           </Card>
         </div>

@@ -38,12 +38,12 @@ export function LubaWordmark({ to = "/" }: { to?: string }) {
     <Link to={to} className="flex items-center gap-2.5">
       <LubaMark />
       <div className="leading-none">
-        <div className="text-[17px] font-bold tracking-tight">LUBA</div>
-        <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          Ethiopia
+        <div className="text-[17px] font-semibold tracking-tight">Luba</div>
+        <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Unique-bid auctions
         </div>
       </div>
-      <span className="sr-only">LUBA Ethiopia home</span>
+      <span className="sr-only">Luba — home</span>
     </Link>
   );
 }
@@ -154,8 +154,9 @@ export function SiteFooter() {
         <div>
           <LubaWordmark />
           <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
-            The lowest unique bid wins. Fair, deterministic, and
-            server-authoritative auctions for Ethiopia.
+            A lowest-unique-bid auction engine: deterministic settlement,
+            server-authoritative timing, and an append-only ledger behind every
+            fee.
           </p>
         </div>
         <div>
@@ -187,8 +188,8 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-border/70 py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} LUBA Ethiopia. All rights reserved.
+      <div className="border-t border-border/70 py-4 text-center font-mono text-xs text-muted-foreground">
+        © {new Date().getFullYear()} Luba. All rights reserved.
       </div>
     </footer>
   );
@@ -264,12 +265,12 @@ export function Countdown({
 // ─── Prize visual ───────────────────────────────────────────────────────────
 
 const PRIZE_GRADIENTS = [
-  "from-teal-100 to-cyan-50",
-  "from-amber-100 to-orange-50",
-  "from-sky-100 to-blue-50",
-  "from-emerald-100 to-teal-50",
-  "from-violet-100 to-purple-50",
-  "from-rose-100 to-pink-50",
+  "from-[oklch(0.22_0.03_210)] to-[oklch(0.15_0.012_250)]",
+  "from-[oklch(0.23_0.03_260)] to-[oklch(0.15_0.012_250)]",
+  "from-[oklch(0.22_0.035_170)] to-[oklch(0.15_0.012_250)]",
+  "from-[oklch(0.24_0.03_80)] to-[oklch(0.15_0.012_250)]",
+  "from-[oklch(0.23_0.03_320)] to-[oklch(0.15_0.012_250)]",
+  "from-[oklch(0.23_0.035_25)] to-[oklch(0.15_0.012_250)]",
 ];
 
 export function PrizeVisual({
@@ -297,12 +298,19 @@ export function PrizeVisual({
   return (
     <div
       className={cn(
-        "flex h-full w-full items-center justify-center bg-gradient-to-br",
+        "relative flex h-full w-full items-center justify-center overflow-hidden bg-gradient-to-br",
         gradient,
         className,
       )}
     >
-      <span className="text-5xl drop-shadow-sm">{emoji ?? "🎁"}</span>
+      {/* faint technical grid */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(oklch(1_0_0)_1px,transparent_1px),linear-gradient(90deg,oklch(1_0_0)_1px,transparent_1px)] [background-size:22px_22px]"
+      />
+      <span className="relative text-5xl drop-shadow-[0_6px_16px_oklch(0_0_0/0.45)]">
+        {emoji ?? "🎁"}
+      </span>
     </div>
   );
 }
@@ -319,17 +327,17 @@ function hashSeed(seed: string): number {
 
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    OPEN: "bg-emerald-100 text-emerald-800",
-    CLOSING: "bg-amber-100 text-amber-800",
-    SCHEDULED: "bg-sky-100 text-sky-800",
-    CLOSED: "bg-stone-200 text-stone-700",
-    SETTLING: "bg-violet-100 text-violet-800",
-    COMPLETED: "bg-teal-100 text-teal-800",
-    CANCELLED: "bg-rose-100 text-rose-800",
+    OPEN: "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/30",
+    CLOSING: "bg-amber-500/10 text-amber-300 ring-1 ring-inset ring-amber-500/30",
+    SCHEDULED: "bg-sky-500/10 text-sky-300 ring-1 ring-inset ring-sky-500/30",
+    CLOSED: "bg-foreground/5 text-muted-foreground ring-1 ring-inset ring-foreground/10",
+    SETTLING: "bg-violet-500/10 text-violet-300 ring-1 ring-inset ring-violet-500/30",
+    COMPLETED: "bg-teal-500/10 text-teal-300 ring-1 ring-inset ring-teal-500/30",
+    CANCELLED: "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/30",
   };
   return (
-    <Badge className={cn("border-transparent font-semibold", styles[status] ?? "bg-secondary text-secondary-foreground")}>
-      {status === "OPEN" && <span className="mr-1.5 inline-block size-1.5 animate-pulse rounded-full bg-emerald-500" />}
+    <Badge className={cn("border-transparent bg-transparent font-medium font-mono text-xs uppercase tracking-wider", styles[status] ?? "bg-secondary text-secondary-foreground")}>
+      {status === "OPEN" && <span className="mr-1.5 inline-block size-1.5 animate-pulse rounded-full bg-emerald-400" />}
       {status.charAt(0) + status.slice(1).toLowerCase()}
     </Badge>
   );
@@ -374,7 +382,7 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
           <StatusBadge status={auction.status} />
         </div>
         {prize?.category && (
-          <span className="absolute right-3 top-3 rounded-full bg-background/85 px-2.5 py-1 text-[11px] font-medium text-foreground/80 backdrop-blur">
+          <span className="absolute right-3 top-3 rounded-full bg-background/70 px-2.5 py-1 font-mono text-[11px] font-medium text-foreground/80 ring-1 ring-inset ring-foreground/10 backdrop-blur">
             {prize.category}
           </span>
         )}
@@ -402,7 +410,7 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
           </div>
           <div className="flex items-center justify-between border-t border-border/70 pt-3">
             <Countdown to={auction.closesAt} compact />
-            <span className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+            <span className="rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-xs font-semibold text-primary ring-1 ring-inset ring-primary/20">
               Fee {formatETBShort(auction.bidServiceFeeSantims)}
             </span>
           </div>

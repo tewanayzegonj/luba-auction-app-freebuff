@@ -127,8 +127,8 @@ export default function Dashboard() {
         {/* Header row */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-muted-foreground">
-              Your workspace
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              Account overview
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">
               Welcome{user?.name ? `, ${user.name}` : ""}
@@ -172,8 +172,8 @@ export default function Dashboard() {
 
         {/* Pay-your-win banner */}
         {pendingSettlements.length > 0 && (
-          <div className="mt-6 rounded-2xl border border-amber-300/60 bg-amber-50 p-5">
-            <h2 className="flex items-center gap-2 font-semibold text-amber-900">
+          <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+            <h2 className="flex items-center gap-2 font-semibold text-amber-300">
               <Trophy className="size-5" />
               Congratulations — you have {pendingSettlements.length === 1 ? "a win" : `${pendingSettlements.length} wins`} to pay
             </h2>
@@ -184,7 +184,7 @@ export default function Dashboard() {
                   className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-card p-4"
                 >
                   <div>
-                    <p className="text-sm font-semibold">
+                    <p className="font-mono text-sm font-semibold">
                       Winning bid {formatETB(s.winningBidValueSantims)}
                     </p>
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -295,8 +295,8 @@ export default function Dashboard() {
                               className={cn(
                                 "border-transparent",
                                 b.status === "ACCEPTED"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-rose-100 text-rose-700",
+                                  ? "bg-emerald-500/10 text-emerald-300"
+                                  : "bg-rose-500/10 text-rose-300",
                               )}
                             >
                               {b.status === "ACCEPTED" ? "Accepted" : "Refunded"}
@@ -480,7 +480,7 @@ export default function Dashboard() {
                       className={cn(
                         "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg",
                         n.type === "WINNER_ANNOUNCED"
-                          ? "bg-amber-100 text-amber-700"
+                          ? "bg-amber-500/10 text-amber-300"
                           : "bg-primary/10 text-primary",
                       )}
                     >
@@ -543,7 +543,7 @@ export default function Dashboard() {
                   <span className="text-muted-foreground">
                     Verification status
                   </span>
-                  <Badge className="border-transparent bg-emerald-100 text-emerald-800">
+                  <Badge className="border-transparent bg-emerald-500/10 text-emerald-300">
                     Verified
                   </Badge>
                 </div>
@@ -629,10 +629,10 @@ function PaymentsList() {
               className={cn(
                 "mt-0.5 border-transparent",
                 p.status === "COMPLETED"
-                  ? "bg-emerald-100 text-emerald-800"
+                  ? "bg-emerald-500/10 text-emerald-300"
                   : p.status === "PENDING"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-rose-100 text-rose-700",
+                    ? "bg-amber-500/10 text-amber-300"
+                    : "bg-rose-500/10 text-rose-300",
               )}
             >
               {p.status}

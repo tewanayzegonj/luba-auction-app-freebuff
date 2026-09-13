@@ -371,11 +371,10 @@ export default function AuctionPage() {
             )}
 
             {/* Rules card (spec §36) */}
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">
-              <h3 className="flex items-center gap-2 font-semibold">
-                <Info className="size-4 text-primary" />
-                Bid rules
-              </h3>
+            <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">                    <h3 className="flex items-center gap-2 font-semibold">
+                      <Info className="size-4 text-primary" />
+                      Auction rules
+                    </h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center justify-between gap-4">
                   <span>Bid range</span>
@@ -424,9 +423,9 @@ export default function AuctionPage() {
               <div className="flex items-start gap-2.5 text-xs leading-5 text-muted-foreground">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
                 <p>
-                  By bidding you accept LUBA's Terms &amp; Conditions. The bid
+                  By bidding you accept Luba's Terms &amp; Conditions. The bid
                   amount is only charged if you win. All times and results are
-                  determined by LUBA servers. 18+ only.
+                  determined by Luba's servers. 18+ only.
                 </p>
               </div>
             </div>
@@ -468,8 +467,8 @@ export default function AuctionPage() {
                         className={cn(
                           "text-xs",
                           taken
-                            ? "text-amber-600"
-                            : "text-emerald-600",
+                            ? "text-amber-400"
+                            : "text-emerald-400",
                         )}
                       >
                         {taken
@@ -572,9 +571,9 @@ export default function AuctionPage() {
                         "rounded-md px-2 py-1 font-mono text-xs",
                         b.status === "ACCEPTED"
                           ? (uniqueMap.get(b.bidValueSantims) ?? 0) === 1
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-secondary text-secondary-foreground"
-                          : "bg-rose-50 text-rose-700 line-through",
+                            ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
+                            : "bg-secondary text-secondary-foreground ring-1 ring-inset ring-foreground/5"
+                          : "bg-rose-500/10 text-rose-300 line-through",
                       )}
                     >
                       {formatETB(b.bidValueSantims)}

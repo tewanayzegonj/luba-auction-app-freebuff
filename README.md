@@ -1,4 +1,4 @@
-# LUBA Ethiopia — Lowest Unique Bid Auction Platform
+# Luba — Lowest Unique Bid Auction Platform
 
 **The lowest unique bid wins.** Not the lowest bid — the lowest amount submitted
 exactly once.
