@@ -1480,3 +1480,320 @@ export const updatePrize = mutation({
     return { ok: true };
   },
 });
+
+// ─── User oversight: profile drawer & balance deduction ─────────────────────
+
+/**
+ * Full profile for one user: identity, wallet, bid statistics, complete bid
+ * history, wins, and payment history. Powers the admin user-detail drawer.
+ */
+export const getUserProfileAdmin = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("USER_NOT_FOUND");
+
+    const [bids, settlements, payments, wallets] = await Promise.all([
+      ctx.db
+        .query("auctionBids")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+      ctx.db
+        .query("winnerSettlements")
+        .withIndex("by_winner", (q) => q.eq("winnerUserId", args.userId))
+        .collect(),
+      ctx.db
+        .query("payments")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+      ctx.db
+        .query("wallets")
+        .withIndex("by_user", (q) => q.eq("userId", args.userId))
+        .collect(),
+    ]);
+
+    const auctionIds = [...new Set(bids.map((b) => b.auctionId))];
+    const auctions = await Promise.all(auctionIds.map((id) => ctx.db.get(id)));
+    const auctionById = new Map(
+      auctions.filter((a) => a !== null).map((a) => [a._id, a]),
+    );
+
+    const accepted = bids.filter((b) => b.status === "ACCEPTED");
+    const now = Date.now();
+
+    return {
+      user: {
+        id: user._id,
+        email: user.email ?? null,
+        name: user.name ?? null,
+        role: user.role ?? null,
+        status: user.status ?? "ACTIVE",
+        kycStatus: user.kycStatus ?? "UNVERIFIED",
+        createdAt: user._creationTime,
+      },
+      wallet: wallets[0]
+        ? {
+            paidSantims: wallets[0].paidBalanceSantims,
+            promoSantims: wallets[0].promoBalanceSantims,
+            totalDepositedSantims: wallets[0].totalDepositedSantims,
+            totalSpentSantims: wallets[0].totalSpentSantims,
+          }
+        : null,
+      bidStats: {
+        total: bids.length,
+        accepted: accepted.length,
+        removed: bids.filter((b) => b.status === "REMOVED").length,
+        refunded: bids.filter((b) => b.status === "REFUNDED").length,
+        auctionsEntered: auctionIds.length,
+        feesPaidSantims: accepted.reduce((s, b) => s + b.bidServiceFeeSantims, 0),
+      },
+      bids: bids
+        .sort((a, b) => b.acceptedAt - a.acceptedAt)
+        .slice(0, 100)
+        .map((b) => {
+          const a = auctionById.get(b.auctionId);
+          return {
+            id: b._id,
+            auctionCode: a?.auctionCode ?? "—",
+            auctionTitle: a?.title ?? "—",
+            bidValueSantims: b.bidValueSantims,
+            feeSantims: b.bidServiceFeeSantims,
+            status: b.status,
+            acceptedAt: b.acceptedAt,
+          };
+        }),
+      wins: settlements.map((s) => {
+        const a = auctionById.get(s.auctionId);
+        return {
+          settlementId: s._id,
+          auctionCode: a?.auctionCode ?? "—",
+          winningBidValueSantims: s.winningBidValueSantims,
+          status: s.status,
+          overdue: s.status === "PENDING_PAYMENT" && s.paymentDeadline < now,
+          paymentDeadline: s.paymentDeadline,
+        };
+      }),
+      payments: payments
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, 50)
+        .map((p) => ({
+          id: p._id,
+          amountSantims: p.amountSantims,
+          kind: p.kind,
+          provider: p.provider,
+          status: p.status,
+          createdAt: p.createdAt,
+        })),
+    };
+  },
+});
+
+/**
+ * Deduct from a user's paid balance (support corrections, chargebacks,
+ * error fixes). A compensating DEBIT posting — the ledger correction
+ * pattern (spec §20) — refused if it would drive the balance negative
+ * (Invariant 2). Audited; the user is notified.
+ */
+export const adminDeductWallet = mutation({
+  args: {
+    userId: v.id("users"),
+    amountSantims: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!Number.isInteger(args.amountSantims) || args.amountSantims <= 0) {
+      throw new Error("DEDUCT_AMOUNT_MUST_BE_POSITIVE");
+    }
+    if (!args.reason.trim()) throw new Error("REASON_REQUIRED");
+
+    const wallet = await ctx.db
+      .query("wallets")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .unique();
+    const balance = wallet?.paidBalanceSantims ?? 0;
+    if (balance < args.amountSantims) {
+      throw new Error(
+        `INSUFFICIENT_BALANCE_${balance}_AVAILABLE_${args.amountSantims}_REQUESTED`,
+      );
+    }
+
+    const now = Date.now();
+    await deductUser(ctx, {
+      userId: args.userId,
+      amountSantims: args.amountSantims,
+      reason: args.reason,
+      reference: `admin:${adminId}`,
+      idempotencyKey: `ADMIN_DEDUCT:${crypto.randomUUID()}`,
+      now,
+    });
+
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "WALLET_DEDUCTED",
+      resource: `user:${args.userId}`,
+      details: `amount=${args.amountSantims} reason=${args.reason}`,
+      now,
+    });
+    await insertNotification(ctx, {
+      userId: args.userId,
+      type: "SYSTEM",
+      title: "Wallet adjusted",
+      body: `An adjustment reduced your wallet balance. Reason: ${args.reason}`,
+      now,
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Auction lifecycle: force close (spec §41) ──────────────────────────────
+
+/**
+ * Forcefully close a live auction (emergency stop). Flips it to CLOSED;
+ * the lifecycle worker settles it deterministically on the next tick.
+ * Allowed from OPEN / CLOSING / PAUSED only.
+ */
+export const forceCloseAuction = mutation({
+  args: { auctionId: v.id("auctions"), reason: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const auction = await ctx.db.get(args.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (
+      auction.status !== "OPEN" &&
+      auction.status !== "CLOSING" &&
+      auction.status !== "PAUSED"
+    ) {
+      throw new Error(`CANNOT_CLOSE_FROM_${auction.status}`);
+    }
+
+    const now = Date.now();
+    ctx.db.patch(args.auctionId, {
+      status: "CLOSED",
+      closesAt: now,
+      updatedAt: now,
+    });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_FORCE_CLOSED",
+      resource: `auction:${args.auctionId}`,
+      details: `code=${auction.auctionCode} reason=${args.reason}`,
+      now,
+    });
+    await ctx.db.insert("outboxEvents", {
+      eventType: "AUCTION_FORCE_CLOSED",
+      payload: { auctionId: args.auctionId, code: auction.auctionCode },
+      processed: false,
+      createdAt: now,
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Transaction ledger browser (spec §41 reconciliation) ───────────────────
+
+/**
+ * Historical ledger of every monetary transaction with its balanced
+ * entries — the reconciliation view for spotting internal errors.
+ */
+export const listLedgerTransactions = query({
+  args: { txType: v.optional(v.string()), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const txs = await ctx.db.query("ledgerTransactions").collect();
+    const filtered = args.txType
+      ? txs.filter((t) => t.txType === args.txType)
+      : txs;
+    const slice = filtered
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, args.limit ?? 100);
+
+    const entries = await ctx.db.query("ledgerEntries").collect();
+    const accounts = await ctx.db.query("ledgerAccounts").collect();
+    const accountById = new Map(accounts.map((a) => [a._id, a]));
+    const entriesByTx = new Map<Id<"ledgerTransactions">, typeof entries>();
+    for (const e of entries) {
+      const list = entriesByTx.get(e.transactionId) ?? [];
+      list.push(e);
+      entriesByTx.set(e.transactionId, list);
+    }
+
+    return slice.map((t) => {
+      const txEntries = entriesByTx.get(t._id) ?? [];
+      const debits = txEntries
+        .filter((e) => e.direction === "DEBIT")
+        .reduce((s, e) => s + e.amountSantims, 0);
+      const credits = txEntries
+        .filter((e) => e.direction === "CREDIT")
+        .reduce((s, e) => s + e.amountSantims, 0);
+      return {
+        id: t._id,
+        txType: t.txType,
+        description: t.description,
+        reference: t.reference,
+        createdAt: t.createdAt,
+        balanced: debits === credits,
+        debitsSantims: debits,
+        creditsSantims: credits,
+        lines: txEntries.map((e) => ({
+          account: accountById.get(e.accountId)?.code ?? "?",
+          direction: e.direction,
+          amountSantims: e.amountSantims,
+        })),
+      };
+    });
+  },
+});
+
+// ─── Gateway controls (spec §22 provider seam, admin-operated) ─────────────
+
+const PAYMENT_GATEWAYS = ["chapa", "manual"] as const;
+
+/** Current gateway switches (admin view; booleans only, no secrets). */
+export const getGatewaySettings = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const rows = await ctx.db.query("platformSettings").collect();
+    const byKey = new Map(rows.map((r) => [r.key, r.value]));
+    return PAYMENT_GATEWAYS.map((gateway) => ({
+      gateway,
+      enabled: byKey.get(`GATEWAY_${gateway.toUpperCase()}_ENABLED`) ?? true,
+      configured: gateway === "chapa" ? isChapaConfigured() : true,
+    }));
+  },
+});
+
+/** Enable or disable a payment gateway (admin only, audited). */
+export const setGatewayEnabled = mutation({
+  args: { gateway: v.string(), enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!PAYMENT_GATEWAYS.includes(args.gateway as (typeof PAYMENT_GATEWAYS)[number])) {
+      throw new Error("UNKNOWN_GATEWAY");
+    }
+    const settingKey = `GATEWAY_${args.gateway.toUpperCase()}_ENABLED`;
+    const existing = await ctx.db
+      .query("platformSettings")
+      .withIndex("by_key", (q) => q.eq("key", settingKey))
+      .unique();
+    if (existing) {
+      ctx.db.patch(existing._id, { value: args.enabled, updatedAt: Date.now() });
+    } else {
+      ctx.db.insert("platformSettings", {
+        key: settingKey,
+        value: args.enabled,
+        updatedAt: Date.now(),
+      });
+    }
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "GATEWAY_TOGGLED",
+      resource: `gateway:${args.gateway}`,
+      details: `enabled=${args.enabled}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
