@@ -8,7 +8,7 @@ import {
   ROLES,
   roleValidator,
 } from "./schema";
-import { deposit, ensureWallet, refundUser } from "./lib/finance";
+import { deductUser, deposit, ensureWallet, refundUser } from "./lib/finance";
 import { ACCOUNT_CODES, postTransaction } from "./lib/ledger";
 import { insertAuditLog, insertNotification } from "./lib/notifications";
 import { isChapaConfigured } from "./chapa";
@@ -420,59 +420,6 @@ export const adminAdjustWallet = mutation({
     return { ok: true, adminId };
   },
 });
-
-/**
- * Admin deduction: remove funds from a user's paid balance (fraud recovery,
- * erroneous-credit correction). Ledger-guarded: cannot take the balance
- * negative. Fully audited and notified.
- */
-export const adminDeductWallet = mutation({
-  args: {
-    userId: v.id("users"),
-    amountSantims: v.number(),
-    reason: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const adminId = await requireAdmin(ctx);
-    if (!Number.isInteger(args.amountSantims) || args.amountSantims <= 0) {
-      throw new Error("AMOUNT_MUST_BE_POSITIVE");
-    }
-    const target = await ctx.db.get(args.userId);
-    if (!target) throw new Error("USER_NOT_FOUND");
-
-    const wallet = await ctx.db
-      .query("wallets")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .unique();
-    if (!wallet || wallet.paidBalanceSantims < args.amountSantims) {
-      throw new Error("INSUFFICIENT_USER_BALANCE");
-    }
-
-    const now = Date.now();
-    await deductUser(ctx, {
-      userId: args.userId,
-      amountSantims: args.amountSantims,
-      reason: args.reason,
-      reference: `admin:${adminId}`,
-      idempotencyKey: `ADMIN_DEDUCT:${crypto.randomUUID()}`,
-      now,
-    });
-
-    await insertAuditLog(ctx, {
-      actor: adminId,
-      action: "WALLET_DEDUCTED",
-      resource: `user:${args.userId}`,
-      details: `amount=${args.amountSantims} reason=${args.reason}`,
-      now,
-    });
-    await insertNotification(ctx, {
-      userId: args.userId,
-      type: "SYSTEM",
-      title: "Wallet adjusted",
-      body: `${Math.floor(args.amountSantims / 100)}.${String(args.amountSantims % 100).padStart(2, "0")} ETB was deducted from your wallet. Reason: ${args.reason}`,
-      now,
-    });
-    return { ok: true, adminId };
 
 // ─── Campaign management (spec §10, §41) ────────────────────────────────────
 
@@ -1667,7 +1614,6 @@ export const adminDeductWallet = mutation({
     }
     if (!args.reason.trim()) throw new Error("REASON_REQUIRED");
 
-    // Refuse if the balance cannot absorb the deduction.
     const wallet = await ctx.db
       .query("wallets")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -1676,37 +1622,17 @@ export const adminDeductWallet = mutation({
     if (balance < args.amountSantims) {
       throw new Error(
         `INSUFFICIENT_BALANCE_${balance}_AVAILABLE_${args.amountSantims}_REQUESTED`,
- );
- }
+      );
+    }
 
-    await postTransaction(ctx, {
-      txType: "ADMIN_ADJUSTMENT",
-      description: `Admin deduction: ${args.reason}`,
-      reference: args.userId,
+    const now = Date.now();
+    await deductUser(ctx, {
+      userId: args.userId,
+      amountSantims: args.amountSantims,
+      reason: args.reason,
+      reference: `admin:${adminId}`,
       idempotencyKey: `ADMIN_DEDUCT:${crypto.randomUUID()}`,
-      now: Date.now(),
-      lines: [
-        {
-          accountCode: ACCOUNT_CODES.userPaid(args.userId),
-          accountName: "User paid balance",
-          accountType: "LIABILITY",
-          direction: "DEBIT",
-          amountSantims: args.amountSantims,
-        },
-        {
-          accountCode: ACCOUNT_CODES.revenue,
-          accountName: "Platform revenue",
-          accountType: "REVENUE",
-          direction: "CREDIT",
-          amountSantims: args.amountSantims,
-        },
-      ],
-    });
-
-    const w = await ensureWallet(ctx, args.userId);
-    ctx.db.patch(w._id, {
-      paidBalanceSantims: w.paidBalanceSantims - args.amountSantims,
-      updatedAt: Date.now(),
+      now,
     });
 
     await insertAuditLog(ctx, {
@@ -1714,14 +1640,14 @@ export const adminDeductWallet = mutation({
       action: "WALLET_DEDUCTED",
       resource: `user:${args.userId}`,
       details: `amount=${args.amountSantims} reason=${args.reason}`,
-      now: Date.now(),
+      now,
     });
     await insertNotification(ctx, {
       userId: args.userId,
       type: "SYSTEM",
       title: "Wallet adjusted",
       body: `An adjustment reduced your wallet balance. Reason: ${args.reason}`,
-      now: Date.now(),
+      now,
     });
     return { ok: true };
   },

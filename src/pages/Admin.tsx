@@ -1101,6 +1101,73 @@ function AdminConsole() {
                 <p className="text-sm text-muted-foreground">
                   All figures are computed from the append-only double-entry ledger — the financial source of truth. Pending deposits are awaiting provider confirmation; {finance.pendingSettlements} winner claim{finance.pendingSettlements === 1 ? "" : "s"} await payment ({finance.overdueSettlements} overdue). {finance.txCount} ledger transactions posted to date.
                 </p>
+
+                {/* Transaction ledger browser (spec §41 reconciliation) */}
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Transaction ledger (latest {ledgerTxs?.length ?? 0})
+                  </p>
+                  {ledgerTxs === undefined ? (
+                    <LoadingRows />
+                  ) : ledgerTxs.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                      No transactions posted yet.
+                    </p>
+                  ) : (
+                    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                            <th className="px-4 py-3 font-medium">When</th>
+                            <th className="px-4 py-3 font-medium">Type</th>
+                            <th className="px-4 py-3 font-medium">Description</th>
+                            <th className="px-4 py-3 font-medium">Debit = Credit</th>
+                            <th className="px-4 py-3 font-medium">Entries</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ledgerTxs.map((t) => (
+                            <tr
+                              key={t.id}
+                              className="border-b border-border/60 align-top last:border-0 hover:bg-secondary/30"
+                            >
+                              <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                                {new Date(t.createdAt).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge
+                                  variant="outline"
+                                  className="font-mono text-[10px] uppercase"
+                                >
+                                  {t.txType}
+                                </Badge>
+                              </td>
+                              <td className="max-w-xs px-4 py-3 text-xs text-muted-foreground">
+                                {t.description}
+                              </td>
+                              <td className="px-4 py-3 font-mono text-xs">
+                                <span
+                                  className={cn(
+                                    t.balanced ? "text-emerald-300" : "font-bold text-rose-400",
+                                  )}
+                                >
+                                  {formatETB(t.debitsSantims)} = {formatETB(t.creditsSantims)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
+                                {t.lines.map((l, i) => (
+                                  <div key={i}>
+                                    {l.direction === "DEBIT" ? "DR" : "CR"} {l.account} {formatETB(l.amountSantims)}
+                                  </div>
+                                ))}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </TabsContent>
@@ -1141,6 +1208,47 @@ function AdminConsole() {
                       </div>
                     ))
                   )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Payment gateways</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {gateways === undefined ? (
+                    <LoadingRows />
+                  ) : (
+                    gateways.map((g) => (
+                      <div
+                        key={g.gateway}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium capitalize">{g.gateway}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {g.configured
+                              ? g.enabled
+                                ? "Active — users can top up through it"
+                                : "Configured but disabled"
+                              : "Keys not set yet"}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={g.enabled}
+                          disabled={busy === `gw-${g.gateway}` || !g.configured}
+                          onCheckedChange={(enabled) =>
+                            void act(`gw-${g.gateway}`, () =>
+                              setGatewayEnabled({ gateway: g.gateway, enabled }),
+                            )
+                          }
+                        />
+                      </div>
+                    ))
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Disabling a gateway immediately stops new top-ups through it. The sandbox gateway is for testing only — disable before going live.
+                  </p>
                 </CardContent>
               </Card>
 
@@ -1357,6 +1465,251 @@ function AdminConsole() {
               Send to all users
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  /**
+   * Full profile drawer for one user — wallet, bid activity, wins and
+   * payment history, backed by the admin-only getUserProfileAdmin query.
+   */
+  function UserProfileDialog({
+    userId,
+    onClose,
+  }: {
+    userId: Id<"users"> | null;
+    onClose: () => void;
+  }) {
+    const profile = useQuery(
+      api.admin.getUserProfileAdmin,
+      userId ? { userId } : "skip",
+    );
+
+    return (
+      <Dialog
+        open={userId !== null}
+        onOpenChange={(open) => {
+          if (!open) onClose();
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>User profile</DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              {profile === undefined
+                ? "Loading…"
+                : profile.user.email ?? "unknown user"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {profile === undefined ? (
+            <LoadingRows />
+          ) : (
+            <ScrollArea className="max-h-[60vh] pr-3">
+              <div className="space-y-4">
+                {/* Identity + flags */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">
+                    {profile.user.name ?? "Unnamed user"}
+                  </span>
+                  <Badge
+                    className={cn(
+                      "border-transparent",
+                      profile.user.role === "admin"
+                        ? "bg-primary/15 text-primary"
+                        : "bg-secondary text-secondary-foreground",
+                    )}
+                  >
+                    {profile.user.role ?? "user"}
+                  </Badge>
+                  <Badge
+                    className={cn(
+                      "border-transparent",
+                      profile.user.status === "ACTIVE"
+                        ? "bg-emerald-500/10 text-emerald-300"
+                        : "bg-rose-500/10 text-rose-300",
+                    )}
+                  >
+                    {profile.user.status}
+                  </Badge>
+                  <Badge
+                    className={cn(
+                      "border-transparent",
+                      profile.user.kycStatus === "VERIFIED"
+                        ? "bg-emerald-500/10 text-emerald-300"
+                        : "bg-amber-500/10 text-amber-300",
+                    )}
+                  >
+                    KYC {profile.user.kycStatus}
+                  </Badge>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    Registered {new Date(profile.user.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+
+                {/* Wallet */}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                    <p className="text-xs text-muted-foreground">Paid balance</p>
+                    <p className="mt-0.5 font-semibold">
+                      {formatETB(profile.wallet?.paidSantims ?? 0)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                    <p className="text-xs text-muted-foreground">Promo balance</p>
+                    <p className="mt-0.5 font-semibold">
+                      {formatETB(profile.wallet?.promoSantims ?? 0)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                    <p className="text-xs text-muted-foreground">Deposited</p>
+                    <p className="mt-0.5 font-semibold">
+                      {formatETB(profile.wallet?.totalDepositedSantims ?? 0)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                    <p className="text-xs text-muted-foreground">Spent</p>
+                    <p className="mt-0.5 font-semibold">
+                      {formatETB(profile.wallet?.totalSpentSantims ?? 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Bid stats */}
+                <div className="rounded-lg border border-border p-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Bid activity
+                  </p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                    <span>
+                      <b>{profile.bidStats.total}</b> bids
+                    </span>
+                    <span>
+                      <b>{profile.bidStats.accepted}</b> accepted
+                    </span>
+                    <span>
+                      <b>{profile.bidStats.removed}</b> removed
+                    </span>
+                    <span>
+                      <b>{profile.bidStats.refunded}</b> refunded
+                    </span>
+                    <span>
+                      <b>{profile.bidStats.auctionsEntered}</b> auctions
+                    </span>
+                    <span>
+                      Fees paid {formatETB(profile.bidStats.feesPaidSantims)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Wins */}
+                {profile.wins.length > 0 && (
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Wins
+                    </p>
+                    <div className="space-y-1.5 text-sm">
+                      {profile.wins.map((w) => (
+                        <div
+                          key={w.settlementId}
+                          className="flex flex-wrap items-center gap-x-2.5"
+                        >
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {w.auctionCode}
+                          </span>
+                          <span>
+                            Winning bid {formatETB(w.winningBidValueSantims)}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "font-mono text-[10px] uppercase",
+                              w.overdue && "border-rose-500/40 text-rose-300",
+                            )}
+                          >
+                            {w.status}
+                            {w.overdue ? " · overdue" : ""}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent bids */}
+                {profile.bids.length > 0 && (
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Recent bids
+                    </p>
+                    <div className="space-y-1 text-sm">
+                      {profile.bids.slice(0, 15).map((b) => (
+                        <div
+                          key={b.id}
+                          className="flex flex-wrap items-baseline gap-x-2.5"
+                        >
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {b.auctionCode}
+                          </span>
+                          <span className="font-medium">
+                            {formatETB(b.bidValueSantims)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            fee {formatETB(b.feeSantims)} ·{" "}
+                            {new Date(b.acceptedAt).toLocaleString()}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="ml-auto font-mono text-[10px] uppercase"
+                          >
+                            {b.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Payments */}
+                {profile.payments.length > 0 && (
+                  <div className="rounded-lg border border-border p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Payments
+                    </p>
+                    <div className="space-y-1 text-sm">
+                      {profile.payments.slice(0, 15).map((p) => (
+                        <div
+                          key={p.id}
+                          className="flex flex-wrap items-baseline gap-x-2.5"
+                        >
+                          <span className="font-medium">
+                            {formatETB(p.amountSantims)}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {p.kind} · {p.provider} ·{" "}
+                            {new Date(p.createdAt).toLocaleString()}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="ml-auto font-mono text-[10px] uppercase"
+                          >
+                            {p.status}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {profile.user.kycNote && (
+                  <p className="rounded-lg bg-amber-500/10 p-3 text-xs text-amber-200">
+                    KYC note: {profile.user.kycNote}
+                  </p>
+                )}
+              </div>
+            </ScrollArea>
+          )}
         </DialogContent>
       </Dialog>
     );
