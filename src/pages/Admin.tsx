@@ -2,25 +2,44 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/hooks/use-auth";
 import { formatETB } from "@/lib/money";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import {
   Activity,
+  Ban,
+  Banknote,
+  Camera,
   Gavel,
+  ImageIcon,
   Loader2,
+  Megaphone,
+  Pause,
+  Play,
   Search,
   ShieldCheck,
   ShieldX,
+  Timer,
+  TrendingUp,
+  UserCheck,
   Users,
   Wallet,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { SiteFooter, SiteHeader } from "@/components/luba";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -30,6 +49,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 /**
@@ -69,6 +89,9 @@ function AdminConsole() {
   const auditLogs = useQuery(api.admin.listAuditLogs, {});
   const campaigns = useQuery(api.admin.listAllAuctions, {});
   const prizes = useQuery(api.admin.listPrizes, {});
+  const finance = useQuery(api.admin.getFinanceDashboard, {});
+  const settlements = useQuery(api.admin.listSettlementsAdmin, {});
+  const notifSettings = useQuery(api.admin.getNotificationSettings, {});
 
   const grantRole = useMutation(api.admin.grantRole);
   const setUserStatus = useMutation(api.admin.setUserStatus);
@@ -78,10 +101,29 @@ function AdminConsole() {
   const createAuction = useMutation(api.admin.createAuction);
   const createPrize = useMutation(api.admin.createPrize);
   const openNow = useMutation(api.admin.openAuctionNow);
+  const pauseAuction = useMutation(api.admin.pauseAuction);
+  const resumeAuction = useMutation(api.admin.resumeAuction);
+  const extendAuction = useMutation(api.admin.extendAuction);
+  const markWinnerPaid = useMutation(api.admin.markWinnerPaid);
+  const markPrizeFulfilled = useMutation(api.admin.markPrizeFulfilled);
+  const forfeitAndReopen = useMutation(api.admin.forfeitAndReopen);
+  const adminRefund = useMutation(api.admin.adminRefund);
+  const setKycStatus = useMutation(api.admin.setKycStatus);
+  const removeBid = useMutation(api.admin.removeBid);
+  const setNotificationSetting = useMutation(api.admin.setNotificationSetting);
+  const broadcastAnnouncement = useMutation(api.admin.broadcastAnnouncement);
+  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+  const attachImageToPrize = useMutation(api.files.attachImageToPrize);
 
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [showCampaignForm, setShowCampaignForm] = useState(false);
+  const [freqAuction, setFreqAuction] = useState<{
+    id: Id<"auctions">;
+    code: string;
+    title: string;
+  } | null>(null);
+  const [announceOpen, setAnnounceOpen] = useState(false);
 
   const filteredUsers = (users ?? []).filter(
     (u) =>
@@ -143,6 +185,32 @@ function AdminConsole() {
           />
         </div>
 
+        {/* Financial overview (from the ledger — spec §41) */}
+        {finance && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              icon={<TrendingUp className="size-5" />}
+              label="Bid-fee revenue"
+              value={formatETB(finance.feeRevenueSantims)}
+            />
+            <StatCard
+              icon={<Banknote className="size-5" />}
+              label="Winner payments"
+              value={formatETB(finance.winnerPaymentsSantims)}
+            />
+            <StatCard
+              icon={<Activity className="size-5" />}
+              label="Refunds issued"
+              value={formatETB(finance.refundsSantims)}
+            />
+            <StatCard
+              icon={<Timer className="size-5" />}
+              label="Pending / overdue claims"
+              value={`${finance.pendingSettlements} / ${finance.overdueSettlements}`}
+            />
+          </div>
+        )}
+
         {/* Ledger integrity banner */}
         {stats && (
           <div
@@ -183,6 +251,15 @@ function AdminConsole() {
             <TabsTrigger value="auctions" className="gap-1.5 rounded-lg">
               <Gavel className="size-4" /> Campaigns
             </TabsTrigger>
+            <TabsTrigger value="claims" className="gap-1.5 rounded-lg">
+              <UserCheck className="size-4" /> Claims
+            </TabsTrigger>
+            <TabsTrigger value="finance" className="gap-1.5 rounded-lg">
+              <Banknote className="size-4" /> Finance
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5 rounded-lg">
+              <Megaphone className="size-4" /> Settings
+            </TabsTrigger>
             <TabsTrigger value="audit" className="gap-1.5 rounded-lg">
               <Activity className="size-4" /> Audit log
             </TabsTrigger>
@@ -209,6 +286,7 @@ function AdminConsole() {
                       <th className="px-4 py-3 font-medium">User</th>
                       <th className="px-4 py-3 font-medium">Role</th>
                       <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">KYC</th>
                       <th className="px-4 py-3 font-medium">Wallet</th>
                       <th className="px-4 py-3 font-medium">Actions</th>
                     </tr>
@@ -257,6 +335,20 @@ function AdminConsole() {
                             {u.status}
                           </Badge>
                         </td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            className={cn(
+                              "border-transparent font-mono text-[10px] uppercase",
+                              u.kycStatus === "VERIFIED"
+                                ? "bg-emerald-500/10 text-emerald-300"
+                                : u.kycStatus === "REJECTED"
+                                  ? "bg-rose-500/10 text-rose-300"
+                                  : "bg-amber-500/10 text-amber-300",
+                            )}
+                          >
+                            {u.kycStatus}
+                          </Badge>
+                        </td>
                         <td className="px-4 py-3 font-mono">
                           {formatETB(u.walletSantims)}
                         </td>
@@ -300,6 +392,24 @@ function AdminConsole() {
                             <Button
                               variant="outline"
                               size="sm"
+                              disabled={busy === `kyc-${u.id}`}
+                              onClick={() =>
+                                void act(`kyc-${u.id}`, () =>
+                                  setKycStatus({
+                                    userId: u.id,
+                                    kycStatus: u.kycStatus === "VERIFIED" ? "UNVERIFIED" : "VERIFIED",
+                                    note: u.kycStatus === "VERIFIED"
+                                      ? "Revoked by admin"
+                                      : "Verified by admin review",
+                                  }),
+                                )
+                              }
+                            >
+                              {u.kycStatus === "VERIFIED" ? "Unverify" : "Verify ID"}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               disabled={busy === `adjust-${u.id}`}
                               onClick={() => {
                                 const input = window.prompt(
@@ -323,6 +433,32 @@ function AdminConsole() {
                             >
                               Credit
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={busy === `refund-${u.id}`}
+                              onClick={() => {
+                                const input = window.prompt(
+                                  `Refund amount in ETB for ${u.email}:`,
+                                  "10",
+                                );
+                                if (!input) return;
+                                const s = Math.round(Number(input) * 100);
+                                if (!Number.isFinite(s) || s <= 0) {
+                                  toast.error("Invalid amount");
+                                  return;
+                                }
+                                void act(`refund-${u.id}`, () =>
+                                  adminRefund({
+                                    userId: u.id,
+                                    amountSantims: s,
+                                    reason: "Admin-issued refund",
+                                  }),
+                                );
+                              }}
+                            >
+                              Refund
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -330,7 +466,7 @@ function AdminConsole() {
                     {filteredUsers.length === 0 && (
                       <tr>
                         <td
-                          colSpan={5}
+                          colSpan={6}
                           className="px-4 py-8 text-center text-sm text-muted-foreground"
                         >
                           No users match this search.
@@ -411,14 +547,24 @@ function AdminConsole() {
                   ? `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"} total`
                   : "Loading…"}
               </p>
-              <Button
-                size="sm"
-                onClick={() => setShowCampaignForm((s) => !s)}
-                className="gap-1.5"
-              >
-                {showCampaignForm ? "Close form" : "New campaign"}
-                <Gavel className="size-3.5" />
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAnnounceOpen(true)}
+                  className="gap-1.5"
+                >
+                  <Megaphone className="size-3.5" /> Announce
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowCampaignForm((s) => !s)}
+                  className="gap-1.5"
+                >
+                  {showCampaignForm ? "Close form" : "New campaign"}
+                  <Gavel className="size-3.5" />
+                </Button>
+              </div>
             </div>
 
             {showCampaignForm && (
@@ -440,6 +586,25 @@ function AdminConsole() {
                         stock: 1,
                       });
                       prizeId = res.prizeId;
+
+                      // Upload the prize image, if one was chosen (spec §41).
+                      if (input.prizeImageFile) {
+                        const uploadUrl = await generateUploadUrl({});
+                        const uploadRes = await fetch(uploadUrl, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": input.prizeImageFile.type,
+                          },
+                          body: input.prizeImageFile,
+                        });
+                        if (!uploadRes.ok) {
+                          throw new Error("Image upload failed");
+                        }
+                        const { storageId } = (await uploadRes.json()) as {
+                          storageId: Id<"_storage">;
+                        };
+                        await attachImageToPrize({ prizeId, storageId });
+                      }
                     }
                     const res = await createAuction({
                       prizeId,
@@ -480,29 +645,51 @@ function AdminConsole() {
                     key={a.id}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-layered"
                   >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span>{a.prizeEmoji}</span>
-                        <p className="truncate font-semibold">{a.title}</p>
-                        <StatusBadge status={a.status} />
+                    <div className="flex min-w-0 items-center gap-3">
+                      {a.prizeImageUrl ? (
+                        <img
+                          src={a.prizeImageUrl}
+                          alt={a.prizeTitle}
+                          className="size-14 shrink-0 rounded-lg border border-border object-cover"
+                        />
+                      ) : (
+                        <span className="flex size-14 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary text-2xl">
+                          {a.prizeEmoji}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate font-semibold">{a.title}</p>
+                          <StatusBadge status={a.status} />
+                        </div>
+                        <p className="mt-1 font-mono text-xs text-muted-foreground">
+                          {a.auctionCode} · prize {a.prizeTitle} · {a.bidCount} bids ({
+                            a.uniqueBidCount
+                          }{" "}
+                          unique) · fee {formatETB(a.bidServiceFeeSantims)} · est.
+                          revenue {formatETB(a.grossFeeRevenueSantims)} · cap{" "}
+                          {a.maxBidsPerUser}/user · {a.noWinnerPolicy.replace(/_/g, " ").toLowerCase()}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {a.status === "SCHEDULED"
+                            ? `Opens ${new Date(a.opensAt).toLocaleString()} → closes ${new Date(a.closesAt).toLocaleString()}`
+                            : a.status === "OPEN" || a.status === "CLOSING" || a.status === "PAUSED"
+                              ? `Closes ${new Date(a.closesAt).toLocaleString()}`
+                              : `Settled · created ${new Date(a.createdAt).toLocaleDateString()}`}
+                        </p>
                       </div>
-                      <p className="mt-1 font-mono text-xs text-muted-foreground">
-                        {a.auctionCode} · prize {a.prizeTitle} · {a.bidCount} bids ({
-                          a.uniqueBidCount
-                        }{" "}
-                        unique) · fee {formatETB(a.bidServiceFeeSantims)} · est.
-                        revenue {formatETB(a.grossFeeRevenueSantims)} · cap{" "}
-                        {a.maxBidsPerUser}/user · {a.noWinnerPolicy.replace(/_/g, " ").toLowerCase()}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {a.status === "SCHEDULED"
-                          ? `Opens ${new Date(a.opensAt).toLocaleString()} → closes ${new Date(a.closesAt).toLocaleString()}`
-                          : a.status === "OPEN" || a.status === "CLOSING"
-                            ? `Closes ${new Date(a.closesAt).toLocaleString()}`
-                            : `Settled · created ${new Date(a.createdAt).toLocaleDateString()}`}
-                      </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() =>
+                          setFreqAuction({ id: a.id, code: a.auctionCode, title: a.title })
+                        }
+                      >
+                        <ImageIcon className="size-3.5" /> Bid audit
+                      </Button>
                       {a.status === "SCHEDULED" && (
                         <Button
                           size="sm"
@@ -514,9 +701,70 @@ function AdminConsole() {
                           Open now
                         </Button>
                       )}
+                      {(a.status === "OPEN" || a.status === "CLOSING") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          disabled={busy === `pause-${a.id}`}
+                          onClick={() => {
+                            const reason = window.prompt(
+                              `Pause ${a.auctionCode} — reason (recorded in the audit log):`,
+                              "Technical issue",
+                            );
+                            if (!reason) return;
+                            void act(`pause-${a.id}`, () =>
+                              pauseAuction({ auctionId: a.id, reason }),
+                            );
+                          }}
+                        >
+                          <Pause className="size-3.5" /> Pause
+                        </Button>
+                      )}
+                      {a.status === "PAUSED" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          disabled={busy === `resume-${a.id}`}
+                          onClick={() =>
+                            void act(`resume-${a.id}`, () => resumeAuction({ auctionId: a.id }))
+                          }
+                        >
+                          <Play className="size-3.5" /> Resume
+                        </Button>
+                      )}
                       {(a.status === "OPEN" ||
                         a.status === "CLOSING" ||
-                        a.status === "SCHEDULED") && (
+                        a.status === "PAUSED") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          disabled={busy === `extend-${a.id}`}
+                          onClick={() => {
+                            const input = window.prompt(
+                              `Extend ${a.auctionCode} — additional hours:`,
+                              "24",
+                            );
+                            if (!input) return;
+                            const h = Number(input);
+                            if (!Number.isFinite(h) || h <= 0) {
+                              toast.error("Invalid hours");
+                              return;
+                            }
+                            void act(`extend-${a.id}`, () =>
+                              extendAuction({ auctionId: a.id, additionalMs: h * 3_600_000 }),
+                            );
+                          }}
+                        >
+                          <Timer className="size-3.5" /> Extend
+                        </Button>
+                      )}
+                      {(a.status === "OPEN" ||
+                        a.status === "CLOSING" ||
+                        a.status === "SCHEDULED" ||
+                        a.status === "PAUSED") && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -559,6 +807,299 @@ function AdminConsole() {
                 )}
               </div>
             )}
+
+            {/* Prize inventory with images (spec §41 products/prizes) */}
+            {prizes && prizes.length > 0 && (
+              <div className="mt-6">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Prize inventory
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {prizes.map((p) => (
+                    <div
+                      key={p._id}
+                      className="flex items-center gap-2.5 rounded-xl border border-border bg-card p-2.5 pr-4 shadow-layered"
+                    >
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl}
+                          alt={p.title}
+                          className="size-11 rounded-lg border border-border object-cover"
+                        />
+                      ) : (
+                        <span className="flex size-11 items-center justify-center rounded-lg border border-dashed border-border text-lg">
+                          {p.emoji ?? "🎁"}
+                        </span>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium leading-tight">{p.title}</p>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {formatETB(p.valueSantims)} · used in {p.usedInAuctions}
+                        </p>
+                      </div>
+                      {!p.imageUrl && (
+                        <label className="cursor-pointer" title="Upload image">
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 5 * 1024 * 1024) {
+                                toast.error("Image must be under 5 MB");
+                                return;
+                              }
+                              void (async () => {
+                                setBusy(`img-${p._id}`);
+                                try {
+                                  const uploadUrl = await generateUploadUrl({});
+                                  const uploadRes = await fetch(uploadUrl, {
+                                    method: "POST",
+                                    headers: { "Content-Type": file.type },
+                                    body: file,
+                                  });
+                                  if (!uploadRes.ok) throw new Error("Upload failed");
+                                  const { storageId } = (await uploadRes.json()) as {
+                                    storageId: Id<"_storage">;
+                                  };
+                                  await attachImageToPrize({ prizeId: p._id, storageId });
+                                  toast.success("Image attached");
+                                } catch (err) {
+                                  toast.error(
+                                    err instanceof Error ? err.message : "Upload failed",
+                                  );
+                                } finally {
+                                  setBusy(null);
+                                }
+                              })();
+                            }}
+                          />
+                          <span className="flex size-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-secondary">
+                            {busy === `img-${p._id}` ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Camera className="size-4" />
+                            )}
+                          </span>
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Claims (winner settlement & payout) */}
+          <TabsContent value="claims" className="mt-5">
+            {settlements === undefined ? (
+              <LoadingRows />
+            ) : settlements.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No winner settlements yet. Claims appear here when auctions with a unique lowest bid complete.
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+                      <th className="px-4 py-3 font-medium">Auction</th>
+                      <th className="px-4 py-3 font-medium">Winner</th>
+                      <th className="px-4 py-3 font-medium">Winning bid</th>
+                      <th className="px-4 py-3 font-medium">Deadline</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-4 py-3 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {settlements.map((s) => (
+                      <tr
+                        key={s.id}
+                        className="border-b border-border/60 last:border-0 hover:bg-secondary/30"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{s.auctionTitle}</p>
+                          <p className="font-mono text-xs text-muted-foreground">{s.auctionCode}</p>
+                        </td>
+                        <td className="px-4 py-3">{s.winnerEmail}</td>
+                        <td className="px-4 py-3 font-mono">{formatETB(s.winningBidValueSantims)}</td>
+                        <td className="px-4 py-3 text-xs">
+                          {new Date(s.paymentDeadline).toLocaleString()}
+                          {s.overdue && (
+                            <Badge className="ml-1.5 border-transparent bg-rose-500/10 text-rose-300">
+                              OVERDUE
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            className={cn(
+                              "border-transparent font-mono text-[10px] uppercase",
+                              s.status === "PAID" || s.status === "FULFILLED"
+                                ? "bg-emerald-500/10 text-emerald-300"
+                                : s.status === "FORFEITED"
+                                  ? "bg-rose-500/10 text-rose-300"
+                                  : "bg-amber-500/10 text-amber-300",
+                            )}
+                          >
+                            {s.status.replace(/_/g, " ")}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {s.status === "PENDING_PAYMENT" && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={busy === `paid-${s.id}`}
+                                  onClick={() =>
+                                    void act(`paid-${s.id}`, () =>
+                                      markWinnerPaid({
+                                        settlementId: s.id,
+                                        note: "Payment verified by admin",
+                                      }),
+                                    )
+                                  }
+                                >
+                                  Confirm payment
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-rose-300"
+                                  disabled={busy === `forfeit-${s.id}`}
+                                  onClick={() => {
+                                    const reason = window.prompt(
+                                      `Forfeit ${s.winnerEmail}'s claim on ${s.auctionCode}? Their fees will be refunded and the auction reopens. Reason:`,
+                                      "Payment deadline passed",
+                                    );
+                                    if (!reason) return;
+                                    void act(`forfeit-${s.id}`, () =>
+                                      forfeitAndReopen({ settlementId: s.id, reason }),
+                                    );
+                                  }}
+                                >
+                                  Forfeit & reopen
+                                </Button>
+                              </>
+                            )}
+                            {s.status === "PAID" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={busy === `fulfill-${s.id}`}
+                                onClick={() =>
+                                  void act(`fulfill-${s.id}`, () =>
+                                    markPrizeFulfilled({
+                                      settlementId: s.id,
+                                      note: "Prize delivered",
+                                    }),
+                                  )
+                                }
+                              >
+                                Mark delivered
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Finance */}
+          <TabsContent value="finance" className="mt-5">
+            {finance === undefined ? (
+              <LoadingRows />
+            ) : (
+              <div className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <StatCard
+                    icon={<TrendingUp className="size-5" />}
+                    label="Bid-fee revenue (net)"
+                    value={formatETB(finance.feeRevenueSantims)}
+                  />
+                  <StatCard
+                    icon={<Banknote className="size-5" />}
+                    label="Winner payments"
+                    value={formatETB(finance.winnerPaymentsSantims)}
+                  />
+                  <StatCard
+                    icon={<Activity className="size-5" />}
+                    label="Refunds issued"
+                    value={formatETB(finance.refundsSantims)}
+                  />
+                  <StatCard
+                    icon={<Wallet className="size-5" />}
+                    label="Pending deposits"
+                    value={formatETB(finance.pendingDepositsSantims)}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  All figures are computed from the append-only double-entry ledger — the financial source of truth. Pending deposits are awaiting provider confirmation; {finance.pendingSettlements} winner claim{finance.pendingSettlements === 1 ? "" : "s"} await payment ({finance.overdueSettlements} overdue). {finance.txCount} ledger transactions posted to date.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Settings */}
+          <TabsContent value="settings" className="mt-5">
+            <div className="grid gap-5 lg:grid-cols-2">
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Notification settings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {notifSettings === undefined ? (
+                    <LoadingRows />
+                  ) : (
+                    notifSettings.map((n) => (
+                      <div
+                        key={n.key}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">
+                            {n.key.replace("NOTIFY_", "").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {n.enabled ? "Users receive these notifications" : "Suppressed platform-wide"}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={n.enabled}
+                          disabled={busy === `notif-${n.key}`}
+                          onCheckedChange={(enabled) =>
+                            void act(`notif-${n.key}`, () =>
+                              setNotificationSetting({ key: n.key, enabled }),
+                            )
+                          }
+                        />
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Platform announcement</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Send an in-app notification to every active user — auction starts, maintenance windows, policy changes.
+                  </p>
+                  <Button variant="outline" onClick={() => setAnnounceOpen(true)}>
+                    <Megaphone className="mr-1.5 size-4" /> Compose announcement
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Audit log */}
@@ -607,8 +1148,157 @@ function AdminConsole() {
             actions on this page are recorded in the append-only audit log.
           </CardContent>
         </Card>
-    </>
+
+        <BidAuditDialog />
+        <AnnounceDialog />
+      </>
   );
+
+  function BidAuditDialog() {
+    const freq = useQuery(
+      api.admin.getBidFrequencyMap,
+      freqAuction ? { auctionId: freqAuction.id } : "skip",
+    );
+    const bids = useQuery(
+      api.admin.listBidsAdmin,
+      freqAuction ? { auctionId: freqAuction.id } : "skip",
+    );
+
+    return (
+      <Dialog open={!!freqAuction} onOpenChange={(open) => !open && setFreqAuction(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Bid audit — {freqAuction?.title}</DialogTitle>
+            <DialogDescription className="font-mono text-xs">
+              {freqAuction?.code} · complete frequency map of accepted bids, lowest first. The winning bid is the lowest value held by exactly one bidder.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[45vh] pr-3">
+            {freq === undefined ? (
+              <LoadingRows />
+            ) : freq.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No accepted bids in this auction yet.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                {freq.map((f) => (
+                  <div
+                    key={f.valueSantims}
+                    className={cn(
+                      "flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm",
+                      f.unique
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-border/60",
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-semibold">{formatETB(f.valueSantims)}</span>
+                      {f.unique && (
+                        <Badge className="border-transparent bg-primary/15 font-mono text-[10px] uppercase text-primary">
+                          unique
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      ×{f.count} · {f.holders.join(", ")}
+                    </span>
+                    {f.unique && f.count === 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-rose-300"
+                        disabled={busy === `rm-${f.bidIds[0]}`}
+                        onClick={() => {
+                          const reason = window.prompt(
+                            `Remove the ${formatETB(f.valueSantims)} bid by ${f.holders[0]}? The bid is excluded from settlement (fee is not auto-refunded). Reason:`,
+                            "Rule violation",
+                          );
+                          if (!reason) return;
+                          void act(`rm-${f.bidIds[0]}`, () =>
+                            removeBid({ bidId: f.bidIds[0], reason }),
+                          );
+                        }}
+                      >
+                        <Ban className="mr-1 size-3" /> Remove
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+          <p className="text-xs text-muted-foreground">
+            {bids?.length ?? 0} bids on record (including removed and refunded, kept for the audit trail).
+          </p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  function AnnounceDialog() {
+    const [title, setTitle] = useState("");
+    const [body, setBody] = useState("");
+    const [sending, setSending] = useState(false);
+
+    const send = async () => {
+      if (!title.trim() || !body.trim()) {
+        toast.error("Title and body are required");
+        return;
+      }
+      setSending(true);
+      try {
+        const res = await broadcastAnnouncement({ title, body });
+        toast.success(`Announcement sent to ${res.sent} user${res.sent === 1 ? "" : "s"}`);
+        setAnnounceOpen(false);
+        setTitle("");
+        setBody("");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to send");
+      } finally {
+        setSending(false);
+      }
+    };
+
+    return (
+      <Dialog open={announceOpen} onOpenChange={setAnnounceOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Platform announcement</DialogTitle>
+            <DialogDescription>
+              Delivered as an in-app notification to every active user.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Field label="Title">
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="New auction opening tonight at 8 PM"
+              />
+            </Field>
+            <Field label="Message">
+              <Textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="The iPhone 17 Pro campaign opens this evening — the first 100 bidders get a discounted entry fee."
+                rows={4}
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAnnounceOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void send()} disabled={sending}>
+              {sending && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+              Send to all users
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 }
 
 /**
@@ -727,6 +1417,7 @@ type CampaignInput = {
   prizeCategory: string;
   prizeValueSantims: number;
   prizeEmoji: string;
+  prizeImageFile: File | null;
   title: string;
   description: string;
   opensAt: number;
@@ -770,6 +1461,8 @@ function CampaignForm({
   const [prizeCategory, setPrizeCategory] = useState("");
   const [prizeValue, setPrizeValue] = useState("");
   const [prizeEmoji, setPrizeEmoji] = useState("🎁");
+  const [prizeImageFile, setPrizeImageFile] = useState<File | null>(null);
+  const [prizeImagePreview, setPrizeImagePreview] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [durationDays, setDurationDays] = useState("3");
@@ -882,6 +1575,56 @@ function CampaignForm({
                 onChange={(e) => setPrizeDescription(e.target.value)}
                 placeholder="512GB, official warranty"
               />
+            </Field>
+            <Field label="Prize image" className="sm:col-span-2">
+              <div className="flex items-center gap-3">
+                {prizeImagePreview ? (
+                  <img
+                    src={prizeImagePreview}
+                    alt="Prize preview"
+                    className="size-16 rounded-lg border border-border object-cover"
+                  />
+                ) : (
+                  <span className="flex size-16 items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground">
+                    <ImageIcon className="size-5" />
+                  </span>
+                )}
+                <div className="flex flex-col gap-1.5">
+                  <label className="cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast.error("Image must be under 5 MB");
+                            return;
+                          }
+                          setPrizeImageFile(file);
+                          setPrizeImagePreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                    <span className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border border-border bg-secondary/50 px-3 text-xs font-medium hover:bg-secondary">
+                      <Camera className="size-3.5" /> Choose image
+                    </span>
+                  </label>
+                  {prizeImageFile && (
+                    <button
+                      type="button"
+                      className="text-left text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setPrizeImageFile(null);
+                        setPrizeImagePreview(null);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
             </Field>
           </div>
         ) : (
@@ -1063,6 +1806,7 @@ function CampaignForm({
                 prizeCategory: prizeCategory.trim(),
                 prizeValueSantims: valueS ?? 0,
                 prizeEmoji: prizeEmoji.trim(),
+                prizeImageFile,
                 title: title.trim(),
                 description: description.trim(),
                 opensAt: now,

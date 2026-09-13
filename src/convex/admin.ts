@@ -205,6 +205,7 @@ export const listUsers = query({
         name: u.name ?? null,
         role: u.role ?? null,
         status: u.status ?? "ACTIVE",
+        kycStatus: u.kycStatus ?? "UNVERIFIED",
         walletSantims: walletByUser.get(u._id)?.paidBalanceSantims ?? 0,
       }));
   },
@@ -518,14 +519,20 @@ export const listPrizes = query({
     const prizes = await ctx.db.query("prizes").collect();
     const auctions = await ctx.db.query("auctions").collect();
 
-    return prizes
-      .sort((a, b) => b._creationTime - a._creationTime)
-      .map((p) => {
-        const used = auctions.filter(
-          (a) => a.prizeId === p._id && a.status !== "CANCELLED",
-        ).length;
-        return { ...p, usedInAuctions: used };
-      });
+    return Promise.all(
+      prizes
+        .sort((a, b) => b._creationTime - a._creationTime)
+        .map(async (p) => {
+          const used = auctions.filter(
+            (a) => a.prizeId === p._id && a.status !== "CANCELLED",
+          ).length;
+          const imageUrl =
+            p.imageStorageId !== undefined
+              ? await ctx.storage.getUrl(p.imageStorageId)
+              : (p.imageUrl ?? undefined);
+          return { ...p, imageUrl, usedInAuctions: used };
+        }),
+    );
   },
 });
 
@@ -639,28 +646,35 @@ export const listAllAuctions = query({
     const prizes = await ctx.db.query("prizes").collect();
     const prizeById = new Map(prizes.map((p) => [p._id, p]));
 
-    return auctions
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .map((a) => {
-        const prize = prizeById.get(a.prizeId);
-        return {
-          id: a._id,
-          auctionCode: a.auctionCode,
-          title: a.title,
-          prizeTitle: prize?.title ?? "—",
-          prizeEmoji: prize?.emoji ?? "🎁",
-          status: a.status,
-          opensAt: a.opensAt,
-          closesAt: a.closesAt,
-          bidCount: a.bidCount,
-          uniqueBidCount: a.uniqueBidCount,
-          bidServiceFeeSantims: a.bidServiceFeeSantims,
-          maxBidsPerUser: a.maximumBidsPerUser,
-          noWinnerPolicy: a.noWinnerPolicy,
-          grossFeeRevenueSantims: a.bidCount * a.bidServiceFeeSantims,
-          createdAt: a.createdAt,
-        };
-      });
+    return Promise.all(
+      auctions
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .map(async (a) => {
+          const prize = prizeById.get(a.prizeId);
+          const prizeImageUrl =
+            prize?.imageStorageId !== undefined
+              ? await ctx.storage.getUrl(prize.imageStorageId)
+              : (prize?.imageUrl ?? undefined);
+          return {
+            id: a._id,
+            auctionCode: a.auctionCode,
+            title: a.title,
+            prizeTitle: prize?.title ?? "—",
+            prizeEmoji: prize?.emoji ?? "🎁",
+            prizeImageUrl,
+            status: a.status,
+            opensAt: a.opensAt,
+            closesAt: a.closesAt,
+            bidCount: a.bidCount,
+            uniqueBidCount: a.uniqueBidCount,
+            bidServiceFeeSantims: a.bidServiceFeeSantims,
+            maxBidsPerUser: a.maximumBidsPerUser,
+            noWinnerPolicy: a.noWinnerPolicy,
+            grossFeeRevenueSantims: a.bidCount * a.bidServiceFeeSantims,
+            createdAt: a.createdAt,
+          };
+        }),
+    );
   },
 });
 
@@ -777,6 +791,691 @@ export const openAuctionNow = mutation({
       resource: `auction:${args.auctionId}`,
       details: `code=${auction.auctionCode}`,
       now,
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Auction lifecycle controls: pause / resume / extend (spec §41) ─────────
+
+/**
+ * Pause an OPEN or CLOSING auction for technical issues or disputes.
+ * Bid acceptance stops immediately (placeBid only accepts OPEN/CLOSING),
+ * and the lifecycle worker will not close a PAUSED auction.
+ * Bidders already see it as paused — no money moves.
+ */
+export const pauseAuction = mutation({
+  args: { auctionId: v.id("auctions"), reason: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const auction = await ctx.db.get(args.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (auction.status !== "OPEN" && auction.status !== "CLOSING") {
+      throw new Error(`CANNOT_PAUSE_FROM_${auction.status}`);
+    }
+    ctx.db.patch(args.auctionId, { status: "PAUSED", updatedAt: Date.now() });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_PAUSED",
+      resource: `auction:${args.auctionId}`,
+      details: `code=${auction.auctionCode} reason=${args.reason}`,
+      now: Date.now(),
+    });
+    await ctx.db.insert("outboxEvents", {
+      eventType: "AUCTION_PAUSED",
+      payload: { auctionId: args.auctionId, code: auction.auctionCode },
+      processed: false,
+      createdAt: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+/** Resume a PAUSED auction back to OPEN. Closing time is unchanged. */
+export const resumeAuction = mutation({
+  args: { auctionId: v.id("auctions") },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const auction = await ctx.db.get(args.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (auction.status !== "PAUSED") throw new Error("AUCTION_NOT_PAUSED");
+
+    const now = Date.now();
+    // If the pause outlived the planned closing time, push the close out so
+    // bidders get a fair window rather than an instantly-closing auction.
+    const closesAt = auction.closesAt <= now ? now + 60 * 60 * 1000 : auction.closesAt;
+    ctx.db.patch(args.auctionId, { status: "OPEN", closesAt, updatedAt: now });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_RESUMED",
+      resource: `auction:${args.auctionId}`,
+      details: `code=${auction.auctionCode} closesAt=${closesAt}`,
+      now,
+    });
+    return { ok: true };
+  },
+});
+
+/**
+ * Extend a live auction's closing time. Allowed while OPEN / CLOSING / PAUSED.
+ * Rules stay frozen — only the clock moves (spec §29).
+ */
+export const extendAuction = mutation({
+  args: { auctionId: v.id("auctions"), additionalMs: v.number() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!Number.isInteger(args.additionalMs) || args.additionalMs <= 0) {
+      throw new Error("EXTENSION_MUST_BE_POSITIVE");
+    }
+    const auction = await ctx.db.get(args.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (
+      auction.status !== "OPEN" &&
+      auction.status !== "CLOSING" &&
+      auction.status !== "PAUSED"
+    ) {
+      throw new Error(`CANNOT_EXTEND_FROM_${auction.status}`);
+    }
+    const closesAt = Math.max(auction.closesAt, Date.now()) + args.additionalMs;
+    const status = auction.status === "PAUSED" ? "PAUSED" : "OPEN";
+    ctx.db.patch(args.auctionId, { closesAt, status, updatedAt: Date.now() });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "AUCTION_EXTENDED",
+      resource: `auction:${args.auctionId}`,
+      details: `code=${auction.auctionCode} newClosesAt=${closesAt}`,
+      now: Date.now(),
+    });
+    await ctx.db.insert("outboxEvents", {
+      eventType: "AUCTION_EXTENDED",
+      payload: { auctionId: args.auctionId, code: auction.auctionCode, closesAt },
+      processed: false,
+      createdAt: Date.now(),
+    });
+    return { ok: true, closesAt };
+  },
+});
+
+// ─── Winner claims & payout (spec §32, §41) ─────────────────────────────────
+
+/** List settlements across all auctions with auction + winner context. */
+export const listSettlementsAdmin = query({
+  args: { statusFilter: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const rows = await ctx.db.query("winnerSettlements").collect();
+    const filtered = args.statusFilter
+      ? rows.filter((s) => s.status === args.statusFilter)
+      : rows;
+    const [auctions, users] = await Promise.all([
+      ctx.db.query("auctions").collect(),
+      ctx.db.query("users").collect(),
+    ]);
+    const auctionById = new Map(auctions.map((a) => [a._id, a]));
+    const emailById = new Map(users.map((u) => [u._id, u.email ?? "—"]));
+    return filtered
+      .sort((a, b) => b.paymentDeadline - a.paymentDeadline)
+      .slice(0, 100)
+      .map((s) => {
+        const a = auctionById.get(s.auctionId);
+        const overdue =
+          s.status === "PENDING_PAYMENT" && s.paymentDeadline < Date.now();
+        return {
+          id: s._id,
+          auctionCode: a?.auctionCode ?? "—",
+          auctionTitle: a?.title ?? "—",
+          winnerEmail: emailById.get(s.winnerUserId) ?? "—",
+          winningBidValueSantims: s.winningBidValueSantims,
+          status: s.status,
+          paidAt: s.paidAt ?? null,
+          paymentDeadline: s.paymentDeadline,
+          overdue,
+        };
+      });
+  },
+});
+
+/**
+ * Mark a winner's payment as received and verified, then the prize as
+ * delivered (fulfilled). Two audited steps so fulfillment is explicit.
+ */
+export const markWinnerPaid = mutation({
+  args: { settlementId: v.id("winnerSettlements"), note: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const s = await ctx.db.get(args.settlementId);
+    if (!s) throw new Error("SETTLEMENT_NOT_FOUND");
+    if (s.status !== "PENDING_PAYMENT") throw new Error(`CANNOT_CONFIRM_FROM_${s.status}`);
+
+    ctx.db.patch(args.settlementId, { status: "PAID", paidAt: Date.now() });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "WINNER_PAYMENT_CONFIRMED",
+      resource: `settlement:${args.settlementId}`,
+      details: `note=${args.note}`,
+      now: Date.now(),
+    });
+    await insertNotification(ctx, {
+      userId: s.winnerUserId,
+      type: "PAYMENT_SUCCESS",
+      title: "Payment confirmed",
+      body: "Your winning-bid payment was confirmed. Your prize is being prepared for delivery.",
+      auctionId: s.auctionId,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+/** Mark a PAID settlement as fulfilled (prize delivered). */
+export const markPrizeFulfilled = mutation({
+  args: { settlementId: v.id("winnerSettlements"), note: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const s = await ctx.db.get(args.settlementId);
+    if (!s) throw new Error("SETTLEMENT_NOT_FOUND");
+    if (s.status !== "PAID") throw new Error(`CANNOT_FULFILL_FROM_${s.status}`);
+
+    ctx.db.patch(args.settlementId, { status: "FULFILLED" });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "PRIZE_FULFILLED",
+      resource: `settlement:${args.settlementId}`,
+      details: `note=${args.note}`,
+      now: Date.now(),
+    });
+    await insertNotification(ctx, {
+      userId: s.winnerUserId,
+      type: "PRIZE_STATUS",
+      title: "Prize delivered",
+      body: "Your prize has been fulfilled. Congratulations again!",
+      auctionId: s.auctionId,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+/**
+ * Forfeit an overdue claim: the winner did not pay by the deadline.
+ * All of that winner's fees on the auction are refunded and the auction is
+ * reopened (bids preserved, rules frozen, new 24h close) so bidders get a
+ * fresh round. Forfeited settlements can never be paid afterwards.
+ */
+export const forfeitAndReopen = mutation({
+  args: { settlementId: v.id("winnerSettlements"), reason: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const s = await ctx.db.get(args.settlementId);
+    if (!s) throw new Error("SETTLEMENT_NOT_FOUND");
+    if (s.status !== "PENDING_PAYMENT") throw new Error(`CANNOT_FORFEIT_FROM_${s.status}`);
+    const auction = await ctx.db.get(s.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+
+    const now = Date.now();
+    ctx.db.patch(args.settlementId, { status: "FORFEITED" });
+
+    // Refund every fee the forfeiting winner paid on this auction.
+    const bids = await ctx.db
+      .query("auctionBids")
+      .withIndex("by_auction_user", (q) =>
+        q.eq("auctionId", s.auctionId).eq("userId", s.winnerUserId),
+      )
+      .collect();
+    for (const bid of bids) {
+      if (bid.status !== "ACCEPTED") continue;
+      await refundUser(ctx, {
+        userId: bid.userId,
+        amountSantims: bid.bidServiceFeeSantims,
+        reason: `Winner forfeited (${auction.auctionCode}): ${args.reason}`,
+        reference: bid._id,
+        idempotencyKey: `FORFEIT_REFUND:${bid._id}`,
+        now,
+      });
+      ctx.db.patch(bid._id, { status: "REFUNDED" });
+    }
+
+    // Reopen the auction: fresh 24h window, all remaining accepted bids count.
+    const closesAt = now + 24 * 60 * 60 * 1000;
+    ctx.db.patch(s.auctionId, { status: "OPEN", closesAt, updatedAt: now });
+
+    // Clear the round-1 result row: it is the uniqueness fence that guards
+    // settlement, and it must not block resolving round 2. Round-1 history is
+    // preserved by the FORFEITED settlement row above and the audit log —
+    // bids, ledger entries, and payments are never touched (append-only).
+    const oldResult = await ctx.db
+      .query("auctionResults")
+      .withIndex("by_auction", (q) => q.eq("auctionId", s.auctionId))
+      .unique();
+    if (oldResult) ctx.db.delete(oldResult._id);
+
+    await insertNotification(ctx, {
+      userId: s.winnerUserId,
+      type: "SYSTEM",
+      title: "Prize claim forfeited",
+      body: `The payment deadline for ${auction.auctionCode} passed. Your bid fees were refunded and the auction has reopened.`,
+      auctionId: s.auctionId,
+      now,
+    });
+    await ctx.db.insert("outboxEvents", {
+      eventType: "AUCTION_REOPENED",
+      payload: { auctionId: s.auctionId, code: auction.auctionCode },
+      processed: false,
+      createdAt: now,
+    });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "WINNER_FORFEITED_REOPENED",
+      resource: `settlement:${args.settlementId}`,
+      details: `reason=${args.reason} auction=${auction.auctionCode}`,
+      now,
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Financial dashboard (spec §41, §52–53) ─────────────────────────────────
+
+/**
+ * Revenue & finance overview computed from the ledger (the financial truth):
+ * fee revenue, refunds, winner payments, deposit float, and pending items.
+ */
+export const getFinanceDashboard = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const txs = await ctx.db.query("ledgerTransactions").collect();
+    const entries = await ctx.db.query("ledgerEntries").collect();
+    const accounts = await ctx.db.query("ledgerAccounts").collect();
+    const txById = new Map(txs.map((t) => [t._id, t]));
+    const accountById = new Map(accounts.map((a) => [a._id, a]));
+
+    let feeRevenue = 0;
+    let winnerPayments = 0;
+    let refunds = 0;
+    let promoIssued = 0;
+    for (const e of entries) {
+      const tx = txById.get(e.transactionId);
+      if (!tx) continue;
+      const acct = accountById.get(e.accountId);
+      // Revenue account, credit-normal: revenue grows on CREDIT, shrinks on DEBIT.
+      if (acct?.type === "REVENUE") {
+        if (e.direction === "CREDIT") feeRevenue += e.amountSantims;
+        else feeRevenue -= e.amountSantims;
+      }
+      if (tx.txType === "WINNER_PAYMENT" && e.direction === "CREDIT") {
+        winnerPayments += e.amountSantims;
+      }
+      if (tx.txType === "REFUND" && e.direction === "CREDIT") refunds += e.amountSantims;
+      if (tx.txType === "PROMO_CREDIT" && e.direction === "CREDIT") promoIssued += e.amountSantims;
+    }
+
+    const payments = await ctx.db.query("payments").collect();
+    const pendingDeposits = payments
+      .filter((p) => p.kind === "DEPOSIT" && p.status === "PENDING")
+      .reduce((sum, p) => sum + p.amountSantims, 0);
+
+    const settlements = await ctx.db.query("winnerSettlements").collect();
+    const pendingSettlements = settlements.filter(
+      (s) => s.status === "PENDING_PAYMENT",
+    ).length;
+
+    const now = Date.now();
+    const overdueSettlements = settlements.filter(
+      (s) => s.status === "PENDING_PAYMENT" && s.paymentDeadline < now,
+    ).length;
+
+    return {
+      feeRevenueSantims: feeRevenue,
+      winnerPaymentsSantims: winnerPayments,
+      refundsSantims: refunds,
+      promoIssuedSantims: promoIssued,
+      pendingDepositsSantims: pendingDeposits,
+      pendingSettlements,
+      overdueSettlements,
+      txCount: txs.length,
+    };
+  },
+});
+
+/**
+ * Admin refund: issue an arbitrary refund/credit adjustment to a user with a
+ * reason (disputed fee, operational credit, fault correction). Audited; the
+ * ledger entry is the financial truth.
+ */
+export const adminRefund = mutation({
+  args: {
+    userId: v.id("users"),
+    amountSantims: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!Number.isInteger(args.amountSantims) || args.amountSantims <= 0) {
+      throw new Error("REFUND_AMOUNT_MUST_BE_POSITIVE");
+    }
+    await refundUser(ctx, {
+      userId: args.userId,
+      amountSantims: args.amountSantims,
+      reason: args.reason,
+      reference: `admin:${adminId}`,
+      idempotencyKey: `ADMIN_REFUND:${crypto.randomUUID()}`,
+      now: Date.now(),
+    });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "ADMIN_REFUND_ISSUED",
+      resource: `user:${args.userId}`,
+      details: `amount=${args.amountSantims} reason=${args.reason}`,
+      now: Date.now(),
+    });
+    await insertNotification(ctx, {
+      userId: args.userId,
+      type: "PAYMENT_SUCCESS",
+      title: "Wallet credited",
+      body: `A refund of ${args.amountSantims} santims was credited to your wallet. Reason: ${args.reason}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+// ─── KYC verification (spec §41) ────────────────────────────────────────────
+
+/** Set a user's KYC verification status (admin only, audited). */
+export const setKycStatus = mutation({
+  args: {
+    userId: v.id("users"),
+    kycStatus: v.union(
+      v.literal("UNVERIFIED"),
+      v.literal("PENDING"),
+      v.literal("VERIFIED"),
+      v.literal("REJECTED"),
+    ),
+    note: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("USER_NOT_FOUND");
+
+    ctx.db.patch(args.userId, { kycStatus: args.kycStatus, kycNote: args.note });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "KYC_STATUS_CHANGED",
+      resource: `user:${args.userId}`,
+      details: `kyc=${args.kycStatus} note=${args.note}`,
+      now: Date.now(),
+    });
+    await insertNotification(ctx, {
+      userId: args.userId,
+      type: "SYSTEM",
+      title: "Identity verification updated",
+      body: `Your verification status is now ${args.kycStatus}.${args.note ? ` Note: ${args.note}` : ""}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Bid moderation (spec §41) ──────────────────────────────────────────────
+
+/**
+ * Remove a rule-breaking or spam bid during an active round.
+ * The bid keeps its row (append-only audit trail) but is marked REMOVED so
+ * the winner resolver ignores it (it only counts ACCEPTED bids). The bidder
+ * receives a notification; the fee is NOT auto-refunded — use adminRefund if
+ * policy says the fee should come back.
+ */
+export const removeBid = mutation({
+  args: { bidId: v.id("auctionBids"), reason: v.string() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const bid = await ctx.db.get(args.bidId);
+    if (!bid) throw new Error("BID_NOT_FOUND");
+    if (bid.status !== "ACCEPTED") throw new Error(`CANNOT_REMOVE_FROM_${bid.status}`);
+
+    const auction = await ctx.db.get(bid.auctionId);
+    if (!auction) throw new Error("AUCTION_NOT_FOUND");
+    if (auction.status === "CLOSED" || auction.status === "SETTLING" || auction.status === "COMPLETED") {
+      throw new Error("AUCTION_ALREADY_SETTLED_OR_CLOSED");
+    }
+
+    ctx.db.patch(args.bidId, { status: "REMOVED" });
+
+    // Keep the denormalized counters truthful.
+    const remaining = await ctx.db
+      .query("auctionBids")
+      .withIndex("by_auction_value", (q) => q.eq("auctionId", bid.auctionId))
+      .collect();
+    const acceptedValues = remaining.filter((b) => b.status === "ACCEPTED").map((b) => b.bidValueSantims);
+    const uniqueCount = new Set(acceptedValues).size;
+    ctx.db.patch(bid.auctionId, {
+      bidCount: acceptedValues.length,
+      uniqueBidCount: uniqueCount,
+      updatedAt: Date.now(),
+    });
+
+    await insertNotification(ctx, {
+      userId: bid.userId,
+      type: "SYSTEM",
+      title: "Bid removed",
+      body: `Your bid of ${bid.bidValueSantims} santims in ${auction.auctionCode} was removed by moderation. Reason: ${args.reason}`,
+      auctionId: bid.auctionId,
+      now: Date.now(),
+    });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "BID_REMOVED",
+      resource: `bid:${args.bidId}`,
+      details: `auction=${auction.auctionCode} value=${bid.bidValueSantims} reason=${args.reason}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+// ─── Notification settings & announcements (spec §38, §41) ──────────────────
+
+const NOTIFICATION_KEYS = [
+  "NOTIFY_BID_ACCEPTED",
+  "NOTIFY_AUCTION_ENDING",
+  "NOTIFY_WINNER",
+  "NOTIFY_PAYMENT_REMINDER",
+  "NOTIFY_PRIZE_STATUS",
+] as const;
+
+/** Current notification feature-flag values (admin view). */
+export const getNotificationSettings = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const rows = await ctx.db.query("platformSettings").collect();
+    const byKey = new Map(rows.map((r) => [r.key, r.value]));
+    return NOTIFICATION_KEYS.map((key) => ({
+      key,
+      enabled: byKey.get(key) ?? true, // default: on
+    }));
+  },
+});
+
+/** Toggle one notification category (admin only). */
+export const setNotificationSetting = mutation({
+  args: { key: v.string(), enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!NOTIFICATION_KEYS.includes(args.key as (typeof NOTIFICATION_KEYS)[number])) {
+      throw new Error("UNKNOWN_SETTING_KEY");
+    }
+    const existing = await ctx.db
+      .query("platformSettings")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .unique();
+    if (existing) {
+      ctx.db.patch(existing._id, { value: args.enabled, updatedAt: Date.now() });
+    } else {
+      ctx.db.insert("platformSettings", {
+        key: args.key,
+        value: args.enabled,
+        updatedAt: Date.now(),
+      });
+    }
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "NOTIFICATION_SETTING_CHANGED",
+      resource: `setting:${args.key}`,
+      details: `enabled=${args.enabled}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+/**
+ * Broadcast an in-app announcement to every active user (e.g. "auction
+ * starting soon"). One notification row per user; audited once.
+ */
+export const broadcastAnnouncement = mutation({
+  args: { title: v.string(), body: v.string(), auctionId: v.optional(v.id("auctions")) },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    if (!args.title.trim() || !args.body.trim()) {
+      throw new Error("TITLE_AND_BODY_REQUIRED");
+    }
+    const users = await ctx.db.query("users").collect();
+    const now = Date.now();
+    let sent = 0;
+    for (const u of users) {
+      if (u.status && u.status !== "ACTIVE") continue;
+      await insertNotification(ctx, {
+        userId: u._id,
+        type: "SYSTEM",
+        title: args.title,
+        body: args.body,
+        auctionId: args.auctionId,
+        now,
+      });
+      sent++;
+    }
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "ANNOUNCEMENT_BROADCAST",
+      resource: args.auctionId ? `auction:${args.auctionId}` : "platform",
+      details: `title=${args.title} recipients=${sent}`,
+      now,
+    });
+    return { ok: true, sent };
+  },
+});
+
+// ─── Bid audit: complete frequency map (spec §27, §33, §41) ─────────────────
+
+/**
+ * Full bid-frequency map for one auction: every value, how many accepted
+ * bids hold it, and who holds them. This is the audit tool for verifying a
+ * winning bid was genuinely unique and lowest — and for the post-closure
+ * transparency publication decision (spec §33).
+ */
+export const getBidFrequencyMap = query({
+  args: { auctionId: v.id("auctions") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const bids = await ctx.db
+      .query("auctionBids")
+      .withIndex("by_auction_value", (q) => q.eq("auctionId", args.auctionId))
+      .collect();
+    const users = await ctx.db.query("users").collect();
+    const emailById = new Map(users.map((u) => [u._id, u.email ?? "—"]));
+
+    const byValue = new Map<number, { count: number; holders: string[]; bidIds: Id<"auctionBids">[] }>();
+    for (const b of bids) {
+      if (b.status !== "ACCEPTED") continue;
+      const entry = byValue.get(b.bidValueSantims) ?? {
+        count: 0,
+        holders: [],
+        bidIds: [],
+      };
+      entry.count++;
+      entry.holders.push(emailById.get(b.userId) ?? b.userId);
+      entry.bidIds.push(b._id);
+      byValue.set(b.bidValueSantims, entry);
+    }
+
+    return Array.from(byValue.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([valueSantims, info]) => ({
+        valueSantims,
+        count: info.count,
+        unique: info.count === 1,
+        holders: info.holders,
+        bidIds: info.bidIds,
+      }));
+  },
+});
+
+/**
+ * List all bids for one auction with moderation controls available
+ * (admin view — includes removed/refunded bids for the full audit trail).
+ */
+export const listBidsAdmin = query({
+  args: { auctionId: v.id("auctions") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const bids = await ctx.db
+      .query("auctionBids")
+      .withIndex("by_auction_accepted", (q) => q.eq("auctionId", args.auctionId))
+      .collect();
+    const users = await ctx.db.query("users").collect();
+    const emailById = new Map(users.map((u) => [u._id, u.email ?? "—"]));
+    return bids
+      .sort((a, b) => b.acceptedAt - a.acceptedAt)
+      .slice(0, 300)
+      .map((b) => ({
+        id: b._id,
+        email: emailById.get(b.userId) ?? "—",
+        bidValueSantims: b.bidValueSantims,
+        feeSantims: b.bidServiceFeeSantims,
+        status: b.status,
+        acceptedAt: b.acceptedAt,
+        idempotencyKey: b.idempotencyKey,
+      }));
+  },
+});
+
+// ─── Image uploads for prizes (spec §41 products/prizes) ────────────────────
+
+/**
+ * Update prize details after creation (title, category, image). Images are
+ * uploaded through files.ts (generateUploadUrl → attachImageToPrize); this
+ * mutation handles text edits in one step.
+ */
+export const updatePrize = mutation({
+  args: {
+    prizeId: v.id("prizes"),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    emoji: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const prize = await ctx.db.get(args.prizeId);
+    if (!prize) throw new Error("PRIZE_NOT_FOUND");
+
+    const patch: Record<string, string | undefined> = {};
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.description !== undefined) patch.description = args.description;
+    if (args.category !== undefined) patch.category = args.category;
+    if (args.emoji !== undefined) patch.emoji = args.emoji;
+    ctx.db.patch(args.prizeId, patch);
+
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "PRIZE_UPDATED",
+      resource: `prize:${args.prizeId}`,
+      details: JSON.stringify(patch),
+      now: Date.now(),
     });
     return { ok: true };
   },

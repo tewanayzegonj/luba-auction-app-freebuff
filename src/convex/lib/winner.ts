@@ -8,7 +8,7 @@
 
 export interface BidLike {
   bidValueSantims: number;
-  status: "ACCEPTED" | "REFUNDED";
+  status: "ACCEPTED" | "REFUNDED" | "REMOVED";
 }
 
 export interface WinnerResolution {

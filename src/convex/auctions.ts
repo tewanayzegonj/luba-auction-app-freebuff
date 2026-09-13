@@ -36,6 +36,10 @@ export const listOpenAuctions = query({
     return Promise.all(
       all.map(async (auction) => {
         const prize = await ctx.db.get(auction.prizeId);
+        const prizeImageUrl =
+          prize?.imageStorageId !== undefined
+            ? await ctx.storage.getUrl(prize.imageStorageId)
+            : prize?.imageUrl;
         return {
           _id: auction._id,
           auctionCode: auction.auctionCode,
@@ -51,7 +55,7 @@ export const listOpenAuctions = query({
             ? {
                 title: prize.title,
                 emoji: prize.emoji ?? "🎁",
-                imageUrl: prize.imageUrl,
+                imageUrl: prizeImageUrl,
                 valueSantims: prize.valueSantims,
                 category: prize.category,
               }
@@ -73,6 +77,10 @@ export const getAuctionByCode = query({
     if (!auction) return null;
 
     const prize = await ctx.db.get(auction.prizeId);
+    const prizeImageUrl =
+      prize?.imageStorageId !== undefined
+        ? await ctx.storage.getUrl(prize.imageStorageId)
+        : prize?.imageUrl;
     const result = await ctx.db
       .query("auctionResults")
       .withIndex("by_auction", (q) => q.eq("auctionId", auction._id))
@@ -100,7 +108,7 @@ export const getAuctionByCode = query({
             title: prize.title,
             description: prize.description,
             emoji: prize.emoji ?? "🎁",
-            imageUrl: prize.imageUrl,
+            imageUrl: prizeImageUrl,
             valueSantims: prize.valueSantims,
             category: prize.category,
           }

@@ -16,11 +16,12 @@ export const roleValidator = v.union(
 );
 export type Role = Infer<typeof roleValidator>;
 
-// ─── Auction state machine (spec §9) ────────────────────────────────────────
+// ─── Auction state machine (spec §9) ──────────────────────────────────────────
 export const AUCTION_STATUSES = [
   "SCHEDULED",
   "OPEN",
   "CLOSING",
+  "PAUSED",
   "CLOSED",
   "SETTLING",
   "COMPLETED",
@@ -51,6 +52,15 @@ export const schema = defineSchema(
       role: v.optional(roleValidator),
       // LUBA fields
       phone: v.optional(v.string()),
+      kycStatus: v.optional(
+        v.union(
+          v.literal("UNVERIFIED"),
+          v.literal("PENDING"),
+          v.literal("VERIFIED"),
+          v.literal("REJECTED"),
+        ),
+      ),
+      kycNote: v.optional(v.string()),
       status: v.optional(
         v.union(
           ...["ACTIVE", "SUSPENDED", "RESTRICTED", "LOCKED", "PENDING_VERIFICATION", "CLOSED"].map(
@@ -67,6 +77,7 @@ export const schema = defineSchema(
       category: v.optional(v.string()),
       valueSantims: v.number(),
       imageUrl: v.optional(v.string()),
+      imageStorageId: v.optional(v.id("_storage")), // Convex file storage
       emoji: v.optional(v.string()),
       stock: v.number(), // available units
       createdAt: v.number(),
@@ -94,6 +105,7 @@ export const schema = defineSchema(
       noWinnerPolicy: noWinnerPolicyValidator, // frozen when OPEN (spec §29)
       winnerPaymentDeadline: v.number(), // ms after settlement
       visibilityPolicy: v.union(v.literal("PUBLIC"), v.literal("PRIVATE")),
+      revenueTargetSantims: v.optional(v.number()), // admin tracking target
       bidCount: v.number(), // denormalized counter, maintained transactionally
       uniqueBidCount: v.number(), // denormalized, for public display
       createdAt: v.number(),
@@ -114,7 +126,11 @@ export const schema = defineSchema(
       bidServiceFeeSantims: v.number(), // fee actually charged for this bid
       idempotencyKey: v.string(), // client-generated UUID (spec §17)
       acceptedAt: v.number(), // server time — never client time
-      status: v.union(v.literal("ACCEPTED"), v.literal("REFUNDED")),
+      status: v.union(
+        v.literal("ACCEPTED"),
+        v.literal("REFUNDED"),
+        v.literal("REMOVED"), // admin-moderated spam/rule-breaking
+      ),
     })
       .index("by_auction_value", ["auctionId", "bidValueSantims"]) // winner resolution (spec §46)
       .index("by_auction_user", ["auctionId", "userId"])
@@ -269,6 +285,13 @@ export const schema = defineSchema(
       result: v.optional(v.any()), // stored first response, replayed on retry
       createdAt: v.number(),
     }).index("by_scope_key", ["scope", "key"]),
+
+    // ─── Platform settings (admin-controlled feature flags) ───────────────
+    platformSettings: defineTable({
+      key: v.string(), // e.g. NOTIFY_BID_ACCEPTED, NOTIFY_WINNER
+      value: v.boolean(),
+      updatedAt: v.number(),
+    }).index("by_key", ["key"]),
 
     // ─── Audit log (spec §43): append-only ─────────────────────────────────
     auditLogs: defineTable({

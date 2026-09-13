@@ -83,24 +83,51 @@ can credit a wallet; crediting is internal-only.
 
 ### Admin (spec §41–43)
 `/admin` (admin role required): platform stats, live ledger-balance check,
-user management (suspend/reactivate, role grants, audited wallet credits),
-payments view, and the append-only audit log. The first registered account
-can claim the admin role once (`bootstrapAdmin`); afterwards only admins
-grant roles.
+finance dashboard, winner-claim management, notification settings,
+user management, payments view, and the append-only audit log. The first
+registered account can claim the admin role once (`bootstrapAdmin`);
+afterwards only admins grant roles.
 
 ### Campaign management (admin → Campaigns tab)
 Create and run auction campaigns without touching code:
 - **Prizes**: create once, reuse across campaigns (`createPrize`, inventory
-  shows how many campaigns use each prize).
+  shows how many campaigns use each prize). **Images upload directly** —
+  either inline while creating a campaign or onto any existing prize; files
+  are stored in Convex file storage, validated as images, capped at 5 MB,
+  and served via resolving URLs (never stale).
 - **Campaigns** (`createAuction`): full spec §10 rule set per campaign — bid
   range, increment, service fee, per-user cap, consecutive-bid policy,
   no-winner policy, winner payment deadline, visibility. Codes are generated
   (`LUBA-<year>-<6 digits>`); launch immediately or on schedule.
-- **Lifecycle controls**: open a scheduled campaign early, cancel any live
-  campaign (all fees refund through the ledger, audited), force-settle a
-  closed one. Rules are editable only while SCHEDULED — once open, rules
-  freeze so bidders face a moving target (spec §29).
+- **Lifecycle controls**: open a scheduled campaign early, **pause/resume**
+  (for technical issues or disputes — bids stop, the lifecycle worker holds
+  off), **extend** the closing time, cancel any live campaign (all fees
+  refund through the ledger, audited), force-settle a closed one. Rules are
+  editable only while SCHEDULED — once open, rules freeze so bidders never
+  face a moving target (spec §29).
+- **Bid audit**: every campaign has a frequency-map dialog (all accepted
+  values, counts, holders, lowest-first) — the tool for verifying that a
+  winning bid was genuinely unique and lowest — plus per-bid moderation
+  (remove rule-breaking bids; removed bids are excluded from settlement but
+  kept in the audit trail).
 - Every campaign action writes an audit-log entry with the actor and reason.
+
+### Winner claims (admin → Claims tab)
+Track every settlement end-to-end: pending payment → paid → prize
+fulfilled, with overdue flags. Admins confirm winner payments, mark prizes
+as delivered, or **forfeit an overdue claim** — the forfeiting winner's fees
+are refunded, the auction reopens with a fresh 24-hour round, and the stale
+result row is cleared so round 2 settles normally.
+
+### Finance (admin → Finance tab)
+Revenue, refunds, winner payments, pending deposits, and claim counts —
+all computed from the append-only ledger (the financial source of truth),
+not from denormalized counters.
+
+### Settings (admin → Settings tab)
+Toggle notification categories platform-wide (bid accepted, ending soon,
+winner, payment reminder, prize status) and broadcast announcements to all
+active users as in-app notifications.
 
 ### Financial invariants enforced (spec §61)
 1. Every ledger transaction must balance or posting throws.
