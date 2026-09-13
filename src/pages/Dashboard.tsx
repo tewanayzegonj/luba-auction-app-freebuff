@@ -21,12 +21,14 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { formatETB, parseETBToSantims } from "@/lib/money";
 import { cn } from "@/lib/utils";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import {
   ArrowUpRight,
   Bell,
   CheckCircle2,
   Clock,
+  CreditCard,
+  FlaskConical,
   Gavel,
   Gift,
   Loader2,
@@ -35,7 +37,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -53,10 +55,15 @@ export default function Dashboard() {
 
   const markRead = useMutation(api.bids.markNotificationsRead);
   const topUp = useMutation(api.payments.initiateTopUp);
-  const confirmPayment = useMutation(api.payments.confirmProviderPayment);
+  const confirmManualTopUp = useMutation(api.payments.confirmManualTopUp);
+  const cancelMyTopUp = useMutation(api.payments.cancelMyTopUp);
+  const startChapaCheckout = useAction(api.chapa.initializeCheckout);
   const payWinningBid = useMutation(api.payments.payWinningBid);
 
   const [topUpInput, setTopUpInput] = useState("");
+  const [topUpProvider, setTopUpProvider] = useState<"chapa" | "manual">(
+    "chapa",
+  );
   const [busy, setBusy] = useState<string | null>(null);
 
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length;
@@ -69,23 +76,118 @@ export default function Dashboard() {
     (s) => s.status === "PENDING_PAYMENT",
   );
 
+  // Return flow: coming back from the Chapa hosted checkout, verify the
+  // transaction server-side (webhooks can lag) and surface the result.
+  useEffect(() => {
+    const pending = sessionStorage.getItem("luba_pending_chapa");
+    if (!pending) return;
+    sessionStorage.removeItem("luba_pending_chapa");
+    let parsed: {
+      merchantReference: string;
+      token: string;
+      amountSantims: number;
+    };
+    try {
+      parsed = JSON.parse(pending);
+    } catch {
+      return;
+    }
+    setBusy("topup");
+    fetch("/payments/chapa/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        merchantReference: parsed.merchantReference,
+        token: parsed.token,
+      }),
+    })
+      .then((r) => r.json())
+      .then((res: { ok?: boolean; status?: string; error?: string }) => {
+        if (res.ok && res.status === "COMPLETED") {
+          toast.success("Top-up complete", {
+            description: `${formatETB(parsed.amountSantims)} added to your wallet.`,
+          });
+        } else if (res.ok) {
+          toast.info("Payment still processing", {
+            description:
+              "Your wallet will be credited automatically once the provider confirms the payment.",
+          });
+        } else {
+          toast.error("We could not confirm your payment", {
+            description: res.error ?? "Please try again or contact support.",
+          });
+        }
+      })
+      .catch(() =>
+        toast.error("We could not confirm your payment", {
+          description: "Check your payment history in a moment.",
+        }),
+      )
+      .finally(() => setBusy(null));
+  }, []);
+
   const handleTopUp = async (santims: number) => {
     setBusy("topup");
     try {
-      const { merchantReference } = await topUp({ amountSantims: santims });
-      // V1 wallet provider: confirm immediately via the provider hook.
-      // A real PSP (telebirr etc.) would call this from its webhook instead.
-      await confirmPayment({
-        providerEventId: `evt_${merchantReference}`,
+      if (topUpProvider === "manual") {
+        // Sandbox adapter: settles immediately so the product is testable
+        // before production PSP credentials are configured.
+        const { merchantReference } = await topUp({
+          amountSantims: santims,
+          provider: "manual",
+        });
+        await confirmManualTopUp({ merchantReference, succeeded: true });
+        toast.success("Top-up complete", {
+          description: `${formatETB(santims)} added to your wallet (sandbox).`,
+        });
+        setTopUpInput("");
+        return;
+      }
+
+      // Chapa: create the PENDING payment, then hand off to the hosted
+      // checkout (telebirr, CBE Birr, M-Pesa, cards).
+      const { merchantReference, verifyToken } = await topUp({
+        amountSantims: santims,
+        provider: "chapa",
+      });
+      const [firstName, ...rest] = (user?.name ?? "").split(" ");
+      const result = await startChapaCheckout({
         merchantReference,
-        succeeded: true,
+        amountSantims: santims,
+        email: user?.email ?? undefined,
+        firstName: firstName || undefined,
+        lastName: rest.join(" ") || undefined,
+        returnUrl: `${window.location.origin}/dashboard`,
       });
-      toast.success("Top-up complete", {
-        description: `${formatETB(santims)} added to your wallet.`,
+      if (!result.ok) {
+        await cancelMyTopUp({ merchantReference });
+        toast.error("Could not start the payment", {
+          description:
+            result.error === "CHAPA_NOT_CONFIGURED"
+              ? "Online payments are not configured yet — use the sandbox option below."
+              : `Provider error: ${result.error}`,
+        });
+        return;
+      }
+      sessionStorage.setItem(
+        "luba_pending_chapa",
+        JSON.stringify({
+          merchantReference,
+          token: verifyToken,
+          amountSantims: santims,
+        }),
+      );
+      window.location.href = result.checkoutUrl;
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : "UNKNOWN";
+      toast.error("Top-up failed", {
+        description:
+          raw === "INVALID_AMOUNT"
+            ? "Enter a valid amount."
+            : raw === "UNAUTHENTICATED"
+              ? "Your session expired — sign in and try again."
+              : raw,
       });
-      setTopUpInput("");
-    } catch {
-      toast.error("Top-up failed", { description: "Please try again." });
     } finally {
       setBusy(null);
     }
@@ -403,7 +505,12 @@ export default function Dashboard() {
                           Processing…
                         </>
                       ) : (
-                        "Add funds"
+                        <>
+                          <CreditCard className="mr-1.5 size-4" />
+                          {topUpProvider === "chapa"
+                            ? "Continue to secure payment"
+                            : "Add funds"}
+                        </>
                       )}
                     </Button>
                   </div>
@@ -420,9 +527,75 @@ export default function Dashboard() {
                       </Button>
                     ))}
                   </div>
+                  <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Payment method
+                    </p>
+                    <div className="mt-2 grid gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTopUpProvider("chapa")}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                          topUpProvider === "chapa"
+                            ? "border-primary/50 bg-primary/5"
+                            : "border-border hover:border-border/80 hover:bg-secondary/40",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex size-8 shrink-0 items-center justify-center rounded-md",
+                            topUpProvider === "chapa"
+                              ? "bg-primary/15 text-primary"
+                              : "bg-secondary text-muted-foreground",
+                          )}
+                        >
+                          <CreditCard className="size-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium">
+                            Chapa — telebirr, CBE Birr, M-Pesa, cards
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            Pay on the provider's secure checkout page.
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTopUpProvider("manual")}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                          topUpProvider === "manual"
+                            ? "border-primary/50 bg-primary/5"
+                            : "border-border hover:border-border/80 hover:bg-secondary/40",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex size-8 shrink-0 items-center justify-center rounded-md",
+                            topUpProvider === "manual"
+                              ? "bg-primary/15 text-primary"
+                              : "bg-secondary text-muted-foreground",
+                          )}
+                        >
+                          <FlaskConical className="size-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium">
+                            Sandbox deposit
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            Simulated funds for testing — removed at launch.
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                   <p className="text-xs leading-5 text-muted-foreground">
-                    V1 uses a direct wallet deposit. telebirr and other payment
-                    providers plug into the same secure flow at launch.
+                    Deposits are credited to your wallet as soon as the provider
+                    confirms the payment. Bid fees are charged from this balance
+                    per bid.
                   </p>
                 </CardContent>
               </Card>

@@ -4,10 +4,16 @@ import type { MutationCtx } from "../_generated/server";
 /**
  * Double-entry ledger engine — spec §19–21.
  *
+ * Sign conventions (debit-normal vs credit-normal accounts):
+ *  - ASSET / EXPENSE  → debit-normal:  debits increase the balance
+ *  - LIABILITY / REVENUE / EQUITY → credit-normal: credits increase the balance
+ * The stored `balanceSantims` is the account's natural balance (a user wallet
+ * holds a positive number when the user has funds).
+ *
  * Invariants:
  *  1. Every transaction balances (Σ debits = Σ credits) — posting rejects
  *     unbalanced input.
- *  2. No user PAID balance goes negative (checked before debiting).
+ *  2. No user PAID/PROMO balance goes negative (checked before debiting).
  *  3. Transactions are idempotent via a unique idempotency key (Invariant 4).
  *  4. Entries are append-only: corrections are compensating entries.
  */
@@ -32,11 +38,22 @@ export const ACCOUNT_CODES = {
   settlement: "PLATFORM_SETTLEMENT",
 } as const;
 
-function userAccountType(code: string): "LIABILITY" | "ASSET" {
+function isUserAccount(code: string): boolean {
+  return code.startsWith("USER_PAID:") || code.startsWith("USER_PROMO:");
+}
+
+function accountTypeFor(code: string): "LIABILITY" | "ASSET" {
   // Balances we owe users are liabilities from the platform's perspective.
-  return code.startsWith("USER_PAID:") || code.startsWith("USER_PROMO:")
-    ? "LIABILITY"
-    : "ASSET";
+  return isUserAccount(code) ? "LIABILITY" : "ASSET";
+}
+
+/** Credit-normal accounts grow when credited (liabilities, revenue, equity). */
+function isCreditNormal(accountType: Doc<"ledgerAccounts">["type"]): boolean {
+  return (
+    accountType === "LIABILITY" ||
+    accountType === "REVENUE" ||
+    accountType === "EQUITY"
+  );
 }
 
 /** Get or create a ledger account by chart code. */
@@ -51,15 +68,11 @@ export async function getOrCreateAccount(
     .unique();
   if (existing) return existing;
 
-  const owner = code.startsWith("USER_PAID:") || code.startsWith("USER_PROMO:")
-    ? (code.split(":")[1] as Id<"users">)
-    : undefined;
-
   const accountId = await ctx.db.insert("ledgerAccounts", {
-    owner,
+    owner: isUserAccount(code) ? (code.split(":")[1] as Id<"users">) : undefined,
     code,
     name,
-    type: userAccountType(code),
+    type: accountTypeFor(code),
     balanceSantims: 0,
   });
   const account = await ctx.db.get(accountId);
@@ -71,8 +84,9 @@ export class LedgerError extends Error {}
 
 /**
  * Post a balanced, idempotent double-entry transaction.
- * Returns the transaction id, or null if this idempotency key was already
- * posted (original effect is returned unchanged — Invariant 4).
+ * Returns the transaction id, or the existing transaction id if this
+ * idempotency key was already posted (original effect returned unchanged —
+ * Invariant 4).
  */
 export async function postTransaction(
   ctx: MutationCtx,
@@ -129,14 +143,13 @@ export async function postTransaction(
       line.accountName,
     );
 
-    const delta =
-      line.direction === "DEBIT" ? line.amountSantims : -line.amountSantims;
+    // Apply the delta in the account's natural direction.
+    const credited = line.direction === "CREDIT";
+    const grows = isCreditNormal(account.type) ? credited : !credited;
+    const delta = grows ? line.amountSantims : -line.amountSantims;
 
-    // Invariant 2: user paid balances can never go negative.
-    if (
-      account.code.startsWith("USER_PAID:") &&
-      account.balanceSantims + delta < 0
-    ) {
+    // Invariant 2: user balances can never go negative.
+    if (isUserAccount(account.code) && account.balanceSantims + delta < 0) {
       throw new LedgerError("INSUFFICIENT_FUNDS");
     }
 

@@ -24,12 +24,13 @@ tracking.
 
 | In scope | Deferred |
 | --- | --- |
-| Landing page with live auction list | Admin console (Phase 8) |
+| Landing page with live auction list | Production PSP credentials & go-live review |
 | Auction detail + bid flow with confirmation & terms | SMS channel (outbox-ready) |
-| Wallet top-up + bid service fee ledger | telebirr/PSP live adapter (abstraction ready) |
-| Deterministic winner resolution & settlement | Monte Carlo simulator (spec §48–53) |
-| No-winner refund policy | Multi-language, advanced fraud engine |
-| Notifications (in-app), my bids, wins, profile | Full bid-history publication |
+| Wallet top-up via **Chapa** (telebirr, CBE Birr, M-Pesa, cards) + sandbox adapter | Direct telebirr super-app integration (Chapa aggregates it) |
+| Admin console: users, payments, auctions, audit log (spec §41–43) | Monte Carlo simulator (spec §48–53) |
+| Deterministic winner resolution & settlement | Multi-language, advanced fraud engine |
+| No-winner refund policy | Full bid-history publication |
+| Notifications (in-app), my bids, wins, profile | |
 
 ## Architecture highlights
 
@@ -59,9 +60,33 @@ uniqueness fence (one result row per auction), so double settlement is
 impossible.
 
 ### Payment idempotency (spec §24, Invariant 5)
-`payments.confirmProviderPayment` dedupes by `providerEventId` and only credits
-a `PENDING` payment once. The V1 "wallet" provider confirms in-session; a
-telebirr adapter would call the same function from its webhook.
+Every deposit flows: `initiateTopUp` (PENDING payment + capability token) →
+provider → `confirmProviderPaymentInternal` (webhook/return verify) → ledger
+deposit. It dedupes by `providerEventId` (replayed webhooks are no-ops),
+verifies the provider's amount against the initiated payment, and only credits
+PENDING/FAILED payments — a COMPLETED payment is terminal. No public mutation
+can credit a wallet; crediting is internal-only.
+
+### Payments — Chapa adapter (`convex/chapa.ts`, `convex/chapaWebhook.ts`)
+- **Initialize**: `POST /v1/transaction/initialize` with our merchant reference
+  as `tx_ref` → hosted `checkout_url` (telebirr, CBE Birr, M-Pesa, cards).
+- **Webhook**: `POST /webhooks/chapa` verifies the HMAC-SHA256 signature of the
+  raw body against `CHAPA_WEBHOOK_SECRET` (headers `x-chapa-signature` /
+  `chapa-signature`), then settles via the internal confirm core.
+- **Return flow**: `POST /payments/chapa/verify` re-verifies the transaction
+  server-side when the browser returns (webhooks can lag); authenticated by a
+  capability token only the initiating browser received.
+- **Sandbox adapter**: "manual" provider settles instantly so the product is
+  testable before PSP credentials exist; removed at launch.
+- Configure: `CHAPA_SECRET_KEY`, `CHAPA_WEBHOOK_SECRET`; set the dashboard
+  webhook URL to `https://<deployment>.convex.site/webhooks/chapa`.
+
+### Admin (spec §41–43)
+`/admin` (admin role required): platform stats, live ledger-balance check,
+user management (suspend/reactivate, role grants, audited wallet credits),
+payments view, auction cancel-and-refund / force-settle, and the append-only
+audit log. The first registered account can claim the admin role once
+(`bootstrapAdmin`); afterwards only admins grant roles.
 
 ### Financial invariants enforced (spec §61)
 1. Every ledger transaction must balance or posting throws.

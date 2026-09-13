@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogIn,
   Menu,
+  ShieldCheck,
   Sparkles,
   Timer,
   Users,
@@ -81,6 +82,14 @@ export function SiteHeader() {
                   Dashboard
                 </Link>
               </Button>
+              {user?.role === "admin" && (
+                <Button variant="ghost" className="gap-2" asChild>
+                  <Link to="/admin">
+                    <ShieldCheck className="size-4" />
+                    Admin
+                  </Link>
+                </Button>
+              )}
               <span className="inline-flex size-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground">
                 {initials(user?.name ?? user?.email ?? "L")}
               </span>

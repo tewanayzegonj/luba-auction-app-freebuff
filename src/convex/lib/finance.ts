@@ -30,29 +30,33 @@ export async function ensureWallet(ctx: MutationCtx, userId: Id<"users">) {
 }
 
 /**
- * Deposit: money arrived from a completed payment.
+ * Deposit: money arrived from a completed payment (or an admin adjustment).
  *   DEBIT  PLATFORM_CLEARING (payment received, in transit)
  *   CREDIT USER_PAID:userId  (credit user's paid balance)
+ * Pass idempotencyKey explicitly for non-payment adjustments (admin credits),
+ * otherwise it derives from the payment id.
  */
 export async function deposit(
   ctx: MutationCtx,
   args: {
     userId: Id<"users">;
     amountSantims: number;
-    paymentId: Id<"payments">;
+    referenceId: string;
+    idempotencyKey?: string;
+    description?: string;
     now: number;
   },
 ): Promise<void> {
-  const { userId, amountSantims, paymentId, now } = args;
+  const { userId, amountSantims, referenceId, now } = args;
   if (!Number.isInteger(amountSantims) || amountSantims <= 0) {
     throw new Error("DEPOSIT_AMOUNT_MUST_BE_POSITIVE");
   }
 
   await postTransaction(ctx, {
-    txType: "DEPOSIT",
-    description: `Wallet deposit (payment ${paymentId})`,
-    reference: paymentId,
-    idempotencyKey: `DEPOSIT:${paymentId}`,
+    txType: args.idempotencyKey ? "ADMIN_ADJUSTMENT" : "DEPOSIT",
+    description: args.description ?? `Wallet deposit (${referenceId})`,
+    reference: referenceId,
+    idempotencyKey: args.idempotencyKey ?? `DEPOSIT:${referenceId}`,
     now,
     lines: [
       {
