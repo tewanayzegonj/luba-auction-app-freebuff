@@ -128,9 +128,16 @@ export function SiteHeader() {
               <Link to="/#faq">FAQ</Link>
             </Button>
             {isAuthenticated ? (
-              <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-                <Link to="/dashboard">Dashboard</Link>
-              </Button>
+              <>
+                <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                  <Link to="/dashboard">Dashboard</Link>
+                </Button>
+                {user?.role === "admin" && (
+                  <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                    <Link to="/admin">Admin</Link>
+                  </Button>
+                )}
+              </>
             ) : (
               <>
                 <Button variant="ghost" asChild onClick={() => setOpen(false)}>
