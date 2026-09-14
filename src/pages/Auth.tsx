@@ -39,7 +39,7 @@ import { useLang } from "@/lib/i18n";
 const TELEGRAM_BOT_URL =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim()
     ? `https://t.me/${(import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string).trim()}`
-    : "https://t.me/luba_auctions_bot"; // update if the bot username differs
+    : "https://t.me/luba_auction_bot";
 
 type Provider = "email-otp" | "telegram-otp" | "sms-otp";
 type Step = "method" | "identifier" | "verify";
