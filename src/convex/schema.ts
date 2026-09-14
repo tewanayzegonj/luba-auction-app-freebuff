@@ -63,6 +63,14 @@ export const schema = defineSchema(
         ),
       ),
       kycNote: v.optional(v.string()),
+      // Referrals (growth loop)
+      referralCode: v.optional(v.string()), // unique, auto-generated
+      referredBy: v.optional(v.id("users")),
+      referredAt: v.optional(v.number()),
+      // Responsible play (self-set caps; admins cannot raise them)
+      selfDepositCapSantims: v.optional(v.number()),
+      selfDepositCapPendingSince: v.optional(v.number()),
+      selfExcludedUntil: v.optional(v.number()),
       status: v.optional(
         v.union(
           ...["ACTIVE", "SUSPENDED", "RESTRICTED", "LOCKED", "PENDING_VERIFICATION", "CLOSED"].map(
@@ -72,7 +80,8 @@ export const schema = defineSchema(
       ),
     })
       .index("email", ["email"])
-      .index("phone", ["phone"]),
+      .index("phone", ["phone"])
+      .index("by_referral_code", ["referralCode"]),
 
     // ─── Prizes ────────────────────────────────────────────────────────────
     prizes: defineTable({
@@ -110,6 +119,7 @@ export const schema = defineSchema(
       winnerPaymentDeadline: v.number(), // ms after settlement
       visibilityPolicy: v.union(v.literal("PUBLIC"), v.literal("PRIVATE")),
       revenueTargetSantims: v.optional(v.number()), // admin tracking target
+      publishBidHistory: v.optional(v.boolean()), // transparency toggle (spec §33); default false
       bidCount: v.number(), // denormalized counter, maintained transactionally
       uniqueBidCount: v.number(), // denormalized, for public display
       createdAt: v.number(),
@@ -291,6 +301,14 @@ export const schema = defineSchema(
     }).index("by_scope_key", ["scope", "key"]),
 
     // ─── Platform settings (admin-controlled feature flags) ───────────────
+    // ─── Rate limiting (spec §40): per-window counters ────────────────────
+    rateLimits: defineTable({
+      scope: v.string(), // BID | TOPUP | OTP
+      key: v.string(), // userId or `${userId}:${auctionId}`
+      windowStart: v.number(),
+      count: v.number(),
+    }).index("by_scope_key", ["scope", "key"]),
+
     platformSettings: defineTable({
       key: v.string(), // e.g. NOTIFY_BID_ACCEPTED, NOTIFY_WINNER
       value: v.boolean(),
@@ -321,6 +339,100 @@ export const schema = defineSchema(
     })
       .index("by_token", ["tokenHash"])
       .index("by_user_method", ["userId", "method"]),
+
+    // ─── Referrals (growth loop) ────────────────────────────────────────────
+    // Both sides receive promo credit when the referee's first bid fee posts.
+    // State machine: PENDING → REWARDED (or EXPIRED if unrewarded).
+    referrals: defineTable({
+      referrerId: v.id("users"),
+      refereeId: v.id("users"), // unique — a user can only be referred once
+      code: v.string(), // the code the referee used
+      status: v.union(v.literal("PENDING"), v.literal("REWARDED"), v.literal("EXPIRED")),
+      rewardedAt: v.optional(v.number()),
+      createdAt: v.number(),
+    })
+      .index("by_referee", ["refereeId"])
+      .index("by_referrer", ["referrerId", "status"])
+      .index("by_code", ["code"]),
+
+    // ─── Watchlist (ending-soon alerts) ────────────────────────────────────
+    watchlist: defineTable({
+      userId: v.id("users"),
+      auctionId: v.id("auctions"), // unique per pair
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]).index("by_auction", ["auctionId"]),
+
+    // ─── Scheduled bids (queue for future execution) ───────────────────────
+    scheduledBids: defineTable({
+      userId: v.id("users"),
+      auctionId: v.id("auctions"),
+      bidValueSantims: v.number(),
+      idempotencyKey: v.string(), // carried into placeBid at execution
+      executeAt: v.number(),
+      status: v.union(v.literal("QUEUED"), v.literal("EXECUTED"), v.literal("CANCELLED"), v.literal("FAILED")),
+      failureReason: v.optional(v.string()),
+      bidId: v.optional(v.id("auctionBids")),
+      createdAt: v.number(),
+    })
+      .index("by_status_time", ["status", "executeAt"])
+      .index("by_auction_status", ["auctionId", "status"]),
+
+    // ─── Fraud signals (spec §39): heuristics feed admin review ────────────
+    fraudSignals: defineTable({
+      userId: v.optional(v.id("users")),
+      signal: v.string(), // BID_VELOCITY | PAYMENT_FAILURES | MULTI_ACCOUNT_SUSPECT
+      severity: v.union(v.literal("LOW"), v.literal("MEDIUM"), v.literal("HIGH")),
+      details: v.optional(v.string()),
+      reviewed: v.boolean(),
+      createdAt: v.number(),
+    })
+      .index("by_reviewed", ["reviewed"])
+      .index("by_user", ["userId"]),
+
+    // ─── KYC documents (winner verification) ───────────────────────────────
+    kycDocuments: defineTable({
+      userId: v.id("users"),
+      storageId: v.id("_storage"),
+      fileName: v.string(),
+      contentType: v.string(),
+      sizeBytes: v.number(),
+      status: v.union(v.literal("PENDING"), v.literal("APPROVED"), v.literal("REJECTED")),
+      reviewedBy: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      reviewNote: v.optional(v.string()),
+      uploadedAt: v.number(),
+    }).index("by_user", ["userId"]).index("by_status", ["status"]),
+
+    // ─── Per-user notification preferences ──────────────────────────────────
+    notificationPrefs: defineTable({
+      userId: v.id("users"), // unique
+      BID_ACCEPTED: v.optional(v.boolean()),
+      AUCTION_ENDING: v.optional(v.boolean()),
+      WINNER_ANNOUNCED: v.optional(v.boolean()),
+      PAYMENT_REMINDER: v.optional(v.boolean()),
+      PAYMENT_SUCCESS: v.optional(v.boolean()),
+      PRIZE_STATUS: v.optional(v.boolean()),
+      WATCHLIST_ALERT: v.optional(v.boolean()),
+      updatedAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    // ─── Web push subscriptions (PWA) ──────────────────────────────────────
+    pushSubscriptions: defineTable({
+      userId: v.id("users"),
+      endpoint: v.string(), // unique per browser
+      p256dh: v.string(),
+      auth: v.string(),
+      userAgent: v.optional(v.string()),
+      createdAt: v.number(),
+    }).index("by_endpoint", ["endpoint"]).index("by_user", ["userId"]),
+
+    // ─── Platform settings gains a text value channel (push keys, fees) ────
+    // (platformSettings value:boolean is kept for existing flags)
+    platformSettingsText: defineTable({
+      key: v.string(), // e.g. PUSH_VAPID_PUBLIC_KEY / PUSH_VAPID_PRIVATE_KEY / REFERRAL_REWARD_SANTIMS
+      value: v.string(),
+      updatedAt: v.number(),
+    }).index("by_key", ["key"]),
   },
   {
     schemaValidation: false,

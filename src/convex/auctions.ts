@@ -1,10 +1,12 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { chargeBidFee } from "./lib/finance";
 import { LedgerError } from "./lib/ledger";
 import { insertNotification } from "./lib/notifications";
+import { assertRateLimit } from "./lib/rateLimit";
 import { settleAuctionInternal } from "./lib/settlement";
 import {
   isConsecutiveBidAllowed,
@@ -195,6 +197,29 @@ export const placeBid = mutation({
     }
     if (!args.acceptedTerms) throw new Error("TERMS_NOT_ACCEPTED");
 
+    // Rate limit (spec §40): 20 bids / 10s per user per auction.
+    await assertRateLimit(ctx, { scope: "BID", key: `${userId}:${args.auctionId}` });
+
+    // Responsible play: self-exclusion is absolute (spec-aligned safety).
+    if ((user.selfExcludedUntil ?? 0) > Date.now()) {
+      throw new Error("SELF_EXCLUDED");
+    }
+
+    // Fraud velocity guard (spec §39): >15 accepted bids in 10 min signals.
+    const tenMinAgo = Date.now() - 600_000;
+    const recentAccepted = await ctx.db
+      .query("auctionBids")
+      .withIndex("by_user", (q) => q.eq("userId", userId).gt("acceptedAt", tenMinAgo))
+      .take(20);
+    if (recentAccepted.length >= 15) {
+      await ctx.scheduler.runAfter(0, internal.growth.recordFraudSignalInternal, {
+        userId,
+        signal: "BID_VELOCITY",
+        severity: "MEDIUM",
+        details: `${recentAccepted.length} accepted bids in 10 minutes`,
+      });
+    }
+
     const now = Date.now(); // server time only (spec §30)
 
     // Idempotency replay: return the original outcome (spec §17).
@@ -340,6 +365,15 @@ export const placeBid = mutation({
       auctionId: auction._id,
       now,
     });
+
+    // Referral reward: a referee's first successful bid-fee triggers the
+    // promo grants (idempotent — PENDING → REWARDED fence inside).
+    if (user.referredBy) {
+      await ctx.scheduler.runAfter(0, internal.growth.rewardReferralInternal, {
+        refereeId: userId,
+        bidId,
+      });
+    }
 
     // Record idempotency key LAST: replays return the original result.
     await ctx.db.insert("idempotencyKeys", {

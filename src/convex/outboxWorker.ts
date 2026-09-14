@@ -30,6 +30,15 @@ export const deliverNotifications = internalAction({
     const results = { sent: 0, skipped: 0, failed: 0 };
 
     for (const event of args.events) {
+      // Preference gate: skip channels the user turned off for this type.
+      const wants = await ctx.runQuery(internal.engagement.userWantsTypeInternal, {
+        userId: event.userId,
+        type: event.type,
+      });
+      if (!wants) {
+        results.skipped++;
+        continue;
+      }
       const channels = await ctx.runQuery(
         internal.accountLinks.getUserChannelsInternal,
         { userId: event.userId },

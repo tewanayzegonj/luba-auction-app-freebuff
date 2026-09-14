@@ -1,6 +1,11 @@
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { ACCOUNT_CODES, postTransaction } from "./ledger";
+import {
+  ACCOUNT_CODES,
+  postTransaction,
+  LedgerError,
+  type LedgerLine,
+} from "./ledger";
 
 /**
  * Financial service — wallet operations as double-entry ledger postings.
@@ -103,33 +108,55 @@ export async function chargeBidFee(
     throw new Error("FEE_MUST_BE_POSITIVE");
   }
 
+  // Promo balance is consumed first, then paid. Single balanced posting —
+  // the ledger remains the truth and the wallet is the projection.
+  const wallet = await ensureWallet(ctx, userId);
+  const fromPromo = Math.min(wallet.promoBalanceSantims, feeSantims);
+  const fromPaid = feeSantims - fromPromo;
+
+  if (wallet.paidBalanceSantims < fromPaid) {
+    throw new LedgerError("INSUFFICIENT_FUNDS");
+  }
+
+  const lines: LedgerLine[] = [];
+  if (fromPromo > 0) {
+    lines.push({
+      accountCode: ACCOUNT_CODES.userPromo(userId),
+      accountName: "User promo balance",
+      accountType: "LIABILITY",
+      direction: "DEBIT",
+      amountSantims: fromPromo,
+    });
+  }
+  if (fromPaid > 0) {
+    lines.push({
+      accountCode: ACCOUNT_CODES.userPaid(userId),
+      accountName: "User paid balance",
+      accountType: "LIABILITY",
+      direction: "DEBIT",
+      amountSantims: fromPaid,
+    });
+  }
+  lines.push({
+    accountCode: ACCOUNT_CODES.revenue,
+    accountName: "Platform revenue",
+    accountType: "REVENUE",
+    direction: "CREDIT",
+    amountSantims: feeSantims,
+  });
+
   await postTransaction(ctx, {
     txType: "BID_FEE",
     description: `Bid service fee (bid ${bidId})`,
     reference: bidId,
     idempotencyKey: `BID_FEE:${bidId}`,
     now,
-    lines: [
-      {
-        accountCode: ACCOUNT_CODES.userPaid(userId),
-        accountName: "User paid balance",
-        accountType: "LIABILITY",
-        direction: "DEBIT",
-        amountSantims: feeSantims,
-      },
-      {
-        accountCode: ACCOUNT_CODES.revenue,
-        accountName: "Platform revenue",
-        accountType: "REVENUE",
-        direction: "CREDIT",
-        amountSantims: feeSantims,
-      },
-    ],
+    lines,
   });
 
-  const wallet = await ensureWallet(ctx, userId);
   ctx.db.patch(wallet._id, {
-    paidBalanceSantims: wallet.paidBalanceSantims - feeSantims,
+    paidBalanceSantims: wallet.paidBalanceSantims - fromPaid,
+    promoBalanceSantims: wallet.promoBalanceSantims - fromPromo,
     totalSpentSantims: wallet.totalSpentSantims + feeSantims,
     updatedAt: now,
   });

@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { getChapaSecretKey, hmacSha256Hex } from "./chapa";
 import {
   internalMutation,
@@ -10,6 +11,7 @@ import {
 import type { MutationCtx } from "./_generated/server";
 import { chargeWinnerPayment, deposit, ensureWallet } from "./lib/finance";
 import { insertNotification } from "./lib/notifications";
+import { assertRateLimit } from "./lib/rateLimit";
 
 /**
  * Payments — spec §22–25.
@@ -101,6 +103,19 @@ async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
   if (!userId) throw new Error("UNAUTHENTICATED");
   if (!Number.isInteger(args.amountSantims) || args.amountSantims <= 0) {
     throw new Error("INVALID_AMOUNT");
+  }
+
+  // Rate limit (spec §40): 5 top-up attempts / minute.
+  await assertRateLimit(ctx, { scope: "TOPUP", key: userId });
+
+  // Responsible play: self-exclusion and self-set deposit caps (24h cooling
+  // on raises) are enforced before any payment is created.
+  const guard = await ctx.runQuery(internal.engagement.assertDepositAllowedInternal, {
+    userId,
+    amountSantims: args.amountSantims,
+  });
+  if (!guard.allowed) {
+    throw new Error(guard.reason);
   }
 
   const now = Date.now();

@@ -101,17 +101,28 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   }, [linkToken]);
 
   const [step, setStep] = useState<Step>("method");
+  const [referralBound, setReferralBound] = useState(false);
   const [provider, setProvider] = useState<Provider>("email-otp");
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const applyReferral = useMutation(api.growth.applyReferralCode);
+
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
+      // Referral capture: bind once per session after a successful sign-in.
+      const ref = searchParams.get("ref");
+      if (ref && !referralBound) {
+        setReferralBound(true);
+        applyReferral({ code: ref }).catch(() => {
+          // Invalid/self/expired codes are silently ignored — never block login.
+        });
+      }
       navigate(redirect);
     }
-  }, [authLoading, isAuthenticated, navigate, redirect]);
+  }, [authLoading, isAuthenticated, navigate, redirect, searchParams, referralBound, applyReferral]);
 
   const cleanError = (err: unknown, fallback: string) => {
     // Convex auth errors arrive as Error("Uncaught Error: {\"message\":\"...\"}")

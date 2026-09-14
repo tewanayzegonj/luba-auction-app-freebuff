@@ -18,4 +18,28 @@ crons.interval(
   { max: 50 },
 );
 
+crons.interval(
+  "ending-soon alerts",
+  { minutes: 5 },
+  internal.engagement.processEndingSoon,
+);
+
+crons.interval(
+  "scheduled bid execution",
+  { minutes: 1 },
+  internal.engagement.processScheduledBids,
+);
+
+crons.interval(
+  "payment deadline chaser",
+  { minutes: 30 },
+  internal.engagement.chasePaymentDeadlines,
+);
+
+crons.interval(
+  "ledger reconciliation",
+  { minutes: 15 },
+  internal.engagement.reconcileInternal,
+);
+
 export default crons;

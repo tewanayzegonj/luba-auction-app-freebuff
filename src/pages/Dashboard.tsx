@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -28,6 +29,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  Eye,
   FlaskConical,
   Gavel,
   Gift,
@@ -35,6 +37,7 @@ import {
   Loader2,
   LogOut,
   Mail,
+  ReceiptText,
   Send,
   Smartphone,
   Trophy,
@@ -339,6 +342,12 @@ export default function Dashboard() {
                   {unreadCount}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="watchlist" className="gap-1.5 rounded-lg">
+              <Eye className="size-4" /> Watchlist
+            </TabsTrigger>
+            <TabsTrigger value="receipts" className="gap-1.5 rounded-lg">
+              <ReceiptText className="size-4" /> Receipts
             </TabsTrigger>
             <TabsTrigger value="profile" className="gap-1.5 rounded-lg">
               Profile
@@ -740,6 +749,16 @@ export default function Dashboard() {
             )}
           </TabsContent>
 
+          {/* ─── Watchlist ────────────────────────────────────────────────── */}
+          <TabsContent value="watchlist" className="mt-5">
+            <WatchlistPanel />
+          </TabsContent>
+
+          {/* ─── Receipts ─────────────────────────────────────────────────── */}
+          <TabsContent value="receipts" className="mt-5">
+            <ReceiptsPanel />
+          </TabsContent>
+
           {/* ─── Profile ──────────────────────────────────────────────────── */}
           <TabsContent value="profile" className="mt-5">
             <div className="grid max-w-4xl gap-5">
@@ -766,6 +785,33 @@ export default function Dashboard() {
                       Verified
                     </Badge>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Refer &amp; earn</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ReferralCard />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Notifications</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <NotificationPrefsCard />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Responsible play</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiblePlayCard />
                 </CardContent>
               </Card>
 
@@ -828,6 +874,302 @@ export default function Dashboard() {
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
+
+function WatchlistPanel() {
+  const watchlist = useQuery(api.engagement.listWatchlist, {});
+  if (watchlist === undefined) return <LoadingRows />;
+  if (watchlist.length === 0) {
+    return (
+      <EmptyState
+        icon={<Eye className="size-8 text-muted-foreground/50" />}
+        title="Nothing on your watchlist"
+        body="Tap “Watch this auction” on any live auction and we'll alert you before it closes."
+      />
+    );
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {watchlist.map((w) => (
+        <Link
+          key={w.watchId}
+          to={`/auction/${w.auctionCode}`}
+          className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-4 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
+        >
+          <div className="size-14 shrink-0 overflow-hidden rounded-lg">
+            <PrizeVisual
+              emoji={w.prizeEmoji ?? undefined}
+              imageUrl={w.prizeImage ?? undefined}
+              seed={w.auctionCode}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold group-hover:text-primary">
+              {w.prizeTitle ?? w.title}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {w.bidCount} bids · {w.status === "OPEN" ? "live now" : w.status.toLowerCase()}
+            </p>
+          </div>
+          {w.status === "OPEN" && <Countdown to={w.closesAt} compact />}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function ReceiptsPanel() {
+  const receipts = useQuery(api.transparency.myReceipts, {}) ?? [];
+  if (receipts.length === 0) {
+    return (
+      <EmptyState
+        icon={<ReceiptText className="size-8 text-muted-foreground/50" />}
+        title="No transactions yet"
+        body="Every deposit, bid fee, refund, and win appears here as an auditable receipt."
+      />
+    );
+  }
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
+            <th className="px-4 py-3 font-medium">Event</th>
+            <th className="px-4 py-3 font-medium">Reference</th>
+            <th className="px-4 py-3 font-medium">Date</th>
+            <th className="px-4 py-3 text-right font-medium">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {receipts.map((r) => (
+            <tr key={r._id} className="border-b border-border/60 last:border-0">
+              <td className="px-4 py-3 font-medium">{r.description}</td>
+              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                {String(r.reference).slice(0, 18)}
+              </td>
+              <td className="px-4 py-3 text-xs text-muted-foreground">
+                {new Date(r.createdAt).toLocaleString()}
+              </td>
+              <td
+                className={cn(
+                  "px-4 py-3 text-right font-mono font-semibold",
+                  r.amountSantims >= 0 ? "text-emerald-400" : "text-foreground",
+                )}
+              >
+                {r.amountSantims >= 0 ? "+" : "−"}
+                {formatETB(Math.abs(r.amountSantims))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ReferralCard() {
+  const info = useQuery(api.growth.getMyReferralInfo, {});
+  const ensureCode = useMutation(api.growth.ensureReferralCode);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (info && info.referralCode === null && !busy) {
+      setBusy(true);
+      ensureCode({}).finally(() => setBusy(false));
+    }
+  }, [info, busy, ensureCode]);
+
+  if (!info) return <div className="h-20 animate-pulse rounded-xl bg-secondary/50" />;
+
+  const shareUrl = info.referralCode
+    ? `${window.location.origin}/auth?ref=${info.referralCode}`
+    : null;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl bg-secondary/60 p-3">
+          <p className="font-mono text-lg font-bold">{info.totalReferred}</p>
+          <p className="text-[11px] text-muted-foreground">Friends joined</p>
+        </div>
+        <div className="rounded-xl bg-secondary/60 p-3">
+          <p className="font-mono text-lg font-bold">{info.totalRewarded}</p>
+          <p className="text-[11px] text-muted-foreground">Rewards earned</p>
+        </div>
+        <div className="rounded-xl bg-secondary/60 p-3">
+          <p className="font-mono text-lg font-bold text-primary">
+            {formatETB(info.promoBalanceSantims)}
+          </p>
+          <p className="text-[11px] text-muted-foreground">Promo balance</p>
+        </div>
+      </div>
+      {shareUrl && (
+        <>
+          <div className="rounded-xl border border-border bg-secondary/40 p-3">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Your code
+            </p>
+            <p className="mt-0.5 font-mono text-lg font-bold tracking-widest">
+              {info.referralCode}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              void navigator.clipboard.writeText(shareUrl);
+              toast.success("Invite link copied", {
+                description: "You both get promo credit when they place their first bid.",
+              });
+            }}
+          >
+            <Gift className="mr-1.5 size-4" />
+            Copy invite link
+          </Button>
+        </>
+      )}
+      <p className="text-xs leading-5 text-muted-foreground">
+        Promo credit is spent automatically on bid fees before your deposited
+        balance.
+      </p>
+    </div>
+  );
+}
+
+const PREF_LABELS: Record<string, string> = {
+  BID_ACCEPTED: "Bid confirmations",
+  AUCTION_ENDING: "Auction ending soon",
+  WINNER_ANNOUNCED: "Winner announcements",
+  PAYMENT_REMINDER: "Payment reminders",
+  PAYMENT_SUCCESS: "Payment receipts",
+  PRIZE_STATUS: "Prize delivery updates",
+  WATCHLIST_ALERT: "Watchlist alerts",
+};
+
+function NotificationPrefsCard() {
+  const prefs = useQuery(api.engagement.getMyNotificationPrefs, {});
+  const setPref = useMutation(api.engagement.setNotificationPref);
+  const [pending, setPending] = useState<string | null>(null);
+
+  if (!prefs) return <div className="h-24 animate-pulse rounded-xl bg-secondary/50" />;
+
+  return (
+    <div className="space-y-2">
+      {Object.entries(PREF_LABELS).map(([key, label]) => {
+        const value = (prefs as Record<string, unknown>)[key] !== false;
+        return (
+          <div
+            key={key}
+            className="flex items-center justify-between rounded-xl bg-secondary/40 px-4 py-2.5"
+          >
+            <span className="text-sm">{label}</span>
+            <Switch
+              checked={value}
+              disabled={pending === key}
+              onCheckedChange={(v) => {
+                setPending(key);
+                setPref({ key, value: v })
+                  .then(() => toast.success(`"${label}" ${v ? "on" : "off"}`))
+                  .finally(() => setPending(null));
+              }}
+            />
+          </div>
+        );
+      })}
+      <p className="text-xs leading-5 text-muted-foreground">
+        Critical security and account notices are always delivered.
+      </p>
+    </div>
+  );
+}
+
+function ResponsiblePlayCard() {
+  const limits = useQuery(api.growth.getMyLimits, {});
+  const setLimits = useMutation(api.growth.setResponsiblePlayLimits);
+  const [capInput, setCapInput] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!limits) return <div className="h-20 animate-pulse rounded-xl bg-secondary/50" />;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl bg-secondary/40 p-3.5 text-sm">
+        <p className="text-muted-foreground">
+          Daily deposit cap:{" "}
+          <span className="font-semibold text-foreground">
+            {limits.depositCapSantims !== null
+              ? formatETB(limits.depositCapSantims)
+              : "No limit set"}
+          </span>
+        </p>
+        {limits.capPendingSantims !== null && (
+          <p className="mt-1 text-xs text-amber-400">
+            Raise to {formatETB(limits.capPendingSantims)} takes effect after 24h.
+          </p>
+        )}
+        {limits.currentlyExcluded && limits.selfExcludedUntil && (
+          <p className="mt-1 text-xs text-rose-400">
+            You are self-excluded until{" "}
+            {new Date(limits.selfExcludedUntil).toLocaleDateString()}.
+          </p>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={capInput}
+          onChange={(e) => setCapInput(e.target.value)}
+          placeholder="Daily cap in ETB, e.g. 500"
+          inputMode="decimal"
+          className="h-10"
+        />
+        <Button
+          variant="outline"
+          className="h-10 shrink-0"
+          disabled={busy || parseETBToSantims(capInput) === null}
+          onClick={async () => {
+            const s = parseETBToSantims(capInput);
+            if (s === null) return;
+            setBusy(true);
+            try {
+              await setLimits({ dailyDepositCapSantims: s });
+              toast.success("Deposit cap saved");
+              setCapInput("");
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Failed");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Set cap
+        </Button>
+      </div>
+      <Button
+        variant="outline"
+        className="w-full border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await setLimits({ selfExcludeDays: 30 });
+            toast.info("Self-exclusion active for 30 days", {
+              description: "Bidding and deposits are disabled until it lifts.",
+            });
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        Take a 30-day break
+      </Button>
+      <p className="text-xs leading-5 text-muted-foreground">
+        Caps you set can only be lowered instantly; raising one takes 24 hours
+        to take effect. Limits are enforced server-side and cannot be bypassed.
+      </p>
+    </div>
+  );
+}
 
 function MethodRow({
   icon,

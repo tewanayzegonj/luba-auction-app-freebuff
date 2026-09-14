@@ -27,9 +27,12 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import {
   ArrowLeft,
+  Activity,
   BadgeCheck,
   Ban,
+  BarChart3,
   Clock,
+  Eye,
   Gavel,
   Info,
   Loader2,
@@ -132,8 +135,23 @@ export default function AuctionPage() {
   );
 
   const placeBid = useMutation(api.auctions.placeBid);
+  const toggleWatch = useMutation(api.engagement.toggleWatchlist);
+
+  const watching = useQuery(
+    api.engagement.isWatching,
+    auction && isAuthenticated ? { auctionId: auction._id } : "skip",
+  );
+  const activity = useQuery(
+    api.transparency.auctionActivity,
+    auction ? { auctionCode: code } : "skip",
+  );
+  const history = useQuery(
+    api.transparency.publishedBidHistory,
+    auction ? { auctionCode: code } : "skip",
+  );
 
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [togglePending, setTogglePending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -320,6 +338,94 @@ export default function AuctionPage() {
                   </div>
                 </div>
               </div>
+
+            {/* Watchlist toggle */}
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                className={cn("w-full", watching && "border-primary/50 bg-primary/5")}
+                disabled={togglePending}
+                onClick={async () => {
+                  setTogglePending(true);
+                  try {
+                    const res = await toggleWatch({ auctionId: auction._id });
+                    toast.success(
+                      res.watching
+                        ? "Added to your watchlist — we'll alert you before it closes."
+                        : "Removed from your watchlist.",
+                    );
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Failed");
+                  } finally {
+                    setTogglePending(false);
+                  }
+                }}
+              >
+                {togglePending ? (
+                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                ) : (
+                  <Eye className="mr-1.5 size-4" />
+                )}
+                {watching ? "Watching — alerts on" : "Watch this auction"}
+              </Button>
+            )}
+
+            {/* Live activity ticker (aggregates + anonymized recent bids) */}
+            {activity && activity.recent.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <Activity className="size-4 text-primary" />
+                  Live activity
+                </h3>
+                <div className="mt-3 space-y-1.5">
+                  {activity.recent.slice(0, 5).map((r, i) => (
+                    <p key={i} className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{r.who}</span>{" "}
+                      placed a bid · {new Date(r.acceptedAt).toLocaleTimeString()}
+                    </p>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  {activity.uniqueBids} of {activity.totalBids} bids are currently
+                  on unique values. Bid amounts stay hidden until close.
+                </p>
+              </div>
+            )}
+
+            {/* Published bid history (post-close transparency, spec §33) */}
+            {history && history.published && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <BarChart3 className="size-4 text-primary" />
+                  Full bid history — published
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Every accepted bid from this auction, lowest first. The winning
+                  value is highlighted — exactly how the result was determined.
+                </p>
+                <div className="mt-3 max-h-72 space-y-1 overflow-y-auto pr-1">
+                  {history.map.map((row) => (
+                    <div
+                      key={row.valueSantims}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 font-mono text-xs",
+                        row.isWinning
+                          ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
+                          : row.unique
+                            ? "bg-primary/5 text-primary"
+                            : "bg-secondary/50 text-secondary-foreground",
+                      )}
+                    >
+                      <span>{formatETB(row.valueSantims)}</span>
+                      <span className="text-[11px] opacity-70">
+                        ×{row.count}{row.unique ? " · unique" : ""}
+                        {row.isWinning ? " · WINNER" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             </div>
 
             {/* Result banner for completed auctions */}
