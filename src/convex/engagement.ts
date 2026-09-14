@@ -173,7 +173,7 @@ export const scheduleBid = mutation({
       throw new Error("BID_OUT_OF_RANGE");
     }
     const random: RandomReader = {
-      read(bytes: Uint8Array) {
+      read(bytes: Uint8Array<ArrayBuffer>) {
         crypto.getRandomValues(bytes);
       },
     };

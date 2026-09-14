@@ -248,7 +248,8 @@ function AdminConsole() {
         )}
 
         <Tabs defaultValue="users" className="mt-8">
-          <TabsList className="h-11 w-full justify-start gap-1 rounded-xl bg-secondary/70 p-1 sm:w-auto">
+          {/* P4.10: horizontally scrollable tab strip on small screens */}
+          <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary/70 p-1 sm:w-auto">
             <TabsTrigger value="users" className="gap-1.5 rounded-lg">
               <Users className="size-4" /> Users
             </TabsTrigger>
@@ -290,7 +291,8 @@ function AdminConsole() {
               <LoadingRows />
             ) : (
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">User</th>
@@ -517,6 +519,7 @@ function AdminConsole() {
                     )}
                   </tbody>
                 </table>
+                  </div>
               </div>
             )}
           </TabsContent>
@@ -531,7 +534,8 @@ function AdminConsole() {
               </p>
             ) : (
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">User</th>
@@ -577,6 +581,7 @@ function AdminConsole() {
                     ))}
                   </tbody>
                 </table>
+                  </div>
               </div>
             )}
           </TabsContent>
@@ -922,7 +927,10 @@ function AdminConsole() {
                         </p>
                       </div>
                       {!p.imageUrl && (
-                        <label className="cursor-pointer" title="Upload image">
+                        <label
+                          className="group/btn relative cursor-pointer"
+                          title="Upload image — recommended 1200×800 (3:2) or square, PNG/JPG up to 5 MB"
+                        >
                           <input
                             type="file"
                             accept="image/png,image/jpeg,image/webp"
@@ -966,6 +974,12 @@ function AdminConsole() {
                               <Camera className="size-4" />
                             )}
                           </span>
+                          {/* P3.7: upload guidance badge */}
+                          <span
+                            className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-background px-2 py-0.5 text-[10px] text-muted-foreground opacity-0 shadow-layered transition-opacity group-hover/btn:opacity-100"
+                          >
+                            Recommended: 1200×800 (3:2) or square · PNG/JPG · ≤5 MB
+                          </span>
                         </label>
                       )}
                     </div>
@@ -985,7 +999,8 @@ function AdminConsole() {
               </p>
             ) : (
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">Auction</th>
@@ -1092,6 +1107,7 @@ function AdminConsole() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
           </TabsContent>
@@ -1197,7 +1213,8 @@ function AdminConsole() {
                     </p>
                   ) : (
                     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-                      <table className="w-full text-sm">
+                      <div className="overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-sm">
                         <thead>
                           <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                             <th className="px-4 py-3 font-medium">When</th>
@@ -1247,6 +1264,7 @@ function AdminConsole() {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1922,13 +1940,15 @@ function LoadingRows() {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  // Distinct semantic colors (P4.11): active = emerald, pending/transition
+  // = amber, closed = slate, voided/cancelled = rose.
   const styles: Record<string, string> = {
-    SCHEDULED: "bg-secondary text-secondary-foreground",
+    SCHEDULED: "bg-amber-500/10 text-amber-300",
     OPEN: "bg-emerald-500/10 text-emerald-300",
     CLOSING: "bg-amber-500/10 text-amber-300",
-    CLOSED: "bg-secondary text-secondary-foreground",
+    CLOSED: "bg-slate-500/15 text-slate-300",
     SETTLING: "bg-amber-500/10 text-amber-300",
-    COMPLETED: "bg-primary/15 text-primary",
+    COMPLETED: "bg-emerald-500/10 text-emerald-300",
     CANCELLED: "bg-rose-500/10 text-rose-300",
   };
   return (

@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 /**
  * i18n (roadmap: Amharic localization).
  *
- * A typed dictionary and a language hook persisted to localStorage.
+ * Language lives in a React Context so toggling re-renders every consumer
+ * instantly — no page refresh. The choice persists to localStorage, and
+ * <html lang> follows so the Ethiopic typography rules in index.css apply.
  * Amharic copy uses standard Ethiopian e-commerce / fintech vocabulary
  * (ጨረታ, ዋሌት, ተጫራቾች) in the style of Telebirr and Howlow — written
  * natively, never word-for-word. Untranslated keys fall back to English.
@@ -13,19 +23,32 @@ export type Lang = "en" | "am";
 
 const STORAGE_KEY = "luba.lang";
 
-export function useLang(): {
+type LanguageContextValue = {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: TKey) => string;
-} {
-  const [lang, setLangState] = useState<Lang>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved === "am" ? "am" : "en";
-    } catch {
-      return "en";
-    }
-  });
+};
+
+const enT = (key: TKey) => STRINGS.en[key] ?? key;
+
+// Fallback so useLang never throws, even for a component rendered outside
+// the provider (it just reads English and cannot switch).
+const LanguageContext = createContext<LanguageContextValue>({
+  lang: "en",
+  setLang: () => {},
+  t: enT,
+});
+
+function readStoredLang(): Lang {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "am" ? "am" : "en";
+  } catch {
+    return "en";
+  }
+}
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Lang>(readStoredLang);
 
   useEffect(() => {
     try {
@@ -33,7 +56,7 @@ export function useLang(): {
     } catch {
       // private mode — language just won't persist
     }
-    document.documentElement.lang = lang === "am" ? "am" : "en";
+    document.documentElement.lang = lang;
   }, [lang]);
 
   const setLang = useCallback((l: Lang) => setLangState(l), []);
@@ -43,7 +66,15 @@ export function useLang(): {
     [lang],
   );
 
-  return { lang, setLang, t };
+  const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
+
+  return (
+    <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
+  );
+}
+
+export function useLang(): LanguageContextValue {
+  return useContext(LanguageContext);
 }
 
 export const STRINGS = {
@@ -97,6 +128,16 @@ export const STRINGS = {
     "auction.winnerPays": "Winner pays only the winning bid amount.",
     "auction.bidsLeft": "bids left for you",
     "auction.insufficientBalance": "Not enough balance — top up to bid.",
+    "auction.views": "views",
+    "auction.participants": "participants",
+    "auction.insufficientTitle": "Insufficient wallet balance",
+    "auction.insufficientNeed": "You need {fee} to place this bid.",
+    "auction.insufficientAvailable": "Available",
+    "auction.insufficientNeeded": "Needed",
+    "auction.insufficientNote":
+      "Only the service fee is charged now — your bid of {bid} is paid only if you win.",
+    "auction.topUpCta": "Top Up Wallet",
+    "auction.topUpToBid": "Top up to bid",
 
     // Wallet
     "wallet.balance": "Wallet balance",
@@ -113,6 +154,17 @@ export const STRINGS = {
     "dashboard.wallet": "Wallet",
     "dashboard.alerts": "Alerts",
     "dashboard.payToWin": "pay your winning bid to claim your prize",
+    "dashboard.name": "Display name",
+    "dashboard.namePromptTitle": "Enter your display name",
+    "dashboard.namePromptBody":
+      "This is how you'll appear on leaderboards and winner announcements. You can change it later in your profile.",
+    "dashboard.nameMaybeLater": "Maybe later",
+    "dashboard.alertsBannerTitle": "Receive auction and outbid alerts",
+    "dashboard.alertsBannerBody":
+      "Get notified on Telegram and email when bids land, auctions are ending, and you win.",
+    "dashboard.alertsBannerCta": "Connect Telegram for instant alerts",
+    "dashboard.alertsBannerDismiss": "Dismiss",
+    "dashboard.setName": "Set name",
 
     // Auth
     "auth.title": "Sign in to Luba",
@@ -139,6 +191,7 @@ export const STRINGS = {
     "common.cancel": "Cancel",
     "common.confirm": "Confirm",
     "common.close": "Close",
+    "common.dismiss": "Dismiss",
   },
 
   am: {
@@ -192,6 +245,16 @@ export const STRINGS = {
     "auction.bidsLeft": "ለእርስዎ የሚቀሩ ጨረታዎች",
     "auction.insufficientBalance":
       "የዋሌት ቀሪ ሒሳብዎ አይበቃም — ለመውረስ ዋሌትዎን ይሙሉ።",
+    "auction.views": "ተመልክተዋል",
+    "auction.participants": "ተጫራቾች",
+    "auction.insufficientTitle": "የዋሌት ቀሪ ሒሳብ አልበቃም",
+    "auction.insufficientNeed": "ይህን ጨረታ ለማቅረብ {fee} ያስፈልግዎታል።",
+    "auction.insufficientAvailable": "ያለዎት",
+    "auction.insufficientNeeded": "የሚያስፈልገው",
+    "auction.insufficientNote":
+      "አሁን የሚቆጠረው የአገልግሎቱ ክፍያ ብቻ ነው — {bid} የሚከፍሉት አሸንፈው ሲወጡ ብቻ።",
+    "auction.topUpCta": "ዋሌት ይሙሉ",
+    "auction.topUpToBid": "ዋሌት ይሙሉ",
 
     // Wallet
     "wallet.balance": "የዋሌት ቀሪ ሒሳብ",
@@ -208,6 +271,17 @@ export const STRINGS = {
     "dashboard.wallet": "ዋሌት",
     "dashboard.alerts": "ማሳወቂያዎች",
     "dashboard.payToWin": "የሽንፍታ ክፍያዎን ይክፈሉ — ሽልማትዎን ለማግኘት",
+    "dashboard.name": "የሚታይ ስም",
+    "dashboard.namePromptTitle": "የሚታይ ስምዎን ያስገቡ",
+    "dashboard.namePromptBody":
+      "ይህ ስም በጨረታዎች እና በአሸናፊነት ማስታወቂያዎች ላይ ይታያል። በመገለጫዎ ውስጥ በኋላ ማስተካከል ይችላሉ።",
+    "dashboard.nameMaybeLater": "እስከዚያው",
+    "dashboard.alertsBannerTitle": "የጨረታ ማሳወቂያዎችን ይቀበሉ",
+    "dashboard.alertsBannerBody":
+      "ጨረታ ሲገባ፣ ጨረታዎች ሲያልቁ እና ስታሸንፍ በቴሌግራም እና በኢሜይል ይነገራሉ።",
+    "dashboard.alertsBannerCta": "በቴሌግራም አገናኝ ለአፍጥነት ማሳወቂያ",
+    "dashboard.alertsBannerDismiss": "አስወግድ",
+    "dashboard.setName": "ስም ያስገቡ",
 
     // Auth
     "auth.title": "ወደ ሉባ ይግቡ",
@@ -234,6 +308,7 @@ export const STRINGS = {
     "common.cancel": "ሰርዝ",
     "common.confirm": "አረጋግጥ",
     "common.close": "ዝጋ",
+    "common.dismiss": "አስወግድ",
   },
 } as const;
 

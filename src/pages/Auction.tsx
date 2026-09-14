@@ -35,6 +35,7 @@ import {
   Clock,
   Eye,
   Gavel,
+  Users,
   Info,
   Loader2,
   Lock,
@@ -42,9 +43,16 @@ import {
   Trophy,
   Wallet,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+
+/** Compact view/bid counters: 3140 → "3.1K" (P3.8). */
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
 
 const FRIENDLY_ERRORS: Record<string, string> = {
   UNAUTHENTICATED: "Please sign in to place a bid.",
@@ -152,9 +160,26 @@ export default function AuctionPage() {
     auction ? { auctionCode: code } : "skip",
   );
 
+  const recordView = useMutation(api.auctions.recordAuctionView);
+
+  // Record one view per session per auction (P3.8); presentation metric only.
+  useEffect(() => {
+    if (!auction) return;
+    const key = `luba.viewed.${auction.auctionCode}`;
+    try {
+      if (sessionStorage.getItem(key) === "1") return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // storage unavailable — still record, just unthrottled
+    }
+    void recordView({ code: auction.auctionCode }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auction?.auctionCode]);
+
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [togglePending, setTogglePending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [insufficientOpen, setInsufficientOpen] = useState(false);
   const [feeAcknowledged, setFeeAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -227,6 +252,14 @@ export default function AuctionPage() {
   const isOpen = auction.status === "OPEN" || auction.status === "CLOSING";
   const fee = auction.bidServiceFeeSantims;
 
+  // Available funds: the server spends promo credit before paid balance, so
+  // the client gate mirrors that exactly (server remains authoritative).
+  const availableSantims =
+    (wallet?.promoBalanceSantims ?? 0) + (wallet?.paidBalanceSantims ?? 0);
+  const insufficientFunds =
+    isAuthenticated && bidValueSantims !== null && availableSantims < fee;
+  const insufficientDialog = { open: insufficientOpen, onOpenChange: setInsufficientOpen };
+
   const handleConfirmBid = async () => {
     if (bidValueSantims === null || !auction) return;
     setSubmitting(true);
@@ -275,7 +308,7 @@ export default function AuctionPage() {
           {/* ─── Prize panel ──────────────────────────────────────────────── */}
           <div className="space-y-6">
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-              <div className="relative aspect-[16/10]">
+              <div className="relative aspect-[16/10] bg-secondary/50">
                 <PrizeVisual
                   emoji={auction.prize?.emoji}
                   imageUrl={auction.prize?.imageUrl}
@@ -310,6 +343,25 @@ export default function AuctionPage() {
                       </p>
                     </div>
                   )}
+                </div>
+
+                <Separator className="my-4" />
+
+                {/* P3.8: engagement indicators, industry-standard row */}
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Eye className="size-3.5" />
+                    {formatCount(auction.viewCount ?? 0)} {t("auction.views")}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Gavel className="size-3.5" />
+                    {formatCount(auction.bidCount)} {t("auction.bids")}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Users className="size-3.5" />
+                    {formatCount(auction.participantCount ?? 0)}{" "}
+                    {t("auction.participants")}
+                  </span>
                 </div>
 
                 <Separator className="my-4" />
@@ -630,8 +682,7 @@ export default function AuctionPage() {
                           will be charged now, I've read the bid rules, and I
                           accept the Terms &amp; Conditions.
                         </label>
-                      </div>
-                      <Button
+                      </div>                      <Button
                         className="h-11 w-full"
                         disabled={
                           !amountInput ||
@@ -641,12 +692,27 @@ export default function AuctionPage() {
                           submitting
                         }
                         onClick={() => {
+                          if (insufficientFunds) {
+                            // Intercept before any confirmation: not enough
+                            // funds for the service fee (P2.4).
+                            setInsufficientOpen(true);
+                            return;
+                          }
                           setFeeAcknowledged(false); // require a fresh acknowledgment each bid
                           setConfirmOpen(true);
                         }}
                       >
-                        <Gavel className="mr-1.5 size-4" />
-                        Review bid
+                        {insufficientFunds ? (
+                          <>
+                            <Wallet className="mr-1.5 size-4" />
+                            {t("auction.topUpToBid")}
+                          </>
+                        ) : (
+                          <>
+                            <Gavel className="mr-1.5 size-4" />
+                            Review bid
+                          </>
+                        )}
                       </Button>
                       {bidsLeft === 0 && (
                         <p className="text-center text-xs text-muted-foreground">
@@ -774,6 +840,62 @@ export default function AuctionPage() {
                   {t("common.confirm")}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Insufficient balance intercept (P2.4) ───────────────────── */}
+      <Dialog open={insufficientOpen} onOpenChange={setInsufficientOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="size-5 text-amber-400" />
+              {t("auction.insufficientTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("auction.insufficientNeed").replace(
+                "{fee}",
+                formatETB(fee),
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl bg-secondary/60 p-4 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">
+                {t("auction.insufficientAvailable")}
+              </span>
+              <span className="font-mono font-semibold">
+                {formatETB(availableSantims)}
+              </span>
+            </div>
+            <div className="mt-1.5 flex justify-between">
+              <span className="text-muted-foreground">
+                {t("auction.insufficientNeeded")}
+              </span>
+              <span className="font-mono font-semibold">{formatETB(fee)}</span>
+            </div>
+            {bidValueSantims !== null && (
+              <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                {t("auction.insufficientNote").replace(
+                  "{bid}",
+                  formatETB(bidValueSantims),
+                )}
+              </p>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setInsufficientOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                setInsufficientOpen(false);
+                navigate("/dashboard?tab=wallet");
+              }}
+            >
+              <Wallet className="mr-1.5 size-4" />
+              {t("auction.topUpCta")}
             </Button>
           </DialogFooter>
         </DialogContent>

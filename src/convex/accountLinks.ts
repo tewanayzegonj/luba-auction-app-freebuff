@@ -20,6 +20,16 @@ import {
 import { insertAuditLog } from "./lib/notifications";
 
 /**
+ * True when the string looks like a numeric Telegram chat ID rather than an
+ * email. Telegram sign-in flows through an Email-type provider, so the chat
+ * ID gets stored in the user's `email` field — this helper distinguishes the
+ * two so the UI labels identities correctly.
+ */
+function looksLikeTelegramChatId(value: string): boolean {
+  return /^\d{5,}$/.test(value);
+}
+
+/**
  * Account linking — email ↔ Telegram ↔ phone (SMS), spec §8.
  *
  * Flow (Telegram / phone):
@@ -42,7 +52,7 @@ const TOKEN_TTL_MS = 15 * 60 * 1000;
 
 function randomToken(): string {
   const random: RandomReader = {
-    read(bytes: Uint8Array) {
+    read(bytes: Uint8Array<ArrayBuffer>) {
       crypto.getRandomValues(bytes);
     },
   };
@@ -75,7 +85,9 @@ export const getLinkMethods = query({
     const user = await ctx.db.get(userId);
     if (user === null) return null;
     return {
-      email: user.email ?? null,
+      email: user.email && !looksLikeTelegramChatId(user.email) ? user.email : null,
+      signInEmail: user.email ?? null,
+      signedInViaTelegram: looksLikeTelegramChatId(user.email ?? "") && !user.telegramChatId,
       telegramChatId: user.telegramChatId ?? null,
       phone: user.phone ?? null,
       phoneVerified: user.phoneVerificationTime !== undefined,

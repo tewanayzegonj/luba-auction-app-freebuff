@@ -16,6 +16,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/use-auth";
@@ -45,10 +53,11 @@ import {
   Trophy,
   TrendingUp,
   Unlink,
+  UserRound,
   Wallet,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 const TOPUP_PRESETS = [5000, 10000, 25000, 50000, 100000]; // santims: 50 / 100 / 250 / 500 / 1000 ETB
@@ -57,6 +66,18 @@ export default function Dashboard() {
   const { user, signOut } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const validTabs = [
+    "bids",
+    "wallet",
+    "notifications",
+    "watchlist",
+    "receipts",
+    "profile",
+  ];
+  const initialTab =
+    requestedTab && validTabs.includes(requestedTab) ? requestedTab : "bids";
 
   const wallet = useQuery(api.payments.getMyWallet, {});
   const myBids = useQuery(api.bids.getMyBids, {});
@@ -79,6 +100,34 @@ export default function Dashboard() {
 
   const chapaStatus = useQuery(api.chapa.getChapaStatus, {});
   const linkMethods = useQuery(api.accountLinks.getLinkMethods, {});
+
+  const setMyName = useMutation(api.profile.setMyName);
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [onboardingDismissed, setOnboardingDismissed] = useState(true);
+  const [alertsBannerDismissed, setAlertsBannerDismissed] = useState(true);
+
+  // Onboarding: first visit without a display name → quick setup modal.
+  useEffect(() => {
+    if (!user) return;
+    setOnboardingDismissed(localStorage.getItem("luba.onboardedName") === "1");
+    setAlertsBannerDismissed(localStorage.getItem("luba.dismissedAlerts") === "1");
+  }, [user]);
+
+  useEffect(() => {
+    if (user && !user.name && !onboardingDismissed) {
+      setNameInput("");
+      setNameOpen(true);
+    }
+  }, [user, onboardingDismissed]);
+
+  // P2.6: alert opt-in — visible when the user has no alert channel linked.
+  const showAlertsBanner =
+    Boolean(user) &&
+    !alertsBannerDismissed &&
+    linkMethods != null &&
+    !linkMethods.telegramChatId &&
+    !linkMethods.signedInViaTelegram;
 
   const startLink = useMutation(api.accountLinks.startLink);
   const unlinkMethod = useMutation(api.accountLinks.unlink);
@@ -182,7 +231,9 @@ export default function Dashboard() {
           description:
             result.error === "CHAPA_NOT_CONFIGURED"
               ? "Online payments are not configured yet — use the sandbox option below."
-              : `Provider error: ${result.error}`,
+              : result.detail
+                ? `Chapa: ${result.detail}`
+                : `Provider error: ${result.error}`,
         });
         return;
       }
@@ -233,6 +284,24 @@ export default function Dashboard() {
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
+  };
+
+  const handleSaveName = async () => {
+    const name = nameInput.trim();
+    if (name.length < 2) return;
+    try {
+      await setMyName({ name });
+      localStorage.setItem("luba.onboardedName", "1");
+      setOnboardingDismissed(true);
+      setNameOpen(false);
+      toast.success("Display name saved", {
+        description: "You can change it any time in Profile.",
+      });
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not save your name.",
+      );
+    }
   };
 
   const auctionTitle = (auctionId: Id<"auctions">) =>
@@ -328,8 +397,61 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* P2.6: alert opt-in banner */}
+        {showAlertsBanner && (
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Bell className="size-4.5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">
+                  {t("dashboard.alertsBannerTitle")}
+                </p>
+                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                  {t("dashboard.alertsBannerBody")}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {linkMethods?.telegramConfigured && (
+                <Button
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    localStorage.setItem("luba.dismissedAlerts", "1");
+                    setAlertsBannerDismissed(true);
+                    navigate("/dashboard?tab=profile");
+                  }}
+                >
+                  <Send className="size-3.5" />
+                  {t("dashboard.alertsBannerCta")}
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  localStorage.setItem("luba.dismissedAlerts", "1");
+                  setAlertsBannerDismissed(true);
+                }}
+              >
+                {t("dashboard.alertsBannerDismiss")}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
-        <Tabs defaultValue="bids" className="mt-8">
+        <Tabs
+          defaultValue={initialTab}
+          key={initialTab}
+          onValueChange={(v) => {
+            if (v === "bids") setSearchParams({}, { replace: true });
+            else setSearchParams({ tab: v }, { replace: true });
+          }}
+          className="mt-8"
+        >
           <TabsList className="h-11 w-full justify-start gap-1 rounded-xl bg-secondary/70 p-1 sm:w-auto">
             <TabsTrigger value="bids" className="gap-1.5 rounded-lg">
               <Gavel className="size-4" /> {t("dashboard.myBids")}
@@ -451,7 +573,7 @@ export default function Dashboard() {
                         to={`/auction/${a.auctionCode}`}
                         className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-3.5 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
                       >
-                        <div className="size-14 shrink-0 overflow-hidden rounded-lg">
+                        <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
                           <PrizeVisual
                             emoji={a.prize?.emoji}
                             imageUrl={a.prize?.imageUrl}
@@ -772,8 +894,20 @@ export default function Dashboard() {
                 <CardContent className="space-y-4 text-sm">
                   <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
                     <span className="text-muted-foreground">Name</span>
-                    <span className="font-medium">
+                    <span className="flex items-center gap-2 font-medium">
                       {user?.name ?? user?.email ?? "—"}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1.5 px-2 text-xs"
+                        onClick={() => {
+                          setNameInput(user?.name ?? "");
+                          setNameOpen(true);
+                        }}
+                      >
+                        <UserRound className="size-3.5" />
+                        {user?.name ? "Edit" : t("dashboard.setName")}
+                      </Button>
                     </span>
                   </div>
                   <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
@@ -822,18 +956,33 @@ export default function Dashboard() {
                 <CardHeader>
                   <CardTitle className="text-base">Sign-in methods</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {linkMethods == null ? (
+                <CardContent>                  {linkMethods == null ? (
                     <div className="h-24 animate-pulse rounded-xl bg-secondary/50" />
                   ) : (
                     <div className="space-y-3">
-                      <MethodRow
-                        icon={<Mail className="size-4" />}
-                        title="Email"
-                        subtitle={linkMethods.email ?? "Not set"}
-                        connected={Boolean(linkMethods.email)}
-                        locked
-                      />
+                      {linkMethods.signedInViaTelegram ? (
+                        <MethodRow
+                          icon={<Send className="size-4" />}
+                          title="Telegram (sign-in)"
+                          subtitle={`Chat ID ${linkMethods.signInEmail}`}
+                          connected
+                        />
+                      ) : (
+                        <MethodRow
+                          icon={<Mail className="size-4" />}
+                          title="Email"
+                          subtitle={linkMethods.email ?? "Not set"}
+                          connected={Boolean(linkMethods.email)}
+                          locked={Boolean(linkMethods.email)}
+                        />
+                      )}
+                      {linkMethods.signedInViaTelegram && (
+                        <p className="rounded-xl bg-secondary/40 px-4 py-3 text-xs leading-5 text-muted-foreground">
+                          You signed in with your Telegram ID ({linkMethods.signInEmail}).
+                          Link it below to receive bid and winner alerts there, or add an
+                          email for receipts.
+                        </p>
+                      )}
                       <TelegramLinkRow
                         methods={{
                           telegramChatId: linkMethods.telegramChatId,
@@ -884,6 +1033,52 @@ export default function Dashboard() {
         </Tabs>
       </main>
 
+      {/* P2.5: display-name onboarding (dismissible) */}
+      <Dialog open={nameOpen} onOpenChange={setNameOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserRound className="size-5 text-primary" />
+              {t("dashboard.namePromptTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("dashboard.namePromptBody")}
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            placeholder="e.g. Abel Tesfaye"
+            maxLength={60}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && nameInput.trim().length >= 2) {
+                void handleSaveName();
+              }
+            }}
+          />
+          <DialogFooter className="gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                localStorage.setItem("luba.onboardedName", "1");
+                setOnboardingDismissed(true);
+                setNameOpen(false);
+              }}
+            >
+              {t("dashboard.nameMaybeLater")}
+            </Button>
+            <Button
+              disabled={nameInput.trim().length < 2}
+              onClick={() => void handleSaveName()}
+            >
+              <CheckCircle2 className="mr-1.5 size-4" />
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <SiteFooter />
     </div>
   );
@@ -911,7 +1106,7 @@ function WatchlistPanel() {
           to={`/auction/${w.auctionCode}`}
           className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-4 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
         >
-          <div className="size-14 shrink-0 overflow-hidden rounded-lg">
+          <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
             <PrizeVisual
               emoji={w.prizeEmoji ?? undefined}
               imageUrl={w.prizeImage ?? undefined}

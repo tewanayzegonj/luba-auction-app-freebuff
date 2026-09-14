@@ -19,7 +19,7 @@ export const afroMessageSms = Email({
   maxAge: 60 * 15, // 15 minutes
   async generateVerificationToken() {
     const random: RandomReader = {
-      read(bytes: Uint8Array) {
+      read(bytes: Uint8Array<ArrayBuffer>) {
         crypto.getRandomValues(bytes);
       },
     };

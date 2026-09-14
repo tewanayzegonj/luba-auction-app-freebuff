@@ -1,6 +1,8 @@
 import '@vly-ai/integrations';
 import { Toaster } from "@/components/ui/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
+import { LanguageProvider } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/theme";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
@@ -125,58 +127,61 @@ createRoot(document.getElementById("root")!).render(
     <RootErrorBoundary>
       <ToolbarErrorBoundary>
         <VlyToolbar />
-      </ToolbarErrorBoundary>
-      <ConvexAuthProvider client={convex}>
-        <BrowserRouter>
-          <RouteSyncer />
-          <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route
-                path="/auth"
-                element={<AuthPage redirectAfterAuth="/dashboard" />}
-              />
-              <Route
-                path="/auction/:code"
-                element={
-                  <RequireAuth>
-                    <AuctionPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth>
-                    <Dashboard />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/admin"
-                element={
-                  <RequireAuth>
-                    <AdminPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/legal/terms"
-                element={<Legal doc="terms" />}
-              />
-              <Route
-                path="/legal/privacy"
-                element={<Legal doc="privacy" />}
-              />
-              <Route
-                path="/legal/responsible-play"
-                element={<Legal doc="responsible-play" />}
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
-        <Toaster />
+      </ToolbarErrorBoundary>      <ConvexAuthProvider client={convex}>
+        <ThemeProvider>
+          <LanguageProvider>
+          <BrowserRouter>
+            <RouteSyncer />
+            <Suspense fallback={<RouteLoading />}>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route
+                  path="/auth"
+                  element={<AuthPage redirectAfterAuth="/dashboard" />}
+                />
+                <Route
+                  path="/auction/:code"
+                  element={
+                    <RequireAuth>
+                      <AuctionPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <RequireAuth>
+                      <Dashboard />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <RequireAuth>
+                      <AdminPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/legal/terms"
+                  element={<Legal doc="terms" />}
+                />
+                <Route
+                  path="/legal/privacy"
+                  element={<Legal doc="privacy" />}
+                />
+                <Route
+                  path="/legal/responsible-play"
+                  element={<Legal doc="responsible-play" />}
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+          <Toaster />
+          </LanguageProvider>
+        </ThemeProvider>
       </ConvexAuthProvider>
     </RootErrorBoundary>
   </StrictMode>,

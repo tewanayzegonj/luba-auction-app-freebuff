@@ -45,41 +45,44 @@
 /* ─── Luba: dark, technical, premium ─────────────────────────────────────── */
 /* Deep slate-black surfaces, one precise cyan accent, mono numerals.        */
 :root {
+  /* Light theme (P3.9): clean off-whites, crisp borders, charcoal text.
+     The dark palette lives in `.dark` below; `:root.light` overrides when
+     the theme toggle picks light. */
   --radius: 0.75rem;
-  --background: oklch(0.145 0.008 250);
-  --foreground: oklch(0.965 0.003 250);
-  --card: oklch(0.185 0.01 250);
-  --card-foreground: oklch(0.965 0.003 250);
-  --popover: oklch(0.185 0.01 250);
-  --popover-foreground: oklch(0.965 0.003 250);
-  --primary: oklch(0.78 0.13 195);
-  --primary-foreground: oklch(0.14 0.02 230);
-  --secondary: oklch(0.26 0.012 250);
-  --secondary-foreground: oklch(0.965 0.003 250);
-  --muted: oklch(0.22 0.01 250);
-  --muted-foreground: oklch(0.62 0.012 250);
-  --accent: oklch(0.26 0.012 250);
-  --accent-foreground: oklch(0.965 0.003 250);
-  --destructive: oklch(0.62 0.2 25);
-  --border: oklch(0.965 0.003 250 / 10%);
-  --input: oklch(0.965 0.003 250 / 14%);
-  --ring: oklch(0.78 0.13 195);
-  --chart-1: oklch(0.78 0.13 195);
-  --chart-2: oklch(0.72 0.14 150);
-  --chart-3: oklch(0.7 0.12 260);
-  --chart-4: oklch(0.78 0.14 84);
-  --chart-5: oklch(0.7 0.16 25);
-  --sidebar: oklch(0.185 0.01 250);
-  --sidebar-foreground: oklch(0.965 0.003 250);
-  --sidebar-primary: oklch(0.78 0.13 195);
-  --sidebar-primary-foreground: oklch(0.14 0.02 230);
-  --sidebar-accent: oklch(0.26 0.012 250);
-  --sidebar-accent-foreground: oklch(0.965 0.003 250);
-  --sidebar-border: oklch(0.965 0.003 250 / 10%);
-  --sidebar-ring: oklch(0.78 0.13 195);
+  --background: #f9fafb; /* gray-50 */
+  --foreground: #111827; /* gray-900 charcoal */
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: oklch(0.55 0.11 210);
+  --primary-foreground: #f8fafc;
+  --secondary: oklch(0.955 0.005 250);
+  --secondary-foreground: #111827;
+  --muted: oklch(0.955 0.005 250);
+  --muted-foreground: oklch(0.45 0.012 250);
+  --accent: oklch(0.955 0.005 250);
+  --accent-foreground: #111827;
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.87 0.008 250);
+  --input: oklch(0.87 0.008 250);
+  --ring: oklch(0.55 0.11 210);
+  --chart-1: oklch(0.55 0.11 210);
+  --chart-2: oklch(0.55 0.12 150);
+  --chart-3: oklch(0.55 0.1 260);
+  --chart-4: oklch(0.68 0.13 84);
+  --chart-5: oklch(0.58 0.16 25);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: oklch(0.55 0.11 210);
+  --sidebar-primary-foreground: #f8fafc;
+  --sidebar-accent: oklch(0.955 0.005 250);
+  --sidebar-accent-foreground: #111827;
+  --sidebar-border: oklch(0.87 0.008 250);
+  --sidebar-ring: oklch(0.55 0.11 210);
 }
 
-/* The interface is dark by default — the .dark scope mirrors the root. */
+/* The interface is dark by default — the .dark scope mirrors the legacy root. */
 .dark {
   --background: oklch(0.145 0.008 250);
   --foreground: oklch(0.965 0.003 250);
@@ -117,6 +120,9 @@
 @layer base {
   html {
     color-scheme: dark;
+  }
+  html.light {
+    color-scheme: light;
   }
   * {
     @apply border-border outline-ring/50;
@@ -189,7 +195,8 @@
   }
 }
 
-/* Layered card shadows, tuned for dark technical surfaces */
+/* Layered card shadows — tuned per theme: dark surfaces use deep shadows,
+   light surfaces get soft elevation plus a crisp border-like ring (P3.9). */
 @layer utilities {
   .shadow-layered {
     box-shadow:
@@ -201,6 +208,17 @@
       0 1px 2px oklch(0 0 0 / 0.5),
       0 12px 32px -8px oklch(0 0 0 / 0.5),
       0 0 0 1px oklch(1 0 0 / 0.04) inset;
+  }
+  html.light .shadow-layered {
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.06),
+      0 0 0 1px oklch(0 0 0 / 0.05) inset;
+  }
+  html.light .shadow-layered-lg {
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.05),
+      0 12px 32px -8px oklch(0 0 0 / 0.12),
+      0 0 0 1px oklch(0 0 0 / 0.05) inset;
   }
   .text-balance {
     text-wrap: balance;

@@ -100,7 +100,7 @@ export function chapaAmountToSantims(amount: string): number | null {
 
 type InitializeResult =
   | { ok: true; checkoutUrl: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; detail?: string };
 
 /**
  * Initialize a Chapa transaction and return the hosted checkout URL.
@@ -134,9 +134,11 @@ export const initializeCheckout = action({
       currency: "ETB",
       tx_ref: args.merchantReference,
       return_url: args.returnUrl,
+      // Chapa limits customization.title to 16 characters — longer titles
+      // are rejected with an HTTP 400 validation error.
       customization: {
-        title: "Luba wallet top-up",
-        description: `Wallet deposit ${args.merchantReference}`,
+        title: "Luba Top-Up",
+        description: `Deposit ${args.merchantReference}`.slice(0, 60),
       },
     };
     if (args.email) body.email = args.email;
@@ -162,16 +164,35 @@ export const initializeCheckout = action({
     }
 
     if (!response.ok) {
-      return { ok: false, error: `CHAPA_HTTP_${response.status}` };
+      // Capture Chapa's own error body — it carries the actionable reason
+      // (invalid key, validation failure, unapproved account, …).
+      let detail = "";
+      try {
+        const errPayload = (await response.json()) as {
+          message?: string;
+          data?: unknown;
+        };
+        detail =
+          typeof errPayload?.message === "string" ? errPayload.message : "";
+      } catch {
+        // non-JSON error body — fall back to the status code alone
+      }
+      return { ok: false, error: `CHAPA_HTTP_${response.status}`, detail };
     }
 
     const payload = (await response.json()) as {
       status?: string;
+      message?: string;
       data?: { checkout_url?: string };
     };
     const checkoutUrl = payload.data?.checkout_url;
     if (payload.status !== "success" || !checkoutUrl) {
-      return { ok: false, error: "CHAPA_INIT_FAILED" };
+      return {
+        ok: false,
+        error: "CHAPA_INIT_FAILED",
+        detail:
+          typeof payload.message === "string" ? payload.message : undefined,
+      };
     }
 
     return { ok: true, checkoutUrl };

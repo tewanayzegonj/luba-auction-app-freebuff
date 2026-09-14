@@ -26,7 +26,7 @@ const DEFAULT_REFERRAL_REWARD_SANTIMS = 2_000; // 20 ETB promo, admin-tunable
 
 function generateReferralCode(): string {
   const random: RandomReader = {
-    read(bytes: Uint8Array) {
+    read(bytes: Uint8Array<ArrayBuffer>) {
       crypto.getRandomValues(bytes);
     },
   };

@@ -53,6 +53,8 @@ export const listOpenAuctions = query({
           maxBidSantims: auction.maxBidSantims,
           bidCount: auction.bidCount,
           uniqueBidCount: auction.uniqueBidCount,
+          participantCount: auction.participantCount ?? 0,
+          viewCount: auction.viewCount ?? 0,
           prize: prize
             ? {
                 title: prize.title,
@@ -69,6 +71,27 @@ export const listOpenAuctions = query({
 });
 
 /** Public detail for an auction by code, joined with prize + recent bid stats. */
+/**
+ * Record a detail-page view (P3.8). Throttled per user+auction via
+ * sessionStorage on the client — the server just increments. Best-effort:
+ * view stats are presentation metrics, not financial truth.
+ */
+export const recordAuctionView = mutation({
+  args: { code: v.string() },
+  handler: async (ctx, args) => {
+    const auction = await ctx.db
+      .query("auctions")
+      .withIndex("by_code", (q) => q.eq("auctionCode", args.code))
+      .unique();
+    if (!auction) return { ok: false as const };
+    await ctx.db.patch(auction._id, {
+      viewCount: (auction.viewCount ?? 0) + 1,
+      updatedAt: Date.now(),
+    });
+    return { ok: true as const };
+  },
+});
+
 export const getAuctionByCode = query({
   args: { code: v.string() },
   handler: async (ctx, args) => {
@@ -105,6 +128,8 @@ export const getAuctionByCode = query({
       noWinnerPolicy: auction.noWinnerPolicy,
       bidCount: auction.bidCount,
       uniqueBidCount: auction.uniqueBidCount,
+      participantCount: auction.participantCount ?? 0,
+      viewCount: auction.viewCount ?? 0,
       prize: prize
         ? {
             title: prize.title,
@@ -337,9 +362,14 @@ export const placeBid = mutation({
     let uniqueCount = 0;
     for (const c of valueCounts.values()) if (c === 1) uniqueCount++;
 
+    // Distinct accepted bidders (P3.8 stats row).
+    const participants = new Set<string>();
+    for (const b of acceptedAll) participants.add(b.userId);
+
     ctx.db.patch(auction._id, {
       bidCount: acceptedAll.length,
       uniqueBidCount: uniqueCount,
+      participantCount: participants.size,
       updatedAt: now,
     });
 

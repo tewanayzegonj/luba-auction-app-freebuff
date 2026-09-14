@@ -15,10 +15,15 @@
   />
   <meta name="description" content="Luba — lowest unique bid auctions. Deterministic settlement, private bid amounts, auditable ledger." />
   <title>Luba — Lowest Unique Bid Auctions</title>
-</head>
-
-
-<body>
+</head>  <body>
+    <script>
+      // Apply the persisted theme before first paint to avoid a flash.
+      try {
+        if (localStorage.getItem("luba.theme") === "light") {
+          document.documentElement.classList.add("light");
+        }
+      } catch (e) {}
+    </script>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

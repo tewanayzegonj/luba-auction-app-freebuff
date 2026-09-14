@@ -123,7 +123,7 @@ export default function Landing() {
                 </span>
               </div>
               <div className="mt-4 overflow-hidden rounded-xl">
-                <div className="aspect-[16/10]">
+                <div className="aspect-[16/10] bg-secondary/50">
                   <PrizeVisual emoji="📱" seed="hero" />
                 </div>
               </div>
@@ -235,7 +235,7 @@ export default function Landing() {
                   to={`/auction/${a.auctionCode}`}
                   className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3.5 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
                 >
-                  <div className="size-16 shrink-0 overflow-hidden rounded-lg">
+                  <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
                     <PrizeVisual
                       emoji={a.prize?.emoji}
                       imageUrl={a.prize?.imageUrl}

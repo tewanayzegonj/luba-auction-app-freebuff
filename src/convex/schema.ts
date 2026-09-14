@@ -122,6 +122,8 @@ export const schema = defineSchema(
       publishBidHistory: v.optional(v.boolean()), // transparency toggle (spec §33); default false
       bidCount: v.number(), // denormalized counter, maintained transactionally
       uniqueBidCount: v.number(), // denormalized, for public display
+      participantCount: v.optional(v.number()), // denormalized distinct bidders (spec §34 stats)
+      viewCount: v.optional(v.number()), // denormalized page views (throttled client-side)
       createdAt: v.number(),
       updatedAt: v.number(),
     })

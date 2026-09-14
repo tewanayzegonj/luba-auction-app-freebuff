@@ -623,6 +623,8 @@ export const createAuction = mutation({
       visibilityPolicy: args.visibilityPolicy,
       bidCount: 0,
       uniqueBidCount: 0,
+      participantCount: 0,
+      viewCount: 0,
       createdAt: now,
       updatedAt: now,
     });

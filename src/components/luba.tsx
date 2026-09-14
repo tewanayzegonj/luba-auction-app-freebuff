@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
@@ -10,6 +11,8 @@ import {
   Gavel,
   Gift,
   Languages,
+  Moon,
+  Sun,
   LayoutDashboard,
   LogIn,
   Menu,
@@ -53,7 +56,7 @@ export function LubaWordmark({ to = "/" }: { to?: string }) {
 
 // ─── Header / footer ────────────────────────────────────────────────────────
 
-// ─── Language toggle ─────────────────────────────────────────────────────────
+// ─── Language & theme toggles ─────────────────────────────────────────────
 
 function LangToggle() {
   const { lang, setLang, t } = useLang();
@@ -66,6 +69,26 @@ function LangToggle() {
     >
       <Languages className="size-3.5 text-muted-foreground" />
       {lang === "en" ? "Eng" : "አማ"}
+    </button>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const label =
+    theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  return (
+    <button
+      onClick={toggleTheme}
+      title={label}
+      aria-label={label}
+      className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card transition-colors hover:bg-secondary"
+    >
+      {theme === "dark" ? (
+        <Sun className="size-4 text-muted-foreground" />
+      ) : (
+        <Moon className="size-4 text-muted-foreground" />
+      )}
     </button>
   );
 }
@@ -95,6 +118,7 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-2 md:flex">
           <LangToggle />
+          <ThemeToggle />
           {isLoading ? null : isAuthenticated ? (
             <>
               <Button variant="ghost" className="gap-2" asChild>
@@ -138,8 +162,9 @@ export function SiteHeader() {
 
       {open && (
         <div className="border-t border-border/70 bg-background px-4 py-3 md:hidden">
-          <div className="mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <LangToggle />
+            <ThemeToggle />
           </div>
           <div className="flex flex-col gap-1">
             <Button variant="ghost" asChild onClick={() => setOpen(false)}>
@@ -344,7 +369,10 @@ export function PrizeVisual({
       <img
         src={imageUrl}
         alt=""
-        className={cn("h-full w-full object-cover", className)}
+        // object-contain keeps the full product visible without zoom/crop
+        // distortion on any aspect ratio (P3.7); the parent supplies a
+        // subtle background via the `bg` on its container.
+        className={cn("h-full w-full object-contain", className)}
       />
     );
   }
