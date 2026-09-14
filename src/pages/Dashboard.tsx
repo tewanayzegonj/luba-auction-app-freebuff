@@ -31,10 +31,15 @@ import {
   FlaskConical,
   Gavel,
   Gift,
+  Link2,
   Loader2,
   LogOut,
+  Mail,
+  Send,
+  Smartphone,
   Trophy,
   TrendingUp,
+  Unlink,
   Wallet,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -67,6 +72,10 @@ export default function Dashboard() {
   const [busy, setBusy] = useState<string | null>(null);
 
   const chapaStatus = useQuery(api.chapa.getChapaStatus, {});
+  const linkMethods = useQuery(api.accountLinks.getLinkMethods, {});
+
+  const startLink = useMutation(api.accountLinks.startLink);
+  const unlinkMethod = useMutation(api.accountLinks.unlink);
 
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length;
   const activeBidAuctionIds = new Set(
@@ -733,36 +742,82 @@ export default function Dashboard() {
 
           {/* ─── Profile ──────────────────────────────────────────────────── */}
           <TabsContent value="profile" className="mt-5">
-            <Card className="max-w-xl border-border shadow-layered">
-              <CardHeader>
-                <CardTitle className="text-base">Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-sm">
-                <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
-                  <span className="text-muted-foreground">Name</span>
-                  <span className="font-medium">
-                    {user?.name ?? user?.email ?? "—"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
-                  <span className="text-muted-foreground">Email</span>
-                  <span className="font-medium">{user?.email ?? "—"}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
-                  <span className="text-muted-foreground">
-                    Verification status
-                  </span>
-                  <Badge className="border-transparent bg-emerald-500/10 text-emerald-300">
-                    Verified
-                  </Badge>
-                </div>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Account settings, language preferences, and security options
-                  arrive with the next release. Your wallet and bids remain
-                  fully functional.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid max-w-4xl gap-5">
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Profile</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
+                    <span className="text-muted-foreground">Name</span>
+                    <span className="font-medium">
+                      {user?.name ?? user?.email ?? "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium">{user?.email ?? "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
+                    <span className="text-muted-foreground">
+                      Verification status
+                    </span>
+                    <Badge className="border-transparent bg-emerald-500/10 text-emerald-300">
+                      Verified
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Sign-in methods</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {linkMethods == null ? (
+                    <div className="h-24 animate-pulse rounded-xl bg-secondary/50" />
+                  ) : (
+                    <div className="space-y-3">
+                      <MethodRow
+                        icon={<Mail className="size-4" />}
+                        title="Email"
+                        subtitle={linkMethods.email ?? "Not set"}
+                        connected={Boolean(linkMethods.email)}
+                        locked
+                      />
+                      <TelegramLinkRow
+                        methods={{
+                          telegramChatId: linkMethods.telegramChatId,
+                          telegramConfigured: linkMethods.telegramConfigured,
+                        }}
+                        onStart={startLink}
+                        onUnlink={unlinkMethod}
+                        busy={busy === "link-telegram" || busy === "unlink-telegram"}
+                        setBusy={setBusy}
+                      />
+                      {linkMethods.smsConfigured && (
+                        <PhoneLinkRow
+                          methods={{
+                            phone: linkMethods.phone,
+                            phoneVerified: linkMethods.phoneVerified,
+                            smsConfigured: linkMethods.smsConfigured,
+                          }}
+                          onStart={startLink}
+                          onUnlink={unlinkMethod}
+                          busy={busy === "link-phone" || busy === "unlink-phone"}
+                          setBusy={setBusy}
+                        />
+                      )}
+                      <p className="pt-1 text-xs leading-5 text-muted-foreground">
+                        Linking a method lets you sign in with it and receive
+                        alerts there. Each Telegram account and phone number can
+                        be connected to only one Luba profile.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </main>
@@ -773,6 +828,241 @@ export default function Dashboard() {
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
+
+function MethodRow({
+  icon,
+  title,
+  subtitle,
+  connected,
+  locked = false,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  connected: boolean;
+  locked?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3.5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      {connected ? (
+        <Badge className="border-transparent bg-emerald-500/10 text-emerald-300">
+          <CheckCircle2 className="mr-1 size-3" /> Connected
+        </Badge>
+      ) : (
+        <Badge variant="secondary">Not linked</Badge>
+      )}
+      {locked && (
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+          Primary
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TelegramLinkRow({
+  methods,
+  onStart,
+  onUnlink,
+  busy,
+  setBusy,
+}: {
+  methods: {
+    telegramChatId: string | null;
+    telegramConfigured: boolean;
+  };
+  onStart: (args: { method: "telegram" | "phone"; destination: string }) => Promise<unknown>;
+  onUnlink: (args: { method: "telegram" | "phone" }) => Promise<unknown>;
+  busy: boolean;
+  setBusy: (v: string | null) => void;
+}) {
+  const [chatId, setChatId] = useState("");
+  const connected = Boolean(methods.telegramChatId);
+
+  return (
+    <div className="rounded-xl border border-border bg-secondary/40 p-3.5">
+      <div className="flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Send className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Telegram</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {connected
+              ? `Linked to chat ID ${methods.telegramChatId}`
+              : methods.telegramConfigured
+                ? "Get alerts and sign in with Telegram"
+                : "Unavailable — bot not configured"}
+          </p>
+        </div>
+        {connected ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={async () => {
+              setBusy("unlink-telegram");
+              try {
+                await onUnlink({ method: "telegram" });
+                toast.success("Telegram unlinked");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed");
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            <Unlink className="mr-1.5 size-3.5" />
+            Unlink
+          </Button>
+        ) : (
+          <Badge variant="secondary">Not linked</Badge>
+        )}
+      </div>
+      {!connected && methods.telegramConfigured && (
+        <div className="mt-3 flex gap-2">
+          <Input
+            value={chatId}
+            onChange={(e) => setChatId(e.target.value)}
+            placeholder="Your Telegram ID — e.g. 123456789"
+            inputMode="numeric"
+            className="h-10 font-mono"
+          />
+          <Button
+            className="h-10 shrink-0"
+            disabled={busy || !/^\d{5,}$/.test(chatId.trim())}
+            onClick={async () => {
+              setBusy("link-telegram");
+              try {
+                await onStart({ method: "telegram", destination: chatId.trim() });
+                toast.success("Check your Telegram", {
+                  description: "We sent a confirmation link — open it to finish linking.",
+                });
+                setChatId("");
+              } catch (err) {
+                toast.error(
+                  err instanceof Error ? err.message : "Couldn't start linking",
+                );
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            {busy ? (
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : (
+              <Link2 className="mr-1.5 size-4" />
+            )}
+            Link
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PhoneLinkRow({
+  methods,
+  onStart,
+  onUnlink,
+  busy,
+  setBusy,
+}: {
+  methods: { phone: string | null; phoneVerified: boolean; smsConfigured: boolean };
+  onStart: (args: { method: "telegram" | "phone"; destination: string }) => Promise<unknown>;
+  onUnlink: (args: { method: "telegram" | "phone" }) => Promise<unknown>;
+  busy: boolean;
+  setBusy: (v: string | null) => void;
+}) {
+  const [phone, setPhone] = useState("");
+  const connected = Boolean(methods.phoneVerified);
+
+  return (
+    <div className="rounded-xl border border-border bg-secondary/40 p-3.5">
+      <div className="flex items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Smartphone className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Phone (SMS)</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {connected
+              ? `Verified ${methods.phone}`
+              : "Get alerts and sign in with SMS"}
+          </p>
+        </div>
+        {connected ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={async () => {
+              setBusy("unlink-phone");
+              try {
+                await onUnlink({ method: "phone" });
+                toast.success("Phone unlinked");
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Failed");
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            <Unlink className="mr-1.5 size-3.5" />
+            Unlink
+          </Button>
+        ) : (
+          <Badge variant="secondary">Not linked</Badge>
+        )}
+      </div>
+      {!connected && methods.smsConfigured && (
+        <div className="mt-3 flex gap-2">
+          <Input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="e.g. 0911223344"
+            inputMode="tel"
+            className="h-10 font-mono"
+          />
+          <Button
+            className="h-10 shrink-0"
+            disabled={busy || phone.trim().length < 10}
+            onClick={async () => {
+              setBusy("link-phone");
+              try {
+                await onStart({ method: "phone", destination: phone.trim() });
+                toast.success("Check your messages", {
+                  description: "We sent a confirmation link by SMS — open it to finish linking.",
+                });
+                setPhone("");
+              } catch (err) {
+                toast.error(
+                  err instanceof Error ? err.message : "Couldn't start linking",
+                );
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            {busy ? (
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : (
+              <Link2 className="mr-1.5 size-4" />
+            )}
+            Link
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StatCard({
   icon,

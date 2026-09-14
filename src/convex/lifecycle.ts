@@ -1,5 +1,7 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { internalMutation, mutation } from "./_generated/server";
 import { settleAuctionInternal } from "./lib/settlement";
 
 /**
@@ -10,7 +12,7 @@ import { settleAuctionInternal } from "./lib/settlement";
  */
 
 /** Advance all auctions whose opensAt/closesAt have passed. Safe to run often. */
-export const tickLifecycle = mutation({
+export const tickLifecycle = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -67,22 +69,52 @@ export const tickLifecycle = mutation({
 /**
  * Process pending outbox events (spec §18). At-least-once delivery —
  * marking processed is the dedupe boundary for consumers.
+ *
+ * NOTIFICATION events are fanned out to the delivery worker (Telegram for
+ * linked accounts, SMS where enabled); everything else is consumed here.
  */
-export const processOutbox = mutation({
+export const processOutbox = internalMutation({
   args: { max: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const now = Date.now();
     const pending = await ctx.db
       .query("outboxEvents")
       .withIndex("by_unprocessed", (q) => q.eq("processed", false))
-      .take(args.max ?? 100);
+      .take(args.max ?? 50);
+
+    const notificationPayloads: {
+      eventId: Id<"outboxEvents">;
+      userId: Id<"users">;
+      type: string;
+      title: string;
+      body: string;
+    }[] = [];
 
     for (const event of pending) {
-      // Consumers (SMS gateway, analytics, realtime fan-out) read this
-      // table in production. Mark processed after fan-out attempt.
+      if (
+        event.eventType === "NOTIFICATION" &&
+        typeof event.payload?.userId === "string" &&
+        typeof event.payload?.title === "string" &&
+        typeof event.payload?.body === "string"
+      ) {
+        notificationPayloads.push({
+          eventId: event._id,
+          userId: event.payload.userId as Id<"users">,
+          type: typeof event.payload.type === "string" ? event.payload.type : "SYSTEM",
+          title: event.payload.title,
+          body: event.payload.body,
+        });
+      }
       ctx.db.patch(event._id, { processed: true, processedAt: now });
     }
-    return { processed: pending.length };
+
+    if (notificationPayloads.length > 0) {
+      await ctx.scheduler.runAfter(0, internal.outboxWorker.deliverNotifications, {
+        events: notificationPayloads,
+      });
+    }
+
+    return { processed: pending.length, notifications: notificationPayloads.length };
   },
 });
 

@@ -52,6 +52,8 @@ export const schema = defineSchema(
       role: v.optional(roleValidator),
       // LUBA fields
       phone: v.optional(v.string()),
+      phoneVerificationTime: v.optional(v.number()),
+      telegramChatId: v.optional(v.string()),
       kycStatus: v.optional(
         v.union(
           v.literal("UNVERIFIED"),
@@ -68,7 +70,9 @@ export const schema = defineSchema(
           ),
         ),
       ),
-    }).index("email", ["email"]),
+    })
+      .index("email", ["email"])
+      .index("phone", ["phone"]),
 
     // ─── Prizes ────────────────────────────────────────────────────────────
     prizes: defineTable({
@@ -301,6 +305,22 @@ export const schema = defineSchema(
       details: v.optional(v.string()),
       createdAt: v.number(),
     }).index("by_resource", ["resource"]),
+
+    // ─── Account linking (email ↔ Telegram ↔ phone) ───────────────────────
+    // Short-lived HMAC capability token bound to a signed-in user + method.
+    // Delivered through Telegram/SMS only (never rendered in the browser),
+    // so the user proves channel ownership by clicking the link.
+    linkCodes: defineTable({
+      tokenHash: v.string(), // sha256 of the token — the token itself is never stored
+      userId: v.id("users"),
+      method: v.union(v.literal("telegram"), v.literal("phone")),
+      destination: v.string(), // chat id or phone (2519xxxxxxxx)
+      expiresAt: v.number(),
+      consumedAt: v.optional(v.number()),
+      createdAt: v.number(),
+    })
+      .index("by_token", ["tokenHash"])
+      .index("by_user_method", ["userId", "method"]),
   },
   {
     schemaValidation: false,

@@ -1,6 +1,6 @@
 import { Email } from "@convex-dev/auth/providers/Email";
-import axios from "axios";
 import { RandomReader, generateRandomString } from "@oslojs/crypto/random";
+import { sendTelegramMessage } from "./senders";
 
 /**
  * Telegram OTP provider.
@@ -23,8 +23,7 @@ export const telegramOtp = Email({
     return generateRandomString(random, alphabet, 6);
   },
   async sendVerificationRequest({ identifier: chatId, token }) {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
+    if (!process.env.TELEGRAM_BOT_TOKEN) {
       throw new Error(
         "TELEGRAM_BOT_TOKEN is not configured; Telegram sign-in is unavailable.",
       );
@@ -35,19 +34,10 @@ export const telegramOtp = Email({
       );
     }
     try {
-      const res = await axios.post(
-        `https://api.telegram.org/bot${botToken}/sendMessage`,
-        {
-          chat_id: chatId,
-          parse_mode: "HTML",
-          text: `Your Luba verification code is <code>${token}</code>\n\nIt expires in 15 minutes. If you didn't request it, you can ignore this message.`,
-        },
-        { timeout: 10_000 },
+      await sendTelegramMessage(
+        chatId,
+        `Your Luba verification code is <code>${token}</code>\n\nIt expires in 15 minutes. If you didn't request it, you can ignore this message.`,
       );
-      // Telegram returns ok:false (HTTP 200) when the chat_id is unknown.
-      if (!res.data?.ok) {
-        throw new Error(res.data?.description ?? "Telegram rejected the message");
-      }
     } catch (error) {
       throw new Error(JSON.stringify(error));
     }

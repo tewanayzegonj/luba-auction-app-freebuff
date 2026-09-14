@@ -20,16 +20,20 @@ import { api } from "@/convex/_generated/api";
 import {
   ArrowLeft,
   ArrowRight,
+  CheckCircle2,
   Gavel,
+  Link2,
   Loader2,
   Mail,
   Send,
   ShieldCheck,
   Smartphone,
+  XCircle,
 } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useNavigate, useSearchParams } from "react-router";
+import { cn } from "@/lib/utils";
 
 type Provider = "email-otp" | "telegram-otp" | "sms-otp";
 type Step = "method" | "identifier" | "verify";
@@ -63,6 +67,38 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     redirectAfterAuth,
   );
   const authMethods = useQuery(api.authConfig.getAuthMethods);
+  const confirmLink = useMutation(api.accountLinks.confirmLink);
+
+  const linkToken = searchParams.get("link");
+  const [linkState, setLinkState] = useState<
+    "working" | "success" | { error: string }
+  >(linkToken ? "working" : "success");
+
+  // A user arriving from a Telegram/SMS confirmation link confirms it here —
+  // the token is a capability, so no sign-in is required to bind the channel.
+  useEffect(() => {
+    if (!linkToken) return;
+    let cancelled = false;
+    confirmLink({ token: linkToken })
+      .then((res) => {
+        if (!cancelled) setLinkState("success");
+        void res;
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setLinkState({
+            error:
+              err instanceof Error
+                ? err.message.replace(/^Uncaught Error: /, "")
+                : "This link could not be confirmed.",
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkToken]);
 
   const [step, setStep] = useState<Step>("method");
   const [provider, setProvider] = useState<Provider>("email-otp");
@@ -182,6 +218,56 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       <div className="flex flex-1 items-center justify-center px-4 pb-16">
         <div className="w-full max-w-md">
           <Card className="border-border/80 pb-0 shadow-layered-lg">
+            {linkToken && (linkState === "success" || typeof linkState === "object") ? (
+              <>
+                <CardHeader className="mt-4 text-center">
+                  <div className="mb-2 flex justify-center">
+                    <span
+                      className={cn(
+                        "flex size-12 items-center justify-center rounded-xl",
+                        linkState === "success"
+                          ? "bg-emerald-500/10 text-emerald-400"
+                          : "bg-rose-500/10 text-rose-400",
+                      )}
+                    >
+                      {linkState === "success" ? (
+                        <CheckCircle2 className="size-6" />
+                      ) : (
+                        <XCircle className="size-6" />
+                      )}
+                    </span>
+                  </div>
+                  <CardTitle className="text-xl">
+                    {linkState === "success"
+                      ? "Sign-in method linked"
+                      : "Linking failed"}
+                  </CardTitle>
+                  <CardDescription>
+                    {linkState === "success"
+                      ? "Your account is now connected. You can sign in with this method from now on."
+                      : typeof linkState === "object"
+                        ? linkState.error
+                        : ""}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2 pb-6">
+                  <Button className="w-full" asChild>
+                    <a href="/dashboard">Go to dashboard</a>
+                  </Button>
+                  <Button variant="ghost" className="w-full" asChild>
+                    <a href="/">Back to auctions</a>
+                  </Button>
+                </CardContent>
+              </>
+            ) : linkToken && linkState === "working" ? (
+              <div className="flex flex-col items-center gap-3 py-16">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Confirming your link…
+                </p>
+              </div>
+            ) : (
+              <>
             {step === "method" && (
               <>
                 <CardHeader className="text-center">
@@ -467,6 +553,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               Secured by one-time codes. By continuing you accept Luba's Terms
               &amp; Conditions and confirm you are 18 or older.
             </div>
+              </>
+            )}
           </Card>
         </div>
       </div>
