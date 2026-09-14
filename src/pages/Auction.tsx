@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { formatETB, parseETBToSantims } from "@/lib/money";
+import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -96,6 +97,7 @@ export default function AuctionPage() {
   const { code = "" } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { t } = useLang();
 
   // Bid form state (declared early — feeds the uniqueness query below)
   const [amountInput, setAmountInput] = useState("");
@@ -153,6 +155,7 @@ export default function AuctionPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [togglePending, setTogglePending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [feeAcknowledged, setFeeAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const bidValueSantims = typedSantims;
@@ -317,7 +320,7 @@ export default function AuctionPage() {
                       {auction.bidCount}
                     </p>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Total bids
+                      {t("auction.totalBids")}
                     </p>
                   </div>
                   <div>
@@ -325,7 +328,7 @@ export default function AuctionPage() {
                       {auction.uniqueBidCount}
                     </p>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Unique values
+                      {t("auction.uniqueValues")}
                     </p>
                   </div>
                   <div>
@@ -333,7 +336,7 @@ export default function AuctionPage() {
                       {bidsLeft}
                     </p>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      Your bids left
+                      {t("auction.bidsLeft")}
                     </p>
                   </div>
                 </div>
@@ -637,7 +640,10 @@ export default function AuctionPage() {
                           !termsAccepted ||
                           submitting
                         }
-                        onClick={() => setConfirmOpen(true)}
+                        onClick={() => {
+                          setFeeAcknowledged(false); // require a fresh acknowledgment each bid
+                          setConfirmOpen(true);
+                        }}
                       >
                         <Gavel className="mr-1.5 size-4" />
                         Review bid
@@ -704,9 +710,9 @@ export default function AuctionPage() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm your bid</DialogTitle>
+            <DialogTitle>{t("auction.confirmTitle")}</DialogTitle>
             <DialogDescription>
-              One last check before it's locked in.
+              {t("auction.confirmSubtitle")}
             </DialogDescription>
           </DialogHeader>
 
@@ -729,10 +735,21 @@ export default function AuctionPage() {
             </div>
             <Separator />
             <p className="text-xs leading-5 text-muted-foreground">
-              The bid amount itself is only charged if you win. Bids cannot be
-              cancelled or refunded once accepted. The lowest unique bid wins.
+              {t("auction.termsNote")}
             </p>
           </div>
+
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+            <Checkbox
+              checked={feeAcknowledged}
+              onCheckedChange={(v) => setFeeAcknowledged(v === true)}
+              disabled={submitting}
+              className="mt-0.5"
+            />
+            <span className="leading-5 text-muted-foreground">
+              {t("auction.termsAck")}
+            </span>
+          </label>
 
           <DialogFooter className="gap-2">
             <Button
@@ -740,18 +757,21 @@ export default function AuctionPage() {
               onClick={() => setConfirmOpen(false)}
               disabled={submitting}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
-            <Button onClick={handleConfirmBid} disabled={submitting}>
+            <Button
+              onClick={handleConfirmBid}
+              disabled={submitting || !feeAcknowledged}
+            >
               {submitting ? (
                 <>
                   <Loader2 className="mr-1.5 size-4 animate-spin" />
-                  Placing bid…
+                  {t("auction.placing")}…
                 </>
               ) : (
                 <>
                   <Gavel className="mr-1.5 size-4" />
-                  Confirm bid
+                  {t("common.confirm")}
                 </>
               )}
             </Button>

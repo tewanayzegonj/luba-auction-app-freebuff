@@ -34,6 +34,12 @@ import { Suspense, useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useNavigate, useSearchParams } from "react-router";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
+
+const TELEGRAM_BOT_URL =
+  (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim()
+    ? `https://t.me/${(import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string).trim()}`
+    : "https://t.me/luba_auctions_bot"; // update if the bot username differs
 
 type Provider = "email-otp" | "telegram-otp" | "sms-otp";
 type Step = "method" | "identifier" | "verify";
@@ -60,6 +66,7 @@ function resolveRedirectAfterAuth(
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
+  const { t } = useLang();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
@@ -287,11 +294,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       <Gavel className="size-6" />
                     </span>
                   </div>
-                  <CardTitle className="text-xl">Sign in to Luba</CardTitle>
-                  <CardDescription>
-                    Choose how you'd like to receive your one-time sign-in
-                    code. New here? That's the whole sign-up.
-                  </CardDescription>
+                  <CardTitle className="text-xl">{t("auth.title")}</CardTitle>
+                  <CardDescription>{t("auth.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
                   <Button
@@ -303,7 +307,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       <Mail className="size-4" />
                     </span>
                     <span className="flex flex-col items-start">
-                      <span>Continue with Email</span>
+                      <span>{t("auth.continueEmail")}</span>
                       <span className="text-xs font-normal text-muted-foreground">
                         A 6-digit code sent to your inbox
                       </span>
@@ -321,7 +325,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       <Send className="size-4" />
                     </span>
                     <span className="flex flex-col items-start">
-                      <span>Continue with Telegram</span>
+                      <span>{t("auth.continueTelegram")}</span>
                       <span className="text-xs font-normal text-muted-foreground">
                         {telegramEnabled
                           ? "A 6-digit code sent as a Telegram message"
@@ -330,6 +334,18 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     </span>
                     <ArrowRight className="ml-auto size-4 text-muted-foreground" />
                   </Button>
+
+                  {telegramEnabled && (
+                    <a
+                      href={TELEGRAM_BOT_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    >
+                      <Send className="size-3.5" />
+                      {t("auth.openBot")} ↗
+                    </a>
+                  )}
 
                   <Button
                     variant="outline"
@@ -341,7 +357,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       <Smartphone className="size-4" />
                     </span>
                     <span className="flex flex-col items-start">
-                      <span>Continue with SMS</span>
+                      <span>{t("auth.continueSms")}</span>
                       <span className="text-xs font-normal text-muted-foreground">
                         {smsEnabled
                           ? "A 6-digit code sent by text message"
@@ -424,15 +440,26 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     )}
 
                     {provider === "telegram-otp" && (
-                      <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          How to get your Telegram ID:
-                        </span>{" "}
-                        Open our Telegram bot and press <em>Start</em> — it will
-                        reply with your numeric ID. (Telegram doesn't allow
-                        lookup by username or phone number, so the ID is the one
-                        thing it needs.)
-                      </p>
+                      <div className="mt-3 rounded-lg border border-border bg-secondary/40 p-3">
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            How to get your Telegram ID:
+                          </span>{" "}
+                          Open our bot and press <em>Start</em> — it replies with
+                          your numeric ID. (Telegram doesn't allow lookup by
+                          username or phone, so the ID is the one thing it
+                          needs.)
+                        </p>
+                        <a
+                          href={TELEGRAM_BOT_URL}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-[#229ED9] px-2.5 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                        >
+                          <Send className="size-3.5" />
+                          {t("auth.openBotShort")}
+                        </a>
+                      </div>
                     )}
 
                     <div className="mt-5 flex gap-2">

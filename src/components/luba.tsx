@@ -2,13 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { LANGS, useLang, type Lang } from "@/lib/i18n";
+import { useLang } from "@/lib/i18n";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import {
   Gavel,
   Gift,
+  Languages,
   LayoutDashboard,
   LogIn,
   Menu,
@@ -55,33 +56,23 @@ export function LubaWordmark({ to = "/" }: { to?: string }) {
 // ─── Language toggle ─────────────────────────────────────────────────────────
 
 function LangToggle() {
-  const { lang, setLang } = useLang();
+  const { lang, setLang, t } = useLang();
   return (
-    <div
-      className="flex items-center rounded-lg border border-border bg-card p-0.5"
-      role="group"
-      aria-label="Language"
+    <button
+      onClick={() => setLang(lang === "en" ? "am" : "en")}
+      title={t("nav.language")}
+      aria-label={t("nav.language")}
+      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 font-mono text-xs font-semibold transition-colors hover:bg-secondary"
     >
-      {LANGS.map((l) => (
-        <button
-          key={l.value}
-          onClick={() => setLang(l.value as Lang)}
-          className={cn(
-            "rounded-md px-2 py-1 text-xs font-medium transition-colors",
-            lang === l.value
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {l.native}
-        </button>
-      ))}
-    </div>
+      <Languages className="size-3.5 text-muted-foreground" />
+      {lang === "en" ? "Eng" : "አማ"}
+    </button>
   );
 }
 
 export function SiteHeader() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { t } = useLang();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
@@ -92,13 +83,13 @@ export function SiteHeader() {
 
         <nav className="hidden items-center gap-1 md:flex">
           <Button variant="ghost" asChild>
-            <Link to="/#auctions">Live Auctions</Link>
+            <Link to="/#auctions">{t("nav.auctions")}</Link>
           </Button>
           <Button variant="ghost" asChild>
-            <Link to="/#how-it-works">How It Works</Link>
+            <Link to="/#how-it-works">{t("nav.howItWorks")}</Link>
           </Button>
           <Button variant="ghost" asChild>
-            <Link to="/#faq">FAQ</Link>
+            <Link to="/#faq">{t("nav.faq")}</Link>
           </Button>
         </nav>
 
@@ -109,7 +100,7 @@ export function SiteHeader() {
               <Button variant="ghost" className="gap-2" asChild>
                 <Link to="/dashboard">
                   <LayoutDashboard className="size-4" />
-                  Dashboard
+                  {t("nav.dashboard")}
                 </Link>
               </Button>
               {user?.role === "admin" && (
@@ -127,10 +118,10 @@ export function SiteHeader() {
           ) : (
             <>
               <Button variant="ghost" asChild>
-                <Link to="/auth">Sign in</Link>
+                <Link to="/auth">{t("nav.signIn")}</Link>
               </Button>
               <Button asChild>
-                <Link to="/auth">Get started</Link>
+                <Link to="/auth">{t("nav.getStarted")}</Link>
               </Button>
             </>
           )}
@@ -152,18 +143,18 @@ export function SiteHeader() {
           </div>
           <div className="flex flex-col gap-1">
             <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-              <Link to="/#auctions">Live Auctions</Link>
+              <Link to="/#auctions">{t("nav.auctions")}</Link>
             </Button>
             <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-              <Link to="/#how-it-works">How It Works</Link>
+              <Link to="/#how-it-works">{t("nav.howItWorks")}</Link>
             </Button>
             <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-              <Link to="/#faq">FAQ</Link>
+              <Link to="/#faq">{t("nav.faq")}</Link>
             </Button>
             {isAuthenticated ? (
               <>
                 <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-                  <Link to="/dashboard">Dashboard</Link>
+                  <Link to="/dashboard">{t("nav.dashboard")}</Link>
                 </Button>
                 {user?.role === "admin" && (
                   <Button variant="ghost" asChild onClick={() => setOpen(false)}>
@@ -174,10 +165,10 @@ export function SiteHeader() {
             ) : (
               <>
                 <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-                  <Link to="/auth">Sign in</Link>
+                  <Link to="/auth">{t("nav.signIn")}</Link>
                 </Button>
                 <Button asChild onClick={() => setOpen(false)}>
-                  <Link to="/auth">Get started</Link>
+                  <Link to="/auth">{t("nav.getStarted")}</Link>
                 </Button>
               </>
             )}

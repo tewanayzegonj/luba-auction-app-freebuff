@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/use-auth";
 import { formatETB, formatSantims } from "@/lib/money";
+import { useLang } from "@/lib/i18n";
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { motion } from "framer-motion";
@@ -36,6 +37,7 @@ import { Link } from "react-router";
 
 export default function Landing() {
   const { isAuthenticated } = useAuth();
+  const { t } = useLang();
   const auctions = useQuery(api.auctions.listOpenAuctions, {}) ?? [];
   const openAuctions = auctions.filter(
     (a) => a.status === "OPEN" || a.status === "CLOSING",
@@ -69,27 +71,24 @@ export default function Landing() {
               Lowest unique bid wins
             </Badge>
             <h1 className="text-balance text-4xl font-bold leading-[1.08] tracking-tight md:text-6xl">
-              The lowest bid
+              {t("hero.title.line1")}
               <br />
-              nobody else
+              {t("hero.title.line2")}
               <br />
-              <span className="text-primary">submitted.</span>
+              <span className="text-primary">{t("hero.title.line3")}</span>
             </h1>
             <p className="mt-5 max-w-md text-pretty text-base leading-7 text-muted-foreground md:text-lg">
-              Luba awards each prize to the lowest amount placed exactly once —
-              so strategy beats spending. Timing is server-authoritative,
-              settlement is deterministic, and every fee is recorded on an
-              append-only ledger.
+              {t("hero.subtitle")}
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button size="lg" className="h-11 px-6" asChild>
                 <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
-                  {isAuthenticated ? "Open dashboard" : "Create an account"}
+                  {isAuthenticated ? t("hero.ctaSignedIn") : t("hero.cta")}
                   <ArrowRight className="ml-1 size-4" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" className="h-11 px-6" asChild>
-                <a href="#how-it-works">See the mechanics</a>
+                <a href="#how-it-works">{t("hero.ctaSecondary")}</a>
               </Button>
             </div>
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
