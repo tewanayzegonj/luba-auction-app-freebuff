@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -863,6 +864,19 @@ export default function Dashboard() {
                   )}
                 </CardContent>
               </Card>
+
+              <Card className="border-border shadow-layered">
+                <CardHeader>
+                  <CardTitle className="text-base">Identity verification</CardTitle>
+                  <CardDescription>
+                    Winners may be asked to verify their identity before prize
+                    fulfillment. Uploading a government-issued ID now saves time later.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <KycVerificationCard />
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>
@@ -1517,6 +1531,115 @@ function EmptyState({
         {body}
       </p>
       {action && <div className="mt-5 flex justify-center">{action}</div>}
+    </div>
+  );
+}
+
+function KycVerificationCard() {
+  const kyc = useQuery(api.kyc.getMyKyc, {});
+  const generateUrl = useMutation(api.kyc.generateKycUploadUrl);
+  const submitDoc = useMutation(api.kyc.submitKycDocument);
+  const [uploading, setUploading] = useState(false);
+
+  if (kyc === undefined) {
+    return <div className="h-20 animate-pulse rounded-xl bg-secondary/50" />;
+  }
+  if (kyc === null) {
+    return <p className="text-sm text-muted-foreground">Sign in to manage verification.</p>;
+  }
+
+  const statusBadge = {
+    UNVERIFIED: { label: "Not verified", cls: "bg-secondary text-secondary-foreground" },
+    PENDING: { label: "Under review", cls: "bg-amber-500/15 text-amber-500" },
+    VERIFIED: { label: "Verified", cls: "bg-emerald-500/15 text-emerald-500" },
+    REJECTED: { label: "Rejected — you can resubmit", cls: "bg-red-500/15 text-red-500" },
+  }[kyc.kycStatus] ?? { label: kyc.kycStatus, cls: "bg-secondary text-secondary-foreground" };
+
+  async function handleFile(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File is larger than 5 MB.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const uploadUrl = await generateUrl({});
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = (await res.json()) as { storageId: Id<"_storage"> };
+      await submitDoc({ storageId, fileName: file.name });
+      toast.success("Document submitted for review.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Badge variant="outline" className={cn("border-transparent", statusBadge.cls)}>
+          {statusBadge.label}
+        </Badge>
+        {kyc.kycStatus === "VERIFIED" && <CheckCircle2 className="size-4 text-emerald-500" />}
+      </div>
+
+      {kyc.kycNote && kyc.kycStatus === "REJECTED" && (
+        <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">
+          {kyc.kycNote}
+        </p>
+      )}
+
+      {kyc.documents.length > 0 && (
+        <div className="space-y-1.5">
+          {kyc.documents.map((doc) => (
+            <div
+              key={doc._id}
+              className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-xs"
+            >
+              <span className="truncate">{doc.fileName}</span>
+              <span
+                className={cn(
+                  "ml-2 shrink-0 font-medium",
+                  doc.status === "APPROVED" && "text-emerald-500",
+                  doc.status === "PENDING" && "text-amber-500",
+                  doc.status === "REJECTED" && "text-red-500",
+                )}
+              >
+                {doc.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {kyc.kycStatus !== "PENDING" && (
+        <div>
+          <Label htmlFor="kyc-upload" className="text-xs text-muted-foreground">
+            Government-issued ID, passport, or driving license (JPEG, PNG, WebP, or PDF · max 5 MB)
+          </Label>
+          <Input
+            id="kyc-upload"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            className="mt-2 cursor-pointer"
+            disabled={uploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleFile(file);
+              e.target.value = "";
+            }}
+          />
+          {uploading && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" /> Uploading…
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

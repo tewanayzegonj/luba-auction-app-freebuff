@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { LANGS, useLang, type Lang } from "@/lib/i18n";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
@@ -51,6 +52,34 @@ export function LubaWordmark({ to = "/" }: { to?: string }) {
 
 // ─── Header / footer ────────────────────────────────────────────────────────
 
+// ─── Language toggle ─────────────────────────────────────────────────────────
+
+function LangToggle() {
+  const { lang, setLang } = useLang();
+  return (
+    <div
+      className="flex items-center rounded-lg border border-border bg-card p-0.5"
+      role="group"
+      aria-label="Language"
+    >
+      {LANGS.map((l) => (
+        <button
+          key={l.value}
+          onClick={() => setLang(l.value as Lang)}
+          className={cn(
+            "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+            lang === l.value
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {l.native}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SiteHeader() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
@@ -74,6 +103,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <LangToggle />
           {isLoading ? null : isAuthenticated ? (
             <>
               <Button variant="ghost" className="gap-2" asChild>
@@ -117,6 +147,9 @@ export function SiteHeader() {
 
       {open && (
         <div className="border-t border-border/70 bg-background px-4 py-3 md:hidden">
+          <div className="mb-2">
+            <LangToggle />
+          </div>
           <div className="flex flex-col gap-1">
             <Button variant="ghost" asChild onClick={() => setOpen(false)}>
               <Link to="/#auctions">Live Auctions</Link>
@@ -198,9 +231,21 @@ export function SiteFooter() {
         <div>
           <h4 className="text-sm font-semibold">Legal</h4>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-            <li>Terms &amp; Conditions</li>
-            <li>Privacy Policy</li>
-            <li>Responsible Play</li>
+            <li>
+              <Link className="hover:text-foreground" to="/legal/terms">
+                Terms &amp; Conditions
+              </Link>
+            </li>
+            <li>
+              <Link className="hover:text-foreground" to="/legal/privacy">
+                Privacy Policy
+              </Link>
+            </li>
+            <li>
+              <Link className="hover:text-foreground" to="/legal/responsible-play">
+                Responsible Play
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

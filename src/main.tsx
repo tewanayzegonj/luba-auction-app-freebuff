@@ -16,6 +16,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const AuctionPage = lazy(() => import("./pages/Auction.tsx"));
 const AdminPage = lazy(() => import("./pages/Admin.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const Legal = lazy(() => import("./pages/Legal.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -84,6 +85,15 @@ class RootErrorBoundary extends React.Component<
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
+// PWA service worker registration (offline shell only — never caches API traffic).
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("[PWA] service worker registration failed:", err);
+    });
+  });
+}
+
 
 
 function RouteSyncer() {
@@ -149,6 +159,18 @@ createRoot(document.getElementById("root")!).render(
                     <AdminPage />
                   </RequireAuth>
                 }
+              />
+              <Route
+                path="/legal/terms"
+                element={<Legal doc="terms" />}
+              />
+              <Route
+                path="/legal/privacy"
+                element={<Legal doc="privacy" />}
+              />
+              <Route
+                path="/legal/responsible-play"
+                element={<Legal doc="responsible-play" />}
               />
               <Route path="*" element={<NotFound />} />
             </Routes>

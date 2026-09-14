@@ -225,7 +225,9 @@ export const syncUserKycStatusInternal = internalMutation({
       .order("desc")
       .first();
     if (latest && latest.status !== "PENDING") {
-      await ctx.db.patch(args.userId, { kycStatus: latest.status });
+      await ctx.db.patch(args.userId, {
+        kycStatus: latest.status === "APPROVED" ? "VERIFIED" : latest.status,
+      });
     }
     return { ok: true };
   },

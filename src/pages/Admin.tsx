@@ -78,10 +78,10 @@ export default function Admin() {
           <AdminConsole />
         )}
       </main>
-      <SiteFooter />
-    </div>
+      <SiteFooter />          </div>
   );
 }
+
 
 function AdminConsole() {
   const stats = useQuery(api.admin.getPlatformStats, {});
@@ -263,6 +263,9 @@ function AdminConsole() {
             </TabsTrigger>
             <TabsTrigger value="finance" className="gap-1.5 rounded-lg">
               <Banknote className="size-4" /> Finance
+            </TabsTrigger>
+            <TabsTrigger value="kyc" className="gap-1.5 rounded-lg">
+              <ShieldCheck className="size-4" /> KYC
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-1.5 rounded-lg">
               <Megaphone className="size-4" /> Settings
@@ -1388,6 +1391,11 @@ function AdminConsole() {
             </div>
           </TabsContent>
 
+          {/* KYC review queue */}
+          <TabsContent value="kyc" className="mt-5">
+            <KycReviewPanel />
+          </TabsContent>
+
           {/* Audit log */}
           <TabsContent value="audit" className="mt-5">
             {auditLogs === undefined ? (
@@ -2388,6 +2396,90 @@ function Field({
         {label}
       </Label>
       {children}
+    </div>
+  );
+}
+
+function KycReviewPanel() {
+  const pending = useQuery(api.kyc.listPendingKyc, {});
+  const review = useMutation(api.kyc.reviewKycDocument);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function act(key: string, fn: () => Promise<unknown>, okMsg: string) {
+    setBusy(key);
+    try {
+      await fn();
+      toast.success(okMsg);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message.replace(/^Uncaught Error: /, "") : "Action failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (pending === undefined) return <LoadingRows />;
+  if (pending.length === 0) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        No documents awaiting review.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {pending.map((doc) => (
+        <Card key={doc._id} className="border-border shadow-layered">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start">
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{doc.userName ?? doc.userEmail ?? doc.userId}</p>
+              <p className="text-xs text-muted-foreground">
+                {doc.userEmail} · {doc.fileName} · {(doc.sizeBytes / 1024).toFixed(0)} KB
+              </p>
+              <a
+                href={doc.documentUrl ?? "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-block text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Open document ↗
+              </a>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button
+                size="sm"
+                disabled={busy !== null}
+                onClick={() =>
+                  void act(
+                    doc._id,
+                    () => review({ documentId: doc._id, decision: "APPROVED" }),
+                    "Identity verified",
+                  )
+                }
+              >
+                {busy === doc._id ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
+                Approve
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy !== null}
+                onClick={() => {
+                  const note = window.prompt("Rejection reason (shown to the user):", "Document unclear");
+                  if (note === null) return;
+                  void act(
+                    `${doc._id}-rej`,
+                    () => review({ documentId: doc._id, decision: "REJECTED", note: note || undefined }),
+                    "Document rejected",
+                  );
+                }}
+              >
+                <ShieldX className="size-4" /> Reject
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
