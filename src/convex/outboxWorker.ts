@@ -6,6 +6,31 @@ import { internalAction } from "./_generated/server";
 import { sendSms, sendTelegramMessage } from "./auth/senders";
 
 /**
+ * Bilingual Telegram titles — natural Amharic first, English second.
+ * SMS stays English-only (cost per character).
+ */
+const TG_TITLES: Record<string, string> = {
+  BID_ACCEPTED: "✅ ጨረታዎ ተቀብለናል · Bid confirmed",
+  AUCTION_ENDING: "⏰ ጨረታው እያለቀ ነው · Ending soon",
+  WINNER_ANNOUNCED: "🎉 እንኳን ደስ አለዎት አሸናፊ! · You won!",
+  PAYMENT_REMINDER: "💳 የክፍያ አስታዋሽ · Payment reminder",
+  PAYMENT_SUCCESS: "✅ ክፍያው በተሳካ ሁኔታ ተጠናቋል · Payment successful",
+  PRIZE_STATUS: "📦 የሽልማት ሁኔታ · Prize status",
+  SYSTEM: "📣 ሉባ · Luba",
+};
+
+/** Native Amharic lead-in shown above the English detail body. */
+const TG_LEADINS: Record<string, string> = {
+  BID_ACCEPTED: "ጨረታዎ ገብቷል — ዝርዝሩ ከታች፦",
+  AUCTION_ENDING: "ጨረታው እየተጠናቀቀ ነው — ልዩ ዋጋዎን ያስገቡ።",
+  WINNER_ANNOUNCED: "እንኳን አሸነፉ! የክፍያ ዝርዝር ከታች ይገኛል።",
+  PAYMENT_REMINDER: "እባክዎ የሽንፍታ ክፍያዎን በጊዜው ይክፈሉ።",
+  PAYMENT_SUCCESS: "የዋሌት ሒሳብዎ ተሟልቷል።",
+  PRIZE_STATUS: "የሽልማትዎ ሁኔታ ተዘምኗል።",
+  SYSTEM: "",
+};
+
+/**
  * Outbox delivery worker (spec §18, §37, §38).
  *
  * `processOutbox` (mutation) hands NOTIFICATION events to this action, which
@@ -59,7 +84,11 @@ export const deliverNotifications = internalAction({
       // Telegram first (free, instant), then SMS as a channel where enabled.
       if (user.telegramChatId) {
         try {
-          await sendTelegramMessage(user.telegramChatId, text);
+          const leadin = TG_LEADINS[event.type] ?? "";
+          const tgText = leadin
+            ? `${TG_TITLES[event.type] ?? event.title}\n\n${leadin}\n\n${event.body}`
+            : `${TG_TITLES[event.type] ?? event.title}\n\n${event.body}`;
+          await sendTelegramMessage(user.telegramChatId, tgText);
           delivered = true;
         } catch (err) {
           console.warn("[outbox] telegram send failed", event.eventId, err);

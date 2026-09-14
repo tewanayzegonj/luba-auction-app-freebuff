@@ -136,6 +136,42 @@
   ::selection {
     background: oklch(0.78 0.13 195 / 25%);
   }
+
+  /* ─── Amharic (Ethiopic) typography ─────────────────────────────────
+     Active whenever <html lang="am"> is set by the language toggle.
+     Noto Sans Ethiopic needs breathing room: vowel marks sit above and
+     below the Fidel, so tight leading or tracking causes collisions. */
+  html[lang="am"] {
+    font-family:
+      "Noto Sans Ethiopic",
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+  }
+  html[lang="am"] body {
+    letter-spacing: 0.015em; /* Fidel must never overlap */
+    line-height: 1.7;
+  }
+  html[lang="am"] h1,
+  html[lang="am"] h2,
+  html[lang="am"] h3 {
+    letter-spacing: 0;
+    line-height: 1.65;
+  }
+  html[lang="am"] button,
+  html[lang="am"] [role="button"],
+  html[lang="am"] .badge,
+  html[lang="am"] [data-slot="badge"] {
+    white-space: nowrap; /* no mid-word breaks in chips/buttons */
+    line-height: 1.6;
+  }
+  html[lang="am"] button,
+  html[lang="am"] [role="button"] {
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
 }
 
 /* Refined scrollbars (dark) */

@@ -36,10 +36,14 @@ export const telegramOtp = Email({
     try {
       await sendTelegramMessage(
         chatId,
-        `Your Luba verification code is <code>${token}</code>\n\nTap the button below to copy it, then enter it on the sign-in screen. It expires in 15 minutes.`,
+        `🔐 የሉባ (LUBA) ማረጋገጫ ኮድ\n` +
+          `Your Luba verification code\n\n` +
+          `የእርስዎ ኮድ · Your code: <code>${token}</code>\n\n` +
+          `ይህ ኮድ ለ 15 ደቂቃ ብቻ ያገለግላል። ለማንኛውም ሰው አያጋሩት።\n` +
+          `Valid for 15 minutes only. Never share this code with anyone.`,
         {
           inline_keyboard: [
-            [{ text: "📋 Copy code", copy_text: { text: token } }],
+            [{ text: "📋 Copy code · ኮዱን ይቅዱ", copy_text: { text: token } }],
           ],
         },
       );

@@ -551,7 +551,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         onClick={handleResend}
                         type="button"
                       >
-                        Send a new one
+                        {t("auth.resend")}
                       </Button>{" "}
                       or{" "}
                       <Button

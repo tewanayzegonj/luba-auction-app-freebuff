@@ -119,10 +119,17 @@ export const handleTelegramUpdate = httpAction(async (ctx, request) => {
         body: JSON.stringify({
           chat_id: chatId,
           parse_mode: "HTML",
-          text: `👋 Your Telegram ID is <code>${chatId}</code>\n\nTap the button below to copy it, then enter it on the Luba sign-in screen under “Continue with Telegram”.`,
+          text:
+            `👋 እንኳን ወደ ሉባ (LUBA) በደህና መጡ!\n` +
+            `Welcome to LUBA!\n\n` +
+            `ዝቅተኛ እና ልዩ ዋጋ የሚያሸንፉበት የጨረታ መድረክ ነው።\n` +
+            `The auction platform where the lowest unique price wins.\n\n` +
+            `🆔 የእርስዎ ቴሌግራም መለያ (Telegram ID): <code>${chatId}</code>\n` +
+            `ይህንን መለያ ድረ-ገጻችን ላይ በ«በቴሌግራም ይቀጥሉ» ማረጋገጫ ላይ በመጠቀም በቀላሉ ይግቡ።\n` +
+            `Tap the button to copy your ID, then enter it on the Luba sign-in screen under “Continue with Telegram”.`,
           reply_markup: {
             inline_keyboard: [
-              [{ text: "📋 Copy my ID", copy_text: { text: String(chatId) } }],
+              [{ text: "📋 Copy my ID · መለያዎን ይቅዱ", copy_text: { text: String(chatId) } }],
             ],
           },
         }),

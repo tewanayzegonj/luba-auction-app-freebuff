@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
  * i18n (roadmap: Amharic localization).
  *
  * A typed dictionary and a language hook persisted to localStorage.
- * Amharic copy is written natively — concise, product-appropriate phrasing,
- * not word-for-word translation. Untranslated keys fall back to English.
+ * Amharic copy uses standard Ethiopian e-commerce / fintech vocabulary
+ * (ጨረታ, ዋሌት, ተጫራቾች) in the style of Telebirr and Howlow — written
+ * natively, never word-for-word. Untranslated keys fall back to English.
  */
 
 export type Lang = "en" | "am";
@@ -48,6 +49,7 @@ export function useLang(): {
 export const STRINGS = {
   en: {
     // Navigation
+    "nav.home": "Home",
     "nav.dashboard": "Dashboard",
     "nav.auctions": "Live Auctions",
     "nav.howItWorks": "How It Works",
@@ -74,6 +76,10 @@ export const STRINGS = {
     "auction.unique": "unique",
     "auction.totalBids": "Total bids",
     "auction.uniqueValues": "Unique values",
+    "auction.timeRemaining": "Time remaining",
+    "auction.bidders": "Bidders",
+    "auction.bidPlaced": "Bid placed!",
+    "auction.notUnique": "That value is already taken — try another.",
     "auction.confirmTitle": "Confirm your bid",
     "auction.confirmSubtitle": "One last check before it's locked in.",
     "auction.placing": "Placing bid",
@@ -96,12 +102,17 @@ export const STRINGS = {
     "wallet.balance": "Wallet balance",
     "wallet.topUp": "Top up",
     "wallet.promo": "Promo balance",
+    "wallet.transactions": "Transaction history",
 
     // Dashboard
     "dashboard.welcome": "Welcome back",
     "dashboard.myBids": "My bids",
     "dashboard.watchlist": "Watchlist",
     "dashboard.wins": "Wins",
+    "dashboard.profile": "Profile",
+    "dashboard.wallet": "Wallet",
+    "dashboard.alerts": "Alerts",
+    "dashboard.payToWin": "pay your winning bid to claim your prize",
 
     // Auth
     "auth.title": "Sign in to Luba",
@@ -114,12 +125,16 @@ export const STRINGS = {
     "auth.continueSms": "Continue with SMS",
     "auth.verifyCode": "Enter the 6-digit code",
     "auth.verify": "Verify",
+    "auth.resend": "Resend code",
     "auth.openBot": "Get your Telegram ID",
     "auth.openBotHint":
       "Opens our Telegram bot — press Start and it replies with your numeric ID to sign in with.",
 
     // Common
     "footer.rights": "All rights reserved.",
+    "footer.terms": "Terms",
+    "footer.privacy": "Privacy",
+    "footer.responsiblePlay": "Responsible play",
     "common.loading": "Loading…",
     "common.cancel": "Cancel",
     "common.confirm": "Confirm",
@@ -128,77 +143,93 @@ export const STRINGS = {
 
   am: {
     // Navigation
+    "nav.home": "ዋና ገጽ",
     "nav.dashboard": "ዳሽቦርድ",
-    "nav.auctions": "እየተካሄዱ ያሉ ሽያጮች",
+    "nav.auctions": "ጨረታዎች",
     "nav.howItWorks": "እንዴት እንደሚሰራ",
     "nav.faq": "ጥያቄዎች",
-    "nav.signIn": "ግባ",
-    "nav.signOut": "ውጣ",
-    "nav.getStarted": "ጀምር",
-    "nav.language": "ቋንቋ / Language",
+    "nav.signIn": "ይግቡ",
+    "nav.signOut": "ይውጡ",
+    "nav.getStarted": "ይጀምሩ",
+    "nav.language": "ቋንቋ",
 
     // Hero / landing
-    "hero.title.line1": "ያለ ተፎካካሪ",
-    "hero.title.line2": "የተገባው",
-    "hero.title.line3": "ትንሸኛ ውርርድ።",
+    "hero.title.line1": "በሌላው ያልተገባው",
+    "hero.title.line2": "ዝቅተኛ",
+    "hero.title.line3": "ጨረታ ያሸንፋል።",
     "hero.subtitle":
-      "ሉባ ሽልማቱን አንድ ጊዜ ብቻ የተገባውን ትንሸኛ መጠን ያሸንፋል — ስትራቴጂ ከመጠን በላይ መፈፈዝ ይጠቅማል። ጊዜው በአገልጋይ ይቆጣጠራል፣ ውጤቱ በተመሳሳይ ስሌት ይወሰናል፣ እያንዳንዱ ክፍያ በማይሰረዝ መዝገብ ይቀመጣል።",
-    "hero.cta": "መለያ ክፈት",
-    "hero.ctaSignedIn": "ዳሽቦርድ ክፈት",
-    "hero.ctaSecondary": "ስራውን ተመልከት",
+      "ሉባ ሽልማቱን አንድ ጊዜ ብቻ የተገባው ዝቅተኛ የጨረታ ዋጋ ይሸልማል — ብዙ መፈፈዝ እንጂ ስትራቴጂዎ ነው የሚያሸንፈው። የጊዜ ቆጣሪው በአገልጋይ ይቆጣጠራል፣ አሸናፊው በአንድ አይነት ስሌት ይወሰናል፣ እያንዳንዱ ክፍያ ማይቀየር መዝገብ ላይ ይቀመጣል።",
+    "hero.cta": "መለያ ይክፈቱ",
+    "hero.ctaSignedIn": "ዳሽቦርድ ይክፈቱ",
+    "hero.ctaSecondary": "ስራውን ይመልከቱ",
 
     // Auction
-    "auction.bidNow": "አሁን ውረስ",
-    "auction.bidFee": "የውርርድ ክፍያ",
-    "auction.bids": "ውርርዶች",
+    "auction.bidNow": "ጨረታ ያቅርቡ",
+    "auction.bidFee": "የአገልግሎት ክፍያ",
+    "auction.bids": "ጨረታዎች",
     "auction.unique": "ልዩ",
-    "auction.totalBids": "ጠቅላላ ውርርዶች",
-    "auction.uniqueValues": "ልዩ መጠኖች",
-    "auction.confirmTitle": "ውርርድዎን ያረጋግጡ",
-    "auction.confirmSubtitle": "ከመቀመጡ በፊት የመጨረሻው ማረጋገጫ።",
-    "auction.placing": "ውርርድ በመካከል",
-    "auction.endsIn": "ሚዛው ይጨረሳል",
+    "auction.totalBids": "የተደረጉ ጨረታዎች",
+    "auction.uniqueValues": "ልዩ ዋጋዎች",
+    "auction.timeRemaining": "የቀረ ጊዜ",
+    "auction.bidders": "ተጫራቾች",
+    "auction.bidPlaced": "ጨረታዎ በተሳካ ሁኔታ ገብቷል!",
+    "auction.notUnique": "ያስገቡት ዋጋ ተደግሟል — ሌላ ይምረጡ።",
+    "auction.confirmTitle": "ጨረታዎን ያረጋግጡ",
+    "auction.confirmSubtitle": "ጨረታው ከመቀመጡ በፊት የመጨረሻ ማረጋገጫ።",
+    "auction.placing": "ጨረታ በመላክ ላይ",
+    "auction.endsIn": "የቀረ ጊዜ",
     "auction.min": "ዝቅተኛ",
     "auction.max": "ከፍተኛ",
-    "auction.placeBid": "ውርርድ አስገባ",
-    "auction.confirmBid": "ውርርድዎን ያረጋግጡ",
+    "auction.placeBid": "ጨረታ ያስገቡ",
+    "auction.confirmBid": "ጨረታውን ያረጋግጡ",
     "auction.serviceFee": "የአገልግሎት ክፍያ",
-    "auction.yourBid": "የእርስዎ ውርርድ",
+    "auction.yourBid": "ያቀረቡት ዋጋ",
     "auction.termsNote":
-      "የአገልግሎቱ ክፍያ አሁን ይቆረጣል እና በምንም ሁኔታ አይመለስም። የውርርድዎን መጠን የሚከፍሉት ብቻ ሽንፍታውን ካገኙ ነው።",
-    "auction.termsAck": "ክፍያው የማይመለስ መሆኑን ተረድቻለሁ።",
-    "auction.winnerPays": "አሸናፊው የሚከፍለው የሽንፍታ ውርርዱን መጠን ብቻ ነው።",
-    "auction.bidsLeft": "የሚቀሩልዎ ውርርዶች",
-    "auction.insufficientBalance": "ሂሳብዎ አይበቃም — ለመውረስ እባክዎ ያስገቡ።",
+      "የአገልግሎቱ ክፍያ አሁን ይቆረጣል፤ የማይመለስ ክፍያ ነው። የጨረታዎን ዋጋ የሚከፍሉት ብቻ አሸንፈው ሲወጡ ነው።",
+    "auction.termsAck":
+      "የአገልግሎቱ ክፍያ የማይመለስ መሆኑን ተረድቻለሁ።",
+    "auction.winnerPays": "አሸናፊው የሚከፍለው የሽንፍታ ዋጋውን ብቻ ነው።",
+    "auction.bidsLeft": "ለእርስዎ የሚቀሩ ጨረታዎች",
+    "auction.insufficientBalance":
+      "የዋሌት ቀሪ ሒሳብዎ አይበቃም — ለመውረስ ዋሌትዎን ይሙሉ።",
 
     // Wallet
-    "wallet.balance": "የኪስ ቀሪ ሂሳብ",
-    "wallet.topUp": "ገንዘብ አስገባ",
-    "wallet.promo": "የማበረታቻ ሂሳብ",
+    "wallet.balance": "የዋሌት ቀሪ ሒሳብ",
+    "wallet.topUp": "ዋሌት ይሙሉ",
+    "wallet.promo": "የማበረታቻ ሒሳብ",
+    "wallet.transactions": "የክፍያ ታሪክ",
 
     // Dashboard
     "dashboard.welcome": "እንኳን ደህና መጡ",
-    "dashboard.myBids": "የእኔ ውርርዶች",
-    "dashboard.watchlist": "የከተለቀዋቸው",
+    "dashboard.myBids": "የኔ ጨረታዎች",
+    "dashboard.watchlist": "የከተከታተሉዋቸው",
     "dashboard.wins": "ድሎች",
+    "dashboard.profile": "መገለጫ",
+    "dashboard.wallet": "ዋሌት",
+    "dashboard.alerts": "ማሳወቂያዎች",
+    "dashboard.payToWin": "የሽንፍታ ክፍያዎን ይክፈሉ — ሽልማትዎን ለማግኘት",
 
     // Auth
     "auth.title": "ወደ ሉባ ይግቡ",
     "auth.subtitle":
-      "የመግቢያ ኮድዎን በምን መንገድ እንደሚቀበሉ ይምረጡ። አዲስ ከሆኑ ይሄ ምዝገባው ነው።",
-    "auth.openBotShort": "ቴሌግራም ቦት ክፈት",
-    "auth.chooseMethod": "በምን መንገድ መግብዎት ይፈልጋሉ?",
-    "auth.continueTelegram": "በቴሌግራም ይግቡ",
-    "auth.continueEmail": "በኢሜይል ይግቡ",
-    "auth.continueSms": "በኤስኤምኤስ ይግቡ",
-    "auth.verifyCode": "6-አሃዙን ኮድ ያስገቡ",
+      "የመግቢያ ኮድዎ የሚላክበትን መንገድ ይምረጡ። አዲስ ከሆኑ — ይሄ ነው ሙሉ ምዝገባው።",
+    "auth.openBotShort": "ቴሌግራም ቦት ይክፈቱ",
+    "auth.chooseMethod": "በየትኛው መንገድ ይግቡ?",
+    "auth.continueTelegram": "በቴሌግራም ይቀጥሉ",
+    "auth.continueEmail": "በኢሜይል ይቀጥሉ",
+    "auth.continueSms": "በኤስኤምኤስ ይቀጥሉ",
+    "auth.verifyCode": "ባለ 6 አሃዝ ማረጋገጫ ኮድ ያስገቡ",
     "auth.verify": "አረጋግጥ",
+    "auth.resend": "ኮዱን በድጋሚ ላክ",
     "auth.openBot": "የቴሌግራም መለያዎን ያግኙ",
     "auth.openBotHint":
-      "ወደ ቴሌግራም ቦታችን ይወስድዎታል — Start ይጫኑ፣ የእርስዎን ቁጥራዊ መለያ ይላክልዎታል።",
+      "ወደ ቴሌግራም ቦታችን ይወስድዎታል — Start ይጫኑ፣ የእርስዎ ቁጥራዊ መለያ ይላክልዎታል።",
 
     // Common
     "footer.rights": "መብቱ በሕግ የተጠበቀ ነው።",
+    "footer.terms": "ደንቦች እና ግዴታዎች",
+    "footer.privacy": "የግላዊነት መመሪያ",
+    "footer.responsiblePlay": "በኃላፊነት መጫወት",
     "common.loading": "በመጫን ላይ…",
     "common.cancel": "ሰርዝ",
     "common.confirm": "አረጋግጥ",

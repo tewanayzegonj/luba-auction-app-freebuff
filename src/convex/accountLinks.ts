@@ -180,12 +180,12 @@ export const deliverLink = internalAction({
     if (args.method === "telegram") {
       await sendTelegramMessage(
         args.destination,
-        `🔗 Link this Telegram account to your Luba profile?\n\nTap below to confirm — the link expires in 15 minutes:\n${link}\n\nIf you didn't request this, ignore this message.`,
+        `🔗 ይህን ቴሌግራም መለያ ከሉባ መገለጫዎ ጋር ማጣመር ይፈልጋሉ? · Link this Telegram account to your Luba profile?\n\nከታች ይንኩ ላይ ለማረጋገጥ — አገናኙ ለ 15 ደቂቃ ብቻ ይሰራል፦\n${link}\n\nይህን ጥያቄ ካላደረጉ እርስ ይበሉ · If you didn't request this, ignore this message.`,
       );
     } else {
       await sendSms(
         args.destination,
-        `Luba: link this phone number to your account? ${link} (expires in 15 min)`,
+        `Luba: ይህን ስልክ ቁጥር ከመገለጫዎ ጋር ማጣመር ይፈልጋሉ? Link your phone? ${link} (15 min)`,
       );
     }
   },
@@ -226,7 +226,7 @@ export const confirmLink = mutation({
       try {
         await sendTelegramMessage(
           link.destination,
-          `✅ Linked! This Telegram account is now connected to your Luba profile (<b>${user.email ?? user._id}</b>). Winner alerts will arrive here.`,
+          `✅ ተጣምሯል! ይህ ቴሌግራም መለያ ከሉባ መገለጫዎ ጋር ተያይዟል (<b>${user.email ?? user._id}</b>)።\n\nLinked! Winner alerts will arrive here · የድሎች ማሳወቂያዎች እዚህ ይደርሳሉ።`,
         );
       } catch {
         // The link is already bound; delivery of the confirmation is best-effort.

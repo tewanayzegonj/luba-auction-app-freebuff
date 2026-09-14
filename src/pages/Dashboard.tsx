@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { formatETB, parseETBToSantims } from "@/lib/money";
+import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
@@ -54,6 +55,7 @@ const TOPUP_PRESETS = [5000, 10000, 25000, 50000, 100000]; // santims: 50 / 100 
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
+  const { t } = useLang();
   const navigate = useNavigate();
 
   const wallet = useQuery(api.payments.getMyWallet, {});
@@ -292,7 +294,7 @@ export default function Dashboard() {
           <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
             <h2 className="flex items-center gap-2 font-semibold text-amber-300">
               <Trophy className="size-5" />
-              Congratulations — you have {pendingSettlements.length === 1 ? "a win" : `${pendingSettlements.length} wins`} to pay
+              {t("dashboard.wins")} — {t("dashboard.payToWin")}
             </h2>
             <div className="mt-4 space-y-3">
               {pendingSettlements.map((s) => (
@@ -330,14 +332,14 @@ export default function Dashboard() {
         <Tabs defaultValue="bids" className="mt-8">
           <TabsList className="h-11 w-full justify-start gap-1 rounded-xl bg-secondary/70 p-1 sm:w-auto">
             <TabsTrigger value="bids" className="gap-1.5 rounded-lg">
-              <Gavel className="size-4" /> My Bids
+              <Gavel className="size-4" /> {t("dashboard.myBids")}
             </TabsTrigger>
             <TabsTrigger value="wallet" className="gap-1.5 rounded-lg">
-              <Wallet className="size-4" /> Wallet
+              <Wallet className="size-4" /> {t("wallet.balance")}
             </TabsTrigger>
             <TabsTrigger value="notifications" className="gap-1.5 rounded-lg">
               <Bell className="size-4" />
-              Alerts
+              {t("dashboard.alerts")}
               {unreadCount > 0 && (
                 <Badge className="ml-1 h-5 border-transparent bg-primary px-1.5 text-[10px] text-primary-foreground">
                   {unreadCount}
@@ -345,13 +347,13 @@ export default function Dashboard() {
               )}
             </TabsTrigger>
             <TabsTrigger value="watchlist" className="gap-1.5 rounded-lg">
-              <Eye className="size-4" /> Watchlist
+              <Eye className="size-4" /> {t("dashboard.watchlist")}
             </TabsTrigger>
             <TabsTrigger value="receipts" className="gap-1.5 rounded-lg">
-              <ReceiptText className="size-4" /> Receipts
+              <ReceiptText className="size-4" /> {t("wallet.transactions")}
             </TabsTrigger>
             <TabsTrigger value="profile" className="gap-1.5 rounded-lg">
-              Profile
+              {t("dashboard.profile")}
             </TabsTrigger>
           </TabsList>
 

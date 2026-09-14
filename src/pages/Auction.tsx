@@ -239,8 +239,8 @@ export default function AuctionPage() {
         idempotencyKey,
         acceptedTerms: true,
       });
-      toast.success("Bid placed", {
-        description: `${formatETB(bidValueSantims)} submitted to ${auction.auctionCode}.`,
+      toast.success(t("auction.bidPlaced"), {
+        description: `${formatETB(bidValueSantims)} · ${auction.auctionCode}`,
       });
       setConfirmOpen(false);
       setAmountInput("");
@@ -248,7 +248,7 @@ export default function AuctionPage() {
     } catch (err) {
       const raw = err instanceof Error ? err.message : "UNKNOWN";
       const base = raw.split(":")[0].trim();
-      toast.error("Bid not accepted", {
+      toast.error(t("auction.notUnique"), {
         description:
           FRIENDLY_ERRORS[base] ?? "Something went wrong. Please try again.",
       });

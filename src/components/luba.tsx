@@ -188,6 +188,7 @@ function initials(name: string): string {
 }
 
 export function SiteFooter() {
+  const { t } = useLang();
   return (
     <footer className="border-t border-border/70 bg-card/60">
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
@@ -220,21 +221,21 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h4 className="text-sm font-semibold">Legal</h4>
+          <h4 className="text-sm font-semibold">{t("footer.terms")}</h4>
           <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
             <li>
               <Link className="hover:text-foreground" to="/legal/terms">
-                Terms &amp; Conditions
+                {t("footer.terms")}
               </Link>
             </li>
             <li>
               <Link className="hover:text-foreground" to="/legal/privacy">
-                Privacy Policy
+                {t("footer.privacy")}
               </Link>
             </li>
             <li>
               <Link className="hover:text-foreground" to="/legal/responsible-play">
-                Responsible Play
+                {t("footer.responsiblePlay")}
               </Link>
             </li>
           </ul>
