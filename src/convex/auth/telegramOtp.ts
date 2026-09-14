@@ -39,7 +39,8 @@ export const telegramOtp = Email({
         `https://api.telegram.org/bot${botToken}/sendMessage`,
         {
           chat_id: chatId,
-          text: `Your Luba verification code is ${token}\n\nIt expires in 15 minutes. If you didn't request it, you can ignore this message.`,
+          parse_mode: "HTML",
+          text: `Your Luba verification code is <code>${token}</code>\n\nIt expires in 15 minutes. If you didn't request it, you can ignore this message.`,
         },
         { timeout: 10_000 },
       );

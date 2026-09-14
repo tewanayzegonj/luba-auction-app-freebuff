@@ -118,7 +118,8 @@ export const handleTelegramUpdate = httpAction(async (ctx, request) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: `👋 Your Telegram ID is ${chatId}\n\nTo sign in to Luba:\n1. Go to the sign-in screen\n2. Choose "Continue with Telegram"\n3. Enter ${chatId} and we'll send your code here`,
+          parse_mode: "HTML",
+          text: `👋 Your Telegram ID is <code>${chatId}</code>\n\nTo sign in to Luba:\n1. Go to the sign-in screen\n2. Choose "Continue with Telegram"\n3. Enter <code>${chatId}</code> and we'll send your code here`,
         }),
       });
     } catch (err) {
