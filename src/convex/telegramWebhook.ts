@@ -119,7 +119,12 @@ export const handleTelegramUpdate = httpAction(async (ctx, request) => {
         body: JSON.stringify({
           chat_id: chatId,
           parse_mode: "HTML",
-          text: `👋 Your Telegram ID is <code>${chatId}</code>\n\nTo sign in to Luba:\n1. Go to the sign-in screen\n2. Choose "Continue with Telegram"\n3. Enter <code>${chatId}</code> and we'll send your code here`,
+          text: `👋 Your Telegram ID is <code>${chatId}</code>\n\nTap the button below to copy it, then enter it on the Luba sign-in screen under “Continue with Telegram”.`,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "📋 Copy my ID", copy_text: { text: String(chatId) } }],
+            ],
+          },
         }),
       });
     } catch (err) {

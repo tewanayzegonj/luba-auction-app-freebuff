@@ -36,10 +36,16 @@ export function isValidEthiopianPhone(phone: string): boolean {
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
+  replyMarkup?: unknown,
 ): Promise<void> {
   const res = await axios.post(
     `https://api.telegram.org/bot${getBotToken()}/sendMessage`,
-    { chat_id: chatId, parse_mode: "HTML", text },
+    {
+      chat_id: chatId,
+      parse_mode: "HTML",
+      text,
+      ...(replyMarkup !== undefined ? { reply_markup: replyMarkup } : {}),
+    },
     { timeout: 10_000 },
   );
   if (!res.data?.ok) {

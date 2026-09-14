@@ -36,7 +36,12 @@ export const telegramOtp = Email({
     try {
       await sendTelegramMessage(
         chatId,
-        `Your Luba verification code is <code>${token}</code>\n\nIt expires in 15 minutes. If you didn't request it, you can ignore this message.`,
+        `Your Luba verification code is <code>${token}</code>\n\nTap the button below to copy it, then enter it on the sign-in screen. It expires in 15 minutes.`,
+        {
+          inline_keyboard: [
+            [{ text: "📋 Copy code", copy_text: { text: token } }],
+          ],
+        },
       );
     } catch (error) {
       throw new Error(JSON.stringify(error));
