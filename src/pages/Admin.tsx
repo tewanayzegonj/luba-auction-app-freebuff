@@ -295,7 +295,7 @@ function AdminConsole() {
           {/* right-edge fade + chevron hinting the strip scrolls (P4.10) */}
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 hidden w-16 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-1 md:flex"
+            className="pointer-events-none absolute inset-y-0 right-0 flex w-16 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-1 md:hidden"
           >
             <span className="text-xs text-muted-foreground">›</span>
           </div>

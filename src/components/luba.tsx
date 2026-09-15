@@ -132,6 +132,14 @@ export function SiteHeader() {
           <ThemeToggle />
           {isLoading ? null : isAuthenticated ? (
             <>
+              {/* Dashboard is a primary destination — sits directly in the
+                  header, not only inside the avatar menu. */}
+              <Button variant="ghost" className="gap-2" asChild>
+                <Link to="/dashboard">
+                  <LayoutDashboard className="size-4" />
+                  {t("nav.dashboard")}
+                </Link>
+              </Button>
               {(user?.role === "admin" || user?.role === "super_admin") && (
                 <Button variant="ghost" className="gap-2" asChild>
                   <Link to="/admin">

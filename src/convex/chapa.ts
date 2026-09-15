@@ -180,10 +180,13 @@ export const initializeCheckout = action({
 
     if (!response.ok) {
       // Capture Chapa's own error body — it carries the actionable reason
-      // (invalid key, validation failure, unapproved account, …).
-      let detail = "";
+      // (invalid key, validation failure, unapproved account, …). We keep the
+      // RAW text too: Chapa's 400 shapes vary (message / data string /
+      // field-map), and seeing the exact payload beats guessing.
+      const rawText = await response.text().catch(() => "");
+      let detail = rawText.slice(0, 300);
       try {
-        const errPayload = (await response.json()) as {
+        const errPayload = JSON.parse(rawText) as {
           message?: string;
           data?: { message?: string } | string;
         };
@@ -192,10 +195,15 @@ export const initializeCheckout = action({
             ? errPayload.message
             : typeof errPayload?.data === "string"
               ? errPayload.data
-              : (errPayload?.data?.message ?? "");
+              : (errPayload?.data?.message ?? detail);
       } catch {
-        // non-JSON error body — fall back to the status code alone
+        // non-JSON error body — the raw text is the best we have
       }
+      console.error("[chapa] initialize failed", {
+        status: response.status,
+        // Never log the Authorization header — body only.
+        body: rawText.slice(0, 500),
+      });
       return { ok: false, error: `CHAPA_HTTP_${response.status}`, detail };
     }
 
