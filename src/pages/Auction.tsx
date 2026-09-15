@@ -43,7 +43,7 @@ import {
   Trophy,
   Wallet,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
@@ -197,6 +197,23 @@ export default function AuctionPage() {
     for (const u of uniqueness ?? []) m.set(u.valueSantims, u.count);
     return m;
   }, [uniqueness, myBids]);
+
+  // P6.7: real-time outbid toast — when one of my accepted unique bids becomes
+  // duplicated (someone else matched the value), fire a toast once per value.
+  const outbidRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!isAuthenticated || myBids === undefined) return;
+    for (const b of myBids) {
+      if (b.status !== "ACCEPTED") continue;
+      const count = uniqueMap.get(b.bidValueSantims);
+      if (count !== undefined && count > 1 && !outbidRef.current.has(b.bidValueSantims)) {
+        outbidRef.current.add(b.bidValueSantims);
+        toast.warning(t("auction.notUnique"), {
+          description: `${formatETB(b.bidValueSantims)} ETB is no longer unique — another bidder matched it.`,
+        });
+      }
+    }
+  }, [uniqueMap, myBids, isAuthenticated, t]);
 
   const taken =
     auction && bidValueSantims !== null

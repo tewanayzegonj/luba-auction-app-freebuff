@@ -31,6 +31,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { formatETB, parseETBToSantims } from "@/lib/money";
 import { useLang } from "@/lib/i18n";
+import { WithdrawCard } from "@/components/withdraw-card";
 import { cn } from "@/lib/utils";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
@@ -793,7 +794,6 @@ export default function Dashboard() {
                   <CardContent>
                     <WithdrawCard
                       balanceSantims={wallet?.paidBalanceSantims ?? 0}
-                      embedded
                     />
                   </CardContent>
                 </Card>
@@ -1536,6 +1536,20 @@ function TelegramLinkRow({
           </Button>
         </div>
       )}
+      {/* P5.2: direct deep-link to the bot so users can grab their ID / verify
+          the chat is with the exact account they signed up with. */}
+      <a
+        href="https://t.me/luba_auction_bot"
+        target="_blank"
+        rel="noreferrer"
+        className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary underline-offset-4 hover:underline"
+      >
+        <Send className="size-3.5" />
+        Open @luba_auction_bot in Telegram
+      </a>
+      <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+        Caution: use the exact Telegram account you originally signed up with.
+      </p>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   Ban,
   Banknote,
   Camera,
+  CheckCircle2,
   Gavel,
   ImageIcon,
   Loader2,
@@ -72,7 +73,7 @@ export default function Admin() {
           <div className="flex justify-center py-24">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
-        ) : user?.role !== "admin" ? (
+        ) : user?.role !== "admin" && user?.role !== "super_admin" ? (
           <RestrictedArea userName={user?.email ?? null} />
         ) : (
           <AdminConsole />
@@ -120,6 +121,11 @@ function AdminConsole() {
   const setGatewayEnabled = useMutation(api.admin.setGatewayEnabled);
   const gateways = useQuery(api.admin.getGatewaySettings, {});
   const ledgerTxs = useQuery(api.admin.listLedgerTransactions, { limit: 50 });
+  const withdrawals = useQuery(api.accountOps.listWithdrawalsAdmin, {});
+  const fraudSignals = useQuery(api.admin.listFraudSignalsAdmin, {});
+  const reviewWithdrawal = useMutation(api.accountOps.reviewWithdrawal);
+  const runFraudScan = useMutation(api.admin.scanSharedPayerPhones);
+  const markSignalReviewed = useMutation(api.admin.reviewFraudSignal);
   const [profileUser, setProfileUser] = useState<Id<"users"> | null>(null);
 
   const [search, setSearch] = useState("");
@@ -139,13 +145,14 @@ function AdminConsole() {
       (u.name ?? "").toLowerCase().includes(search.toLowerCase()),
   );
 
-  const act = async (key: string, fn: () => Promise<unknown>) => {
+  const act = async (key: string, fn: () => Promise<unknown>, okMsg?: string) => {
     setBusy(key);
     try {
       await fn();
+      if (okMsg) toast.success(okMsg);
       return true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Action failed");
+      toast.error(err instanceof Error ? err.message.replace(/^Uncaught Error: /, "") : "Action failed");
       return false;
     } finally {
       setBusy(null);
@@ -248,8 +255,10 @@ function AdminConsole() {
         )}
 
         <Tabs defaultValue="users" className="mt-8">
-          {/* P4.10: horizontally scrollable tab strip on small screens */}
-          <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary/70 p-1 sm:w-auto">
+          {/* P4.10: horizontally scrollable tab strip on small screens with a
+              fade + chevron scroll affordance on the right edge */}
+          <div className="relative">
+          <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary/70 p-1 sm:w-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabsTrigger value="users" className="gap-1.5 rounded-lg">
               <Users className="size-4" /> Users
             </TabsTrigger>
@@ -271,10 +280,24 @@ function AdminConsole() {
             <TabsTrigger value="settings" className="gap-1.5 rounded-lg">
               <Megaphone className="size-4" /> Settings
             </TabsTrigger>
+            <TabsTrigger value="withdrawals" className="gap-1.5 rounded-lg">
+              <Banknote className="size-4" /> Withdrawals
+            </TabsTrigger>
+            <TabsTrigger value="fraud" className="gap-1.5 rounded-lg">
+              <ShieldX className="size-4" /> Fraud
+            </TabsTrigger>
             <TabsTrigger value="audit" className="gap-1.5 rounded-lg">
               <Activity className="size-4" /> Audit log
             </TabsTrigger>
           </TabsList>
+          {/* right-edge fade + chevron hinting the strip scrolls (P4.10) */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 hidden w-16 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-1 md:flex"
+          >
+            <span className="text-xs text-muted-foreground">›</span>
+          </div>
+          </div>
 
           {/* Users */}
           <TabsContent value="users" className="mt-5">
@@ -1447,6 +1470,174 @@ function AdminConsole() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* Withdrawals review (Phase 1 §3) */}
+          <TabsContent value="withdrawals" className="mt-5">
+            {withdrawals === undefined ? (
+              <LoadingRows />
+            ) : withdrawals.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No withdrawal requests yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {withdrawals.map((w) => (
+                  <div
+                    key={w.id}
+                    className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 text-sm"
+                  >
+                    <div className="min-w-40">
+                      <p className="font-mono font-medium">{formatETB(w.amountSantims)}</p>
+                      <p className="text-xs text-muted-foreground">{w.userEmail}</p>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      <p className="font-mono uppercase">{w.method}</p>
+                      <p className="font-mono">{w.destination}</p>
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {new Date(w.createdAt).toLocaleString()}
+                    </span>
+                    {w.status === "PENDING" ? (
+                      <div className="ml-auto flex gap-2">
+                        <Button
+                          size="sm"
+                          disabled={busy !== null}
+                          onClick={() => {
+                            void act(
+                              `wd-${w.id}-paid`,
+                              () => reviewWithdrawal({ withdrawalId: w.id, decision: "PAID" }),
+                              "Marked as paid",
+                            );
+                          }}
+                        >
+                          {busy === `wd-${w.id}-paid` ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Banknote className="size-4" />
+                          )}
+                          Mark paid
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy !== null}
+                          onClick={() => {
+                            const note = window.prompt("Rejection reason (returned to the user):", "Verification failed");
+                            if (note === null) return;
+                            void act(
+                              `wd-${w.id}-rej`,
+                              () => reviewWithdrawal({ withdrawalId: w.id, decision: "REJECTED", note: note || undefined }),
+                              "Withdrawal rejected — funds returned",
+                            );
+                          }}
+                        >
+                          {busy === `wd-${w.id}-rej` ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <ShieldX className="size-4" />
+                          )}
+                          Reject
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "ml-auto font-mono text-[10px] uppercase",
+                          w.status === "PAID" && "text-emerald-500",
+                          w.status === "REJECTED" && "text-rose-500",
+                          w.status === "CANCELLED" && "text-muted-foreground",
+                        )}
+                      >
+                        {w.status}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Fraud review queue (spec §39 / Phase 2 §6) */}
+          <TabsContent value="fraud" className="mt-5">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Heuristic signals for manual review — multiple accounts funded
+                  by the same payment source, velocity spikes, etc.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy !== null}
+                  onClick={() => {
+                    void act(
+                      "fraud-scan",
+                      () => runFraudScan({}),
+                      `Scan complete`,
+                    );
+                  }}
+                >
+                  {busy === "fraud-scan" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Search className="size-4" />
+                  )}
+                  Scan shared payer phones
+                </Button>
+              </div>
+              {fraudSignals === undefined ? (
+                <LoadingRows />
+              ) : fraudSignals.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No open fraud signals.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {fraudSignals.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 text-sm"
+                    >
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "font-mono text-[10px] uppercase",
+                          s.severity === "HIGH" && "border-rose-500/40 text-rose-400",
+                          s.severity === "MEDIUM" && "border-amber-500/40 text-amber-500",
+                        )}
+                      >
+                        {s.severity}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{s.signal.replace(/_/g, " ")}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {s.details ?? ""} · {s.userEmail}
+                        </p>
+                      </div>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {new Date(s.createdAt).toLocaleString()}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={busy !== null}
+                        onClick={() => {
+                          void act(
+                            `sig-${s.id}`,
+                            () => markSignalReviewed({ signalId: s.id, reviewed: true }),
+                            "Signal marked reviewed",
+                          );
+                        }}
+                      >
+                        <CheckCircle2 className="size-4" /> Reviewed
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 

@@ -283,7 +283,7 @@ export const reviewWithdrawal = mutation({
   args: {
     withdrawalId: v.id("withdrawals"),
     decision: v.union(v.literal("PAID"), v.literal("REJECTED")),
-    note: v.string(),
+    note: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const adminId = await requireSuperAdminOrAdmin(ctx);
@@ -297,7 +297,7 @@ export const reviewWithdrawal = mutation({
       // manual payout (telebirr/bank transfer executed outside the app).
       await postTransaction(ctx, {
         txType: "WITHDRAWAL_PAID",
-        description: `Withdrawal paid out (${w.method}) — ${args.note}`,
+        description: `Withdrawal paid out (${w.method}) — ${args.note ?? "manual payout"}`,
         reference: w._id,
         idempotencyKey: `WITHDRAWAL_PAID:${w._id}`,
         now,
@@ -322,7 +322,7 @@ export const reviewWithdrawal = mutation({
         status: "PAID",
         reviewedBy: adminId,
         reviewedAt: now,
-        reviewNote: args.note.trim() || undefined,
+        reviewNote: args.note?.trim() || undefined,
       });
       await insertNotification(ctx, {
         userId: w.userId,
@@ -332,18 +332,18 @@ export const reviewWithdrawal = mutation({
         now,
       });
     } else {
-      await refundWithdrawalHold(ctx, w, now, `rejected: ${args.note}`);
+      await refundWithdrawalHold(ctx, w, now, `rejected: ${args.note ?? "no reason given"}`);
       ctx.db.patch(w._id, {
         status: "REJECTED",
         reviewedBy: adminId,
         reviewedAt: now,
-        reviewNote: args.note.trim() || undefined,
+        reviewNote: args.note?.trim() || undefined,
       });
       await insertNotification(ctx, {
         userId: w.userId,
         type: "PAYMENT_SUCCESS",
         title: "Withdrawal rejected",
-        body: `Your withdrawal request was rejected. Reason: ${args.note}. The funds are back in your wallet.`,
+        body: `Your withdrawal request was rejected. Reason: ${args.note ?? "not specified"}. The funds are back in your wallet.`,
         now,
       });
     }
