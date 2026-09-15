@@ -9,11 +9,11 @@ import { internal } from "./_generated/api";
  */
 const crons = cronJobs();
 
-crons.interval("auction lifecycle", { minutes: 1 }, internal.lifecycle.tickLifecycle);
+crons.interval("auction lifecycle", { minutes: 5 }, internal.lifecycle.tickLifecycle);
 
 crons.interval(
   "outbox delivery",
-  { seconds: 15 }, // Phase 6: sub-minute notification fan-out latency
+  { minutes: 5 }, // Phase 6: sub-minute notification fan-out latency
   internal.lifecycle.processOutbox,
   { max: 100 },
 );
@@ -23,7 +23,7 @@ crons.interval(
 // never touches financial state.
 crons.interval(
   "display counters sweeper",
-  { seconds: 30 },
+  { minutes: 5 },
   internal.auctions.sweepStaleCounters,
 );
 
@@ -35,7 +35,7 @@ crons.interval(
 
 crons.interval(
   "scheduled bid execution",
-  { seconds: 30 },
+  { minutes: 5 },
   internal.engagement.processScheduledBids,
 );
 
@@ -56,7 +56,7 @@ crons.interval(
 // per-tick randomized values avoid telegraphing a pattern.
 crons.interval(
   "auto-bid executor",
-  { seconds: 30 },
+  { minutes: 5 },
   internal.accountOps.processAutoBids,
 );
 
