@@ -21,7 +21,7 @@ export default function Legal({ doc }: { doc: Doc }) {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 pb-24 sm:px-6 md:pb-10">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Legal
         </p>

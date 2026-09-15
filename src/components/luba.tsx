@@ -332,6 +332,10 @@ export function MobileTabBar() {
   const { t } = useLang();
   const navigate = useNavigate();
   const authed = isAuthenticated;
+  const path = window.location.pathname;
+
+  // The auth screen is a focused flow — no tab bar there.
+  if (path.startsWith("/auth")) return null;
 
   const tabs = [
     {
@@ -376,7 +380,7 @@ export function MobileTabBar() {
     >
       <div className="mx-auto grid max-w-lg grid-cols-4">
         {tabs.map((tab) => {
-          const isActive = tab.active(window.location.pathname);
+          const isActive = tab.active(path);
           return (
             <button
               key={tab.label}
@@ -506,16 +510,18 @@ export function Countdown({
     { label: "Sec", value: s },
   ];
   return (
-    <div className={cn("flex gap-2", className)}>
+    // Equal-width cells that shrink on phones — 4×min-w-14 boxes overflow
+    // inside a ~320px card. Gap and padding tighten at small sizes too.
+    <div className={cn("grid grid-cols-4 gap-1.5 sm:gap-2", className)}>
       {units.map((u) => (
         <div
           key={u.label}
-          className="flex min-w-14 flex-col items-center rounded-lg border border-border bg-card px-2.5 py-2 shadow-layered"
+          className="flex flex-col items-center rounded-lg border border-border bg-card px-1 py-2 shadow-layered sm:px-2.5"
         >
-          <span className="font-mono text-lg font-semibold tabular-nums">
+          <span className="font-mono text-base font-semibold tabular-nums sm:text-lg">
             {String(u.value).padStart(2, "0")}
           </span>
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground sm:text-[10px]">
             {u.label}
           </span>
         </div>

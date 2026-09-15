@@ -112,22 +112,22 @@ export default function Landing() {
             </div>
           </motion.div>
 
-          {/* Hero demo card */}
+          {/* Hero demo card — explicitly labeled EXAMPLE so it can never be
+              mistaken for a real open auction (which confused new visitors). */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.12 }}
             className="relative mx-auto w-full max-w-sm"
           >
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-layered-lg">
+            <div className="relative rounded-2xl border border-border bg-card p-5 shadow-layered-lg">
+              <span className="absolute -top-2.5 left-4 rounded-full bg-amber-400 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-amber-950 shadow-layered">
+                Example
+              </span>
               <div className="flex items-center justify-between">
-                <Badge className="border-transparent bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
-                  <span className="mr-1.5 inline-block size-1.5 animate-pulse rounded-full bg-emerald-400" />
-                  Live example
+                <Badge className="border-transparent bg-secondary text-secondary-foreground ring-1 ring-inset ring-foreground/10">
+                  How a bid works
                 </Badge>
-                <span className="font-mono text-xs text-muted-foreground">
-                  LUBA-2026-107
-                </span>
               </div>
               <div className="mt-4 overflow-hidden rounded-xl">
                 <div className="aspect-[16/10] bg-secondary/50">

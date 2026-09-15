@@ -985,7 +985,10 @@ export default function AuctionPage() {
       {isOpen && (
         <div
           className="fixed inset-x-0 bottom-16 z-30 border-t border-border/70 bg-background/92 px-4 py-3 backdrop-blur-lg lg:hidden"
-          style={{ paddingBottom: "calc(0.75rem * 0 + var(--safe-bottom))" }}
+          style={{
+            // Sit flush above the mobile tab bar; own safe-area padding.
+            paddingBottom: "max(0.75rem, var(--safe-bottom))",
+          }}
         >
           <div className="mx-auto flex max-w-6xl items-center gap-3">
             <div className="min-w-0 flex-1">

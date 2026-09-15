@@ -68,7 +68,7 @@ export default function Admin() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 md:pb-8">
         {isLoading ? (
           <div className="flex justify-center py-24">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />

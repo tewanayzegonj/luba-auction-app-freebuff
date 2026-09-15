@@ -23,7 +23,8 @@ export default function NotFound() {
           The page you requested doesn't exist. It may have been moved, or the
           address may be mistyped.
         </p>
-        <div className="mt-7 flex gap-2">
+        {/* Stacked full-width on phones, inline from sm up. */}
+        <div className="mt-7 grid w-full max-w-xs gap-2 sm:flex sm:w-auto sm:max-w-none sm:flex-row">
           <Button asChild>
             <Link to="/">Back to open auctions</Link>
           </Button>

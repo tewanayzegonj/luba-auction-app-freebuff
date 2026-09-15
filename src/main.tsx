@@ -179,8 +179,9 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            {/* Inside the Router: MobileTabBar uses useNavigate(). */}
+            <MobileTabBar />
           </BrowserRouter>
-          <MobileTabBar />
           <Toaster />
           </LanguageProvider>
         </ThemeProvider>

@@ -495,7 +495,8 @@ export default function Dashboard() {
                 }
               />
             ) : (
-              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
+              /* Wide table scrolls inside its card on phones (.table-scroll). */
+              <div className="table-scroll overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
@@ -1354,7 +1355,8 @@ function ResponsiblePlayCard() {
           </p>
         )}
       </div>
-      <div className="flex gap-2">
+      {/* Stack on phones — input + button side-by-side overflows at 320px. */}
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           value={capInput}
           onChange={(e) => setCapInput(e.target.value)}
@@ -1514,7 +1516,7 @@ function TelegramLinkRow({
         )}
       </div>
       {!connected && methods.telegramConfigured && (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <Input
             value={chatId}
             onChange={(e) => setChatId(e.target.value)}
@@ -1632,7 +1634,7 @@ function PhoneLinkRow({
         )}
       </div>
       {!connected && methods.smsConfigured && (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <Input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}

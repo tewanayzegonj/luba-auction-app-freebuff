@@ -25,6 +25,7 @@ import { resolveLowestUniqueBid } from "./lib/winner";
 export const listOpenAuctions = query({
   args: {},
   handler: async (ctx) => {
+    const now = Date.now();
     const auctions = await ctx.db
       .query("auctions")
       .withIndex("by_status", (q) => q.eq("status", "OPEN"))
@@ -34,7 +35,11 @@ export const listOpenAuctions = query({
       .withIndex("by_status", (q) => q.eq("status", "CLOSING"))
       .collect();
 
-    const all = [...auctions, ...closing].sort((a, b) => a.closesAt - b.closesAt);
+    // Defensive: never render a dead auction, even between lifecycle ticks —
+    // a close time in the past means it must not be listed as open.
+    const all = [...auctions, ...closing]
+      .filter((a) => a.closesAt > now)
+      .sort((a, b) => a.closesAt - b.closesAt);
 
     return Promise.all(
       all.map(async (auction) => {
