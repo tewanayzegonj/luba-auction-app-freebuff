@@ -319,6 +319,30 @@ export const placeBid = mutation({
     }
     const bidId = attempt.bidId;
 
+    // Anti-snipe soft-close (popcorn bidding): a bid inside the final window
+    // pushes the close time out so human bidders on slow mobile connections
+    // retain a real chance to react. One OCC-serialized patch per auction
+    // row — contention is bounded to the final-minute frenzy by design.
+    const ANTI_SNIPE_WINDOW_MS = 60_000;
+    const ANTI_SNIPE_EXTENSION_MS = 120_000;
+    if (
+      auction.closesAt - now < ANTI_SNIPE_WINDOW_MS &&
+      !auction.antiSnipeDisabled
+    ) {
+      await ctx.db.patch(auction._id, {
+        closesAt: now + ANTI_SNIPE_EXTENSION_MS,
+        updatedAt: now,
+      });
+      await insertNotification(ctx, {
+        userId,
+        type: "AUCTION_EXTENDED",
+        title: "Auction extended",
+        body: `${auction.auctionCode} was extended — a bid landed in the final minute. New close time applies.`,
+        auctionId: auction._id,
+        now,
+      });
+    }
+
     // Phase 6: display counters are refreshed by a throttled background
     // reconciler, never inside the bid transaction — per-bid patches on the
     // auction document would serialize every concurrent bidder through OCC

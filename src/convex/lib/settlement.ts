@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { formatSantims } from "../../lib/money";
@@ -62,7 +63,7 @@ export async function settleAuctionInternal(
       resolvedAt: now,
     });
 
-    await ctx.db.insert("winnerSettlements", {
+    const settlementId = await ctx.db.insert("winnerSettlements", {
       auctionId,
       resultId,
       winnerUserId: winningBid.userId,
@@ -70,6 +71,15 @@ export async function settleAuctionInternal(
       paymentDeadline: now + auction.winnerPaymentDeadline,
       status: "PENDING_PAYMENT",
     });
+
+    // Winner journey step 1: mint + deliver the claim code (idempotent).
+    // Scheduled (not inline) so settlement stays fast and the code mint can
+    // retry collision-free without extending this transaction.
+    await ctx.scheduler.runAfter(
+      0,
+      internal.winnerJourney.mintClaimCodeInternal,
+      { settlementId },
+    );
 
     await insertNotification(ctx, {
       userId: winningBid.userId,

@@ -32,6 +32,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { formatETB, parseETBToSantims } from "@/lib/money";
 import { useLang } from "@/lib/i18n";
 import { WithdrawCard } from "@/components/withdraw-card";
+import { WinnerJourneyCard } from "@/components/winner-journey-card";
 import { cn } from "@/lib/utils";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
@@ -369,31 +370,7 @@ export default function Dashboard() {
             </h2>
             <div className="mt-4 space-y-3">
               {pendingSettlements.map((s) => (
-                <div
-                  key={s._id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-card p-4"
-                >
-                  <div>
-                    <p className="font-mono text-sm font-semibold">
-                      Winning bid {formatETB(s.winningBidValueSantims)}
-                    </p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Clock className="size-3.5" />
-                      Pay before {new Date(s.paymentDeadline).toLocaleString()}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => handlePayWin(s._id)}
-                    disabled={busy === s._id}
-                  >
-                    {busy === s._id ? (
-                      <Loader2 className="mr-1.5 size-4 animate-spin" />
-                    ) : (
-                      <ArrowUpRight className="mr-1.5 size-4" />
-                    )}
-                    Pay winning bid
-                  </Button>
-                </div>
+                <WinnerJourneyCard key={s._id} settlement={s} />
               ))}
             </div>
           </div>
@@ -1255,6 +1232,16 @@ function ReferralCard() {
             <Gift className="mr-1.5 size-4" />
             Copy invite link
           </Button>
+          {/* Telegram viral share: pre-formatted invite via t.me/share */}
+          <a
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#229ED9]/40 bg-[#229ED9]/10 text-sm font-medium text-[#229ED9] transition-colors hover:bg-[#229ED9]/20"
+            target="_blank"
+            rel="noreferrer"
+            href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent("🎁 Join me on LUBA — the lowest UNIQUE bid wins the prize. Sign up and we both get bonus credit:")}`}
+          >
+            <Send className="size-4" />
+            Share invite on Telegram
+          </a>
         </>
       )}
       <p className="text-xs leading-5 text-muted-foreground">

@@ -32,6 +32,7 @@ import {
   BadgeCheck,
   Ban,
   BarChart3,
+  Send,
   Clock,
   Eye,
   Gavel,
@@ -157,6 +158,11 @@ export default function AuctionPage() {
   );
   const history = useQuery(
     api.transparency.publishedBidHistory,
+    auction ? { auctionCode: code } : "skip",
+  );
+  // Provably-fair per-bid breakdown (anti-fraud transparency).
+  const fairResults = useQuery(
+    api.winnerJourney.provablyFairResults,
     auction ? { auctionCode: code } : "skip",
   );
 
@@ -442,6 +448,15 @@ export default function AuctionPage() {
               </Button>
             )}
 
+            {/* Telegram viral share (zero-cost growth loop) */}
+            <a
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#229ED9]/40 bg-[#229ED9]/10 text-sm font-medium text-[#229ED9] transition-colors hover:bg-[#229ED9]/20"
+              target="_blank"
+              rel="noreferrer"              href={`https://t.me/share/url?url=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.href : ""}`)}&text=${encodeURIComponent(`🔥 ${auction.prize?.title ?? auction.title} is being auctioned on LUBA — lowest unique bid wins! Place your bid:`)}`}>
+              <Send className="size-4" />
+              Share to Telegram
+            </a>
+
             {/* Live activity ticker (aggregates + anonymized recent bids) */}
             {activity && activity.recent.length > 0 && (
               <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">
@@ -492,6 +507,51 @@ export default function AuctionPage() {
                       <span className="text-[11px] opacity-70">
                         ×{row.count}{row.unique ? " · unique" : ""}
                         {row.isWinning ? " · WINNER" : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Provably-fair per-bid breakdown — verifiable anti-fraud proof */}
+            {fairResults && fairResults.published && (
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">
+                <h3 className="flex items-center gap-2 font-semibold">
+                  <ShieldCheck className="size-4 text-emerald-500" />
+                  Provably fair — verify it yourself
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  All {fairResults.totalBids} accepted bids, anonymized, lowest
+                  first. {fairResults.uniqueCount} landed on unique values. The
+                  lowest unique value won — the math is right here.
+                </p>
+                <div className="mt-3 max-h-80 space-y-1 overflow-y-auto pr-1">
+                  {fairResults.rows.map((row) => (
+                    <div
+                      key={row.position}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 font-mono text-xs",
+                        row.isWinning
+                          ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
+                          : row.unique
+                            ? "bg-primary/5 text-primary"
+                            : "bg-secondary/50 text-secondary-foreground",
+                      )}
+                    >
+                      <span className="text-muted-foreground">{row.maskedBidder}</span>
+                      <span>{formatETB(row.valueSantims)}</span>
+                      <span
+                        className={cn(
+                          "text-[11px]",
+                          row.isWinning
+                            ? "font-semibold text-emerald-400"
+                            : row.unique
+                              ? "text-primary"
+                              : "text-muted-foreground",
+                        )}
+                      >
+                        {row.isWinning ? "★ WINNER" : row.unique ? "unique" : "duplicate"}
                       </span>
                     </div>
                   ))}

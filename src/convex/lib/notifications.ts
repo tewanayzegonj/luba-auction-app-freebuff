@@ -14,6 +14,7 @@ export async function insertNotification(
     type:
       | "BID_ACCEPTED"
       | "AUCTION_ENDING"
+      | "AUCTION_EXTENDED"
       | "WINNER_ANNOUNCED"
       | "PAYMENT_REMINDER"
       | "PAYMENT_SUCCESS"

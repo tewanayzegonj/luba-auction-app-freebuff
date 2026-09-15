@@ -124,6 +124,9 @@ export const schema = defineSchema(
       ),
       noWinnerPolicy: noWinnerPolicyValidator, // frozen when OPEN (spec §29)
       winnerPaymentDeadline: v.number(), // ms after settlement
+      // Anti-snipe soft-close toggle (admin-configurable); default enabled —
+      // bids in the final 60s extend the auction by 2 minutes.
+      antiSnipeDisabled: v.optional(v.boolean()),
       visibilityPolicy: v.union(v.literal("PUBLIC"), v.literal("PRIVATE")),
       revenueTargetSantims: v.optional(v.number()), // admin tracking target
       publishBidHistory: v.optional(v.boolean()), // transparency toggle (spec §33); default false
@@ -188,10 +191,23 @@ export const schema = defineSchema(
         v.literal("FULFILLED"),
         v.literal("FORFEITED"),
       ),
+      // ─── Claim & fulfillment flow (winner journey) ─────────────────────
+      // Public claim code delivered to the winner (SMS/Telegram) — shown at
+      // pickup/delivery to prove identity alongside KYC verification.
+      claimCode: v.optional(v.string()),
+      // Winner's chosen fulfillment path, submitted after payment.
+      deliveryMethod: v.optional(
+        v.union(v.literal("PICKUP"), v.literal("DELIVERY")),
+      ),
+      deliveryPhone: v.optional(v.string()),
+      deliveryAddress: v.optional(v.string()),
+      deliveryNotes: v.optional(v.string()),
+      deliverySubmittedAt: v.optional(v.number()),
     })
       .index("by_result", ["resultId"])
       .index("by_status_deadline", ["status", "paymentDeadline"])
-      .index("by_winner", ["winnerUserId"]),
+      .index("by_winner", ["winnerUserId"])
+      .index("by_claim_code", ["claimCode"]),
 
     // ─── Wallets (spec §25): paid + promo, projection of ledger ────────────
     wallets: defineTable({
