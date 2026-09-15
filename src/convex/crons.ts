@@ -13,9 +13,18 @@ crons.interval("auction lifecycle", { minutes: 1 }, internal.lifecycle.tickLifec
 
 crons.interval(
   "outbox delivery",
-  { minutes: 1 },
+  { seconds: 15 }, // Phase 6: sub-minute notification fan-out latency
   internal.lifecycle.processOutbox,
-  { max: 50 },
+  { max: 100 },
+);
+
+// Phase 6: refresh stale display counters (bidCount / uniqueBidCount /
+// participantCount) for live auctions. Presentation-only — the reconciler
+// never touches financial state.
+crons.interval(
+  "display counters sweeper",
+  { seconds: 30 },
+  internal.auctions.sweepStaleCounters,
 );
 
 crons.interval(
@@ -26,7 +35,7 @@ crons.interval(
 
 crons.interval(
   "scheduled bid execution",
-  { minutes: 1 },
+  { seconds: 30 },
   internal.engagement.processScheduledBids,
 );
 

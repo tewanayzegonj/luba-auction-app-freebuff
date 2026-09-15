@@ -120,10 +120,11 @@ export const schema = defineSchema(
       visibilityPolicy: v.union(v.literal("PUBLIC"), v.literal("PRIVATE")),
       revenueTargetSantims: v.optional(v.number()), // admin tracking target
       publishBidHistory: v.optional(v.boolean()), // transparency toggle (spec §33); default false
-      bidCount: v.number(), // denormalized counter, maintained transactionally
+      bidCount: v.number(), // denormalized counter, refreshed by throttled reconciler (Phase 6)
       uniqueBidCount: v.number(), // denormalized, for public display
       participantCount: v.optional(v.number()), // denormalized distinct bidders (spec §34 stats)
       viewCount: v.optional(v.number()), // denormalized page views (throttled client-side)
+      countersUpdatedAt: v.optional(v.number()), // last reconciler refresh (staleness check)
       createdAt: v.number(),
       updatedAt: v.number(),
     })
@@ -219,7 +220,9 @@ export const schema = defineSchema(
       description: v.string(),
       idempotencyKey: v.string(), // UNIQUE — one op can never be posted twice (Invariant 4)
       createdAt: v.number(),
-    }).index("by_idempotency", ["idempotencyKey"]),
+    })
+      .index("by_idempotency", ["idempotencyKey"])
+      .index("by_type", ["txType"]), // admin finance filters / type aggregation (Phase 6)
 
     // append-only, never deleted or edited (spec §20)
     ledgerEntries: defineTable({
@@ -227,10 +230,12 @@ export const schema = defineSchema(
       accountId: v.id("ledgerAccounts"),
       direction: v.union(v.literal("DEBIT"), v.literal("CREDIT")),
       amountSantims: v.number(), // always > 0
+      userId: v.optional(v.id("users")), // denormalized owner for user-entry lookups (Phase 6)
       createdAt: v.number(),
     })
       .index("by_transaction", ["transactionId"])
-      .index("by_account", ["accountId"]),
+      .index("by_account", ["accountId"])
+      .index("by_user", ["userId"]), // user ledger history without table scans
 
     // ─── Payments (spec §22–24) ────────────────────────────────────────────
     payments: defineTable({

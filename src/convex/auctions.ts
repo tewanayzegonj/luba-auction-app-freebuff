@@ -2,16 +2,17 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
-import { chargeBidFee } from "./lib/finance";
-import { LedgerError } from "./lib/ledger";
-import { insertNotification } from "./lib/notifications";
-import { assertRateLimit } from "./lib/rateLimit";
-import { settleAuctionInternal } from "./lib/settlement";
 import {
-  isConsecutiveBidAllowed,
-  resolveLowestUniqueBid,
-} from "./lib/winner";
+  internalMutation,
+  type MutationCtx,
+  mutation,
+  query,
+} from "./_generated/server";
+import { attemptBid } from "./lib/bidCore";
+import { insertNotification } from "./lib/notifications";
+import { assertBidMinInterval, assertRateLimit } from "./lib/rateLimit";
+import { settleAuctionInternal } from "./lib/settlement";
+import { resolveLowestUniqueBid } from "./lib/winner";
 
 /**
  * Auction engine — spec §11–17, §27, §30–31.
@@ -161,24 +162,25 @@ export const getUniquenessForValues = query({
   args: { auctionId: v.id("auctions"), values: v.array(v.number()) },
   handler: async (ctx, args) => {
     if (args.values.length === 0) return [];
-    const bids = await ctx.db
-      .query("auctionBids")
-      .withIndex("by_auction_value", (q) =>
-        q.eq("auctionId", args.auctionId),
-      )
-      .collect();
 
-    const wanted = new Set(args.values);
-    const counts = new Map<number, number>();
-    for (const b of bids) {
-      if (b.status !== "ACCEPTED") continue;
-      if (!wanted.has(b.bidValueSantims)) continue;
-      counts.set(b.bidValueSantims, (counts.get(b.bidValueSantims) ?? 0) + 1);
+    // Phase 6: one bounded indexed read per requested value (take(2) is all
+    // uniqueness display needs — 1 = unique, ≥2 = taken) instead of scanning
+    // the whole auction's bid set on every keystroke.
+    const counts: { valueSantims: number; count: number }[] = [];
+    for (const value of args.values) {
+      const rows = await ctx.db
+        .query("auctionBids")
+        .withIndex("by_auction_value", (q) =>
+          q.eq("auctionId", args.auctionId).eq("bidValueSantims", value),
+        )
+        .take(2);
+      let count = 0;
+      for (const b of rows) {
+        if (b.status === "ACCEPTED") count++;
+      }
+      if (count > 0 || rows.length === 0) counts.push({ valueSantims: value, count });
     }
-    return Array.from(counts.entries()).map(([valueSantims, count]) => ({
-      valueSantims,
-      count,
-    }));
+    return counts;
   },
 });
 
@@ -222,7 +224,9 @@ export const placeBid = mutation({
     }
     if (!args.acceptedTerms) throw new Error("TERMS_NOT_ACCEPTED");
 
-    // Rate limit (spec §40): 20 bids / 10s per user per auction.
+    // Rate limits (spec §40, Phase 6): 1 bid / 1.5s per user (anti-bot
+    // floor) + 20 bids / 10s per user per auction (burst ceiling).
+    await assertBidMinInterval(ctx, userId);
     await assertRateLimit(ctx, { scope: "BID", key: `${userId}:${args.auctionId}` });
 
     // Responsible play: self-exclusion is absolute (spec-aligned safety).
@@ -298,80 +302,32 @@ export const placeBid = mutation({
       }
     }
 
-    // Rule 7: per-user bid cap (spec §12).
-    const myBids = await ctx.db
-      .query("auctionBids")
-      .withIndex("by_auction_user", (q) =>
-        q.eq("auctionId", args.auctionId).eq("userId", userId),
-      )
-      .collect();
-    const accepted = myBids.filter((b) => b.status === "ACCEPTED");
-    if (accepted.length >= auction.maximumBidsPerUser) {
-      throw new Error("BID_LIMIT_REACHED");
-    }
-
-    // Rule 9: consecutive-bid policy (spec §13).
-    if (auction.consecutiveBidPolicy !== "NONE") {
-      const allowed = isConsecutiveBidAllowed(
-        auction.consecutiveBidPolicy,
-        auction.bidIncrementSantims,
-        bidValueSantims,
-        accepted.map((b) => b.bidValueSantims),
-      );
-      if (!allowed) throw new Error("CONSECUTIVE_BID_BLOCKED");
-    }
-
-    // Create bid first so the ledger can reference it.
-    const bidId = await ctx.db.insert("auctionBids", {
-      auctionId: auction._id,
+    // Rules 7–9 + fee charge (spec §12, §13, §15) via the shared core:
+    // index-driven, no auction-row writes, no full-auction scans (Phase 6).
+    const attempt = await attemptBid(ctx, {
+      auction,
       userId,
       bidValueSantims,
-      bidServiceFeeSantims: auction.bidServiceFeeSantims,
       idempotencyKey: args.idempotencyKey,
-      acceptedAt: now,
-      status: "ACCEPTED",
+      now,
     });
-
-    // Rule 8 + atomicity: fee and bid commit together (spec §15).
-    try {
-      await chargeBidFee(ctx, {
-        userId,
-        feeSantims: auction.bidServiceFeeSantims,
-        bidId,
-        now,
-      });
-    } catch (err) {
-      if (err instanceof LedgerError && err.message === "INSUFFICIENT_FUNDS") {
-        // Bid cannot exist without its fee — undo within this transaction.
-        ctx.db.delete(bidId);
+    if (!attempt.ok) {
+      if (attempt.code === "INSUFFICIENT_BALANCE") {
         throw new Error("INSUFFICIENT_BALANCE");
       }
-      throw err;
+      throw new Error(attempt.code);
     }
+    const bidId = attempt.bidId;
 
-    // Denormalized counters for display.
-    const allBids = await ctx.db
-      .query("auctionBids")
-      .withIndex("by_auction_value", (q) => q.eq("auctionId", auction._id))
-      .collect();
-    const acceptedAll = allBids.filter((b) => b.status === "ACCEPTED");
-    const valueCounts = new Map<number, number>();
-    for (const b of acceptedAll) {
-      valueCounts.set(b.bidValueSantims, (valueCounts.get(b.bidValueSantims) ?? 0) + 1);
-    }
-    let uniqueCount = 0;
-    for (const c of valueCounts.values()) if (c === 1) uniqueCount++;
-
-    // Distinct accepted bidders (P3.8 stats row).
-    const participants = new Set<string>();
-    for (const b of acceptedAll) participants.add(b.userId);
-
-    ctx.db.patch(auction._id, {
-      bidCount: acceptedAll.length,
-      uniqueBidCount: uniqueCount,
-      participantCount: participants.size,
-      updatedAt: now,
-    });
+    // Phase 6: display counters are refreshed by a throttled background
+    // reconciler, never inside the bid transaction — per-bid patches on the
+    // auction document would serialize every concurrent bidder through OCC
+    // retries.
+    await ctx.scheduler.runAfter(
+      5_000,
+      internal.auctions.reconcileAuctionCounters,
+      { auctionId: auction._id },
+    );
 
     // Outbox event (spec §18) — consumers must be idempotent.
     await ctx.db.insert("outboxEvents", {
@@ -415,6 +371,73 @@ export const placeBid = mutation({
     });
 
     return { bidId, replayed: false };
+  },
+});
+
+/**
+ * Recompute denormalized display counters from accepted bids and store with
+ * a staleness timestamp. Presentation-only — winner resolution recomputes
+ * from bid rows and never reads these (Invariant 7).
+ */
+async function refreshAuctionCounters(
+  ctx: MutationCtx,
+  auctionId: Id<"auctions">,
+): Promise<number> {
+  const now = Date.now();
+  const bids = await ctx.db
+    .query("auctionBids")
+    .withIndex("by_auction_value", (q) => q.eq("auctionId", auctionId))
+    .collect();
+  const accepted = bids.filter((b) => b.status === "ACCEPTED");
+  const valueCounts = new Map<number, number>();
+  for (const b of accepted) {
+    valueCounts.set(b.bidValueSantims, (valueCounts.get(b.bidValueSantims) ?? 0) + 1);
+  }
+  let uniqueCount = 0;
+  for (const c of valueCounts.values()) if (c === 1) uniqueCount++;
+  const participants = new Set<string>();
+  for (const b of accepted) participants.add(b.userId);
+
+  ctx.db.patch(auctionId, {
+    bidCount: accepted.length,
+    uniqueBidCount: uniqueCount,
+    participantCount: participants.size,
+    countersUpdatedAt: now,
+    updatedAt: now,
+  });
+  return accepted.length;
+}
+
+/** Scheduled a few seconds after each accepted bid (Phase 6). */
+export const reconcileAuctionCounters = internalMutation({
+  args: { auctionId: v.id("auctions") },
+  handler: async (ctx, args) => {
+    const bidCount = await refreshAuctionCounters(ctx, args.auctionId);
+    return { bidCount };
+  },
+});
+
+/**
+ * Cron sweep (Phase 6): refresh counters for live auctions whose numbers
+ * are older than 30s. Bounded to OPEN/CLOSING auctions via the status index.
+ */
+export const sweepStaleCounters = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 30_000;
+    let refreshed = 0;
+    for (const status of ["OPEN", "CLOSING"] as const) {
+      const auctions = await ctx.db
+        .query("auctions")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .collect();
+      for (const auction of auctions) {
+        if ((auction.countersUpdatedAt ?? 0) >= cutoff) continue;
+        await refreshAuctionCounters(ctx, auction._id);
+        refreshed++;
+      }
+    }
+    return { refreshed };
   },
 });
 

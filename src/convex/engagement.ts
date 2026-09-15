@@ -9,7 +9,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { chargeBidFee } from "./lib/finance";
+import { attemptBid } from "./lib/bidCore";
 import { insertNotification } from "./lib/notifications";
 
 /**
@@ -249,31 +249,24 @@ export const processScheduledBids = internalMutation({
           throw new Error("AUCTION_NOT_OPEN");
         }
         if (now >= auction.closesAt) throw new Error("AUCTION_CLOSED");
-        // Execute via the same rules path placeBid uses.
-        const bidId = await ctx.db.insert("auctionBids", {
-          auctionId: s.auctionId,
+        // Execute through the shared rules core (Phase 6): one code path for
+        // every bid — same validation, same atomic fee, no auction-row writes.
+        const attempt = await attemptBid(ctx, {
+          auction,
           userId: s.userId,
           bidValueSantims: s.bidValueSantims,
-          bidServiceFeeSantims: auction.bidServiceFeeSantims,
           idempotencyKey: s.idempotencyKey,
-          acceptedAt: now,
-          status: "ACCEPTED",
+          now,
         });
-        try {
-          await chargeBidFee(ctx, {
-            userId: s.userId,
-            feeSantims: auction.bidServiceFeeSantims,
-            bidId,
-            now,
-          });
-        } catch (err) {
-          ctx.db.delete(bidId);
-          throw err;
+        if (!attempt.ok) {
+          throw new Error(attempt.code);
         }
-        ctx.db.patch(auction._id, {
-          bidCount: auction.bidCount + 1,
-          updatedAt: now,
-        });
+        const bidId = attempt.bidId;
+        await ctx.scheduler.runAfter(
+          5_000,
+          internal.auctions.reconcileAuctionCounters,
+          { auctionId: auction._id },
+        );
         await ctx.db.patch(s._id, { status: "EXECUTED", bidId });
         await insertNotification(ctx, {
           userId: s.userId,

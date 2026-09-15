@@ -158,13 +158,20 @@ export async function postTransaction(
       accountId: account._id,
       direction: line.direction,
       amountSantims: line.amountSantims,
+      userId: isUserAccount(account.code) ? (account.code.split(":")[1] as Id<"users">) : undefined,
       createdAt: now,
     });
 
     // Balance projection (rebuildable from entries — never the truth itself).
-    ctx.db.patch(account._id, {
-      balanceSantims: account.balanceSantims + delta,
-    });
+    // Phase 6: only PER-USER accounts are patched. Platform accounts
+    // (revenue, clearing, settlement…) would be a single hot row contended
+    // by every concurrent bidder; their totals are aggregated from entries
+    // at read time (see admin.getFinanceDashboard). Entries are the truth.
+    if (isUserAccount(account.code)) {
+      ctx.db.patch(account._id, {
+        balanceSantims: account.balanceSantims + delta,
+      });
+    }
   }
 
   return txId;

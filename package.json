@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "simulate": "bun scripts/simulate-concurrency.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "preview": "vite preview"

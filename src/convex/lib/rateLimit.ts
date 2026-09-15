@@ -18,12 +18,14 @@ export interface RateLimitResult {
 
 const WINDOW_MS: Record<string, number> = {
   BID: 10_000, // 10 seconds
+  BID_MIN_INTERVAL: 1_500, // anti-bot floor (Phase 6): ≥1.5s between bids
   TOPUP: 60_000, // 1 minute
   OTP: 60_000, // 1 minute (framework has its own limits too)
 };
 
 const LIMITS: Record<string, number> = {
   BID: 20, // 20 bids / 10s per user per auction is generous for humans
+  BID_MIN_INTERVAL: 1, // 1 bid per 1.5s window = max-firewall for scripts
   TOPUP: 5, // 5 top-up attempts / minute
   OTP: 3, // 3 OTP requests / minute
 };
@@ -74,11 +76,23 @@ export async function assertRateLimit(
   }
 }
 
+/**
+ * Phase 6 anti-bot floor: at most one bid per user per 1.5 seconds. Runs in
+ * the same transaction family as the burst limiter and fails closed.
+ * human clicks are spaced well beyond this; rapid-fire scripts are not.
+ */
+export async function assertBidMinInterval(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+): Promise<void> {
+  await assertRateLimit(ctx, { scope: "BID_MIN_INTERVAL", key: userId });
+}
+
 /** Best-effort cleanup cron helper — removes windows older than 1 hour. */
 export async function purgeStaleWindows(ctx: MutationCtx, now: number): Promise<number> {
   const cutoff = now - 60 * 60 * 1000;
   let purged = 0;
-  for (const scope of ["BID", "TOPUP", "OTP"] as const) {
+  for (const scope of ["BID", "BID_MIN_INTERVAL", "TOPUP", "OTP"] as const) {
     const rows = await ctx.db
       .query("rateLimits")
       .withIndex("by_scope_key", (q) => q.eq("scope", scope))
