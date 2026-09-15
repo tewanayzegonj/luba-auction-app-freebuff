@@ -68,14 +68,17 @@ const BUSINESS_CODES = [
 /** Create one virtual user through the production anonymous-auth path. */
 async function createVirtualUser(client: ConvexHttpClient): Promise<string | null> {
   try {
-    const res = (await client.mutation(api.auth.signIn, {
-      provider: "Anonymous",
+    const res = (await client.action(api.auth.signIn, {
+      provider: "anonymous",
       params: {},
     })) as { tokens?: { token?: string } } | null;
     const token = res?.tokens?.token;
     if (token) client.setAuth(token);
     return token ?? null;
-  } catch {
+  } catch (err) {
+    console.warn(
+      `  ⚠ sign-in failed: ${err instanceof Error ? err.message.slice(0, 120) : err}`,
+    );
     return null;
   }
 }
@@ -95,19 +98,11 @@ async function main() {
   console.log(`  sandbox auction ${auctionId}`);
 
   // ── 2. Virtual users + funded wallets ───────────────────────────────────
-  const tokens: (string | null)[] = [];
-  for (let i = 0; i < USERS; i++) tokens.push(await createVirtualUser(new ConvexHttpClient(CONVEX_URL)));
-  const signedIn = tokens.filter((t): t is string => t !== null);
-  console.log(`  signed in ${signedIn.length}/${USERS} virtual users`);
-  if (signedIn.length < USERS) {
-    console.warn("  ⚠ some sign-ins failed — continuing with who we have");
-  }
-
   const fundAmount = BIDS_PER_USER * feeSantims + feeSantims;
-  let funded = 0;
-  for (const token of signedIn) {
+  const setup = async (u: number): Promise<string | null> => {
     const c = new ConvexHttpClient(CONVEX_URL);
-    c.setAuth(token);
+    const token = await createVirtualUser(c);
+    if (!token) return null;
     try {
       const { merchantReference } = (await c.mutation(api.payments.initiateTopUp, {
         amountSantims: fundAmount,
@@ -117,12 +112,18 @@ async function main() {
         merchantReference,
         succeeded: true,
       });
-      funded++;
+      return token;
     } catch (err) {
-      console.warn(`  ⚠ funding failed for one user: ${err instanceof Error ? err.message : err}`);
+      console.warn(`  ⚠ setup failed for user ${u}: ${err instanceof Error ? err.message : err}`);
+      return null;
     }
+  };
+  const settled = await Promise.all(Array.from({ length: USERS }, (_, u) => setup(u)));
+  const signedIn = settled.filter((t): t is string => t !== null);
+  console.log(`  signed in + funded ${signedIn.length}/${USERS} virtual users (${ETB(fundAmount)} ETB each)`);
+  if (signedIn.length < USERS) {
+    console.warn("  ⚠ some sign-ins failed — continuing with who we have");
   }
-  console.log(`  funded ${funded} wallets with ${ETB(fundAmount)} ETB each`);
 
   // ── 3. THE STAMPEDE — every user fires every bid with zero stagger ──────
   const outcomes: Outcome[] = [];
@@ -136,6 +137,9 @@ async function main() {
       const c = new ConvexHttpClient(CONVEX_URL);
       c.setAuth(token);
       for (let b = 0; b < BIDS_PER_USER; b++) {
+        // Respect the server's 1.5s anti-bot floor between a single user's
+        // own bids; users still stampede in parallel on their first bid.
+        if (b > 0) await new Promise((r) => setTimeout(r, 1_700));
         const valueSantims = valueFor(u, b);
         try {
           const res = (await c.mutation(api.auctions.placeBid, {

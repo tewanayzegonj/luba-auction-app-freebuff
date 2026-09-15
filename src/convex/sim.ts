@@ -99,7 +99,8 @@ export const simVerify = mutation({
     const feeTxs = await ctx.db
       .query("ledgerTransactions")
       .withIndex("by_type", (q) => q.eq("txType", "BID_FEE"))
-      .collect();
+      .order("desc") // newest first — this run's postings are the most recent
+      .take(2_000);
     const scopedFeeTxs = feeTxs.filter((tx) => acceptedBidIds.has(tx.reference));
     const feeRevenue = scopedFeeTxs.length * feeSantims;
 

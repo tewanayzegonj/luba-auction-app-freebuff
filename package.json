@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "simulate": "bun scripts/simulate-concurrency.ts",
+    "simulate:adversarial": "bun scripts/adversarial-concurrency.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "preview": "vite preview"
