@@ -317,7 +317,7 @@ export default function AuctionPage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 md:pb-8">
         <Button
           variant="ghost"
           className="-ml-2 mb-4 gap-1.5 text-muted-foreground"
@@ -979,6 +979,62 @@ export default function AuctionPage() {
       </Dialog>
 
       <SiteFooter />
+
+      {/* Mobile sticky bid bar: the primary action never leaves the thumb.
+          Hidden on lg where the sticky side panel owns the CTA. */}
+      {isOpen && (
+        <div
+          className="fixed inset-x-0 bottom-16 z-30 border-t border-border/70 bg-background/92 px-4 py-3 backdrop-blur-lg lg:hidden"
+          style={{ paddingBottom: "calc(0.75rem * 0 + var(--safe-bottom))" }}
+        >
+          <div className="mx-auto flex max-w-6xl items-center gap-3">
+            <div className="min-w-0 flex-1">
+              {bidValueSantims !== null && !validationError ? (
+                <p className="truncate font-mono text-sm font-semibold">
+                  {formatETB(bidValueSantims)}{" "}
+                  <span className="text-xs font-normal text-muted-foreground">
+                    + {formatETB(fee)} fee
+                  </span>
+                </p>
+              ) : (
+                <p className="truncate text-xs text-muted-foreground">
+                  Enter your bid amount above
+                </p>
+              )}
+            </div>
+            {insufficientFunds ? (
+              <Button className="h-10 shrink-0" onClick={() => setInsufficientOpen(true)}>
+                <Wallet className="mr-1.5 size-4" />
+                Top up
+              </Button>
+            ) : (
+              <Button
+                className="h-10 shrink-0"
+                disabled={!amountInput || !!validationError || submitting}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    navigate(`/auth?returnTo=/auction/${auction.auctionCode}`);
+                    return;
+                  }
+                  if (!termsAccepted) {
+                    // Scroll the full form into view so the user checks the
+                    // fee box — keeps consent explicit on small screens.
+                    document
+                      .querySelector("#terms")
+                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    return;
+                  }
+                  setFeeAcknowledged(false);
+                  setConfirmOpen(true);
+                }}
+              >
+                <Gavel className="mr-1.5 size-4" />
+                Review bid
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

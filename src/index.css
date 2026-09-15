@@ -143,6 +143,75 @@
     background: oklch(0.78 0.13 195 / 25%);
   }
 
+  /* ─── Mobile-first foundations ───────────────────────────────────────
+     Phones are the primary device in Ethiopia. These rules apply at every
+     breakpoint but are tuned for small screens. */
+
+  /* Respect notches/home indicators (viewport-fit=cover in index.html). */
+  :root {
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+
+  body {
+    /* Sticky headers + iOS rubber-band: keeps the page anchored and
+       prevents the double-tap zoom jank on rapid bid taps. */
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Form controls must never trigger iOS's focus zoom (16px floor). */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+
+  /* Comfortable touch targets on coarse pointers — 44px Apple HIG floor. */
+  @media (pointer: coarse) {
+    button:not([disabled]),
+    [role="button"]:not([disabled]),
+    a[href] {
+      min-height: 44px;
+    }
+    /* Keep visual rhythm: min-height only on standalone controls, not
+       buttons inside dense rows — let padding govern those. */
+    .no-touch-min > button,
+    .no-touch-min > [role="button"] {
+      min-height: 0;
+    }
+  }
+
+  /* Wide money/prize tables scroll within their card instead of blowing
+      out the page on phones. */
+  .table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-scroll table {
+    min-width: 640px;
+  }
+
+  /* Horizontal snap scrollers (landing rails, card rows). */
+  .snap-x-rail {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.25rem;
+  }
+  .snap-x-rail > * {
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+  }
+  .snap-x-rail::-webkit-scrollbar {
+    display: none;
+  }
+
   /* ─── Amharic (Ethiopic) typography ─────────────────────────────────
      Active whenever <html lang="am"> is set by the language toggle.
      Noto Sans Ethiopic needs breathing room: vowel marks sit above and

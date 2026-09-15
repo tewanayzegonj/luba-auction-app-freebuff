@@ -31,6 +31,7 @@ import {
   Sparkles,
   Timer,
   Users,
+  Wallet,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -187,34 +188,39 @@ export function SiteHeader() {
             className="fixed inset-0 top-16 z-30 bg-black/40 md:hidden"
             onClick={() => setOpen(false)}
           />
-          <div className="relative z-40 border-t border-border/70 bg-background px-4 py-3 md:hidden">
+          <div
+            className="relative z-40 border-t border-border/70 bg-background px-4 py-3 md:hidden"
+            style={{ paddingBottom: "calc(0.75rem + var(--safe-bottom))" }}
+          >
             <div className="mb-2 flex items-center gap-2">
               <LangToggle />
               <ThemeToggle />
             </div>
+            {/* Full-width h-12 rows: comfortable thumb targets, tappable
+                anywhere on the row. */}
             <div className="flex flex-col gap-1">
-              <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+              <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                 <a href="/#auctions">{t("nav.auctions")}</a>
               </Button>
-              <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+              <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                 <a href="/#how-it-works">{t("nav.howItWorks")}</a>
               </Button>
-              <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+              <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                 <a href="/#faq">{t("nav.faq")}</a>
               </Button>
               {isAuthenticated ? (
                 <>
-                  <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                  <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                     <Link to="/dashboard">{t("nav.dashboard")}</Link>
                   </Button>
                   {(user?.role === "admin" || user?.role === "super_admin") && (
-                    <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                    <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                       <Link to="/admin">Admin</Link>
                     </Button>
                   )}
                   <Button
                     variant="ghost"
-                    className="justify-start"
+                    className="h-12 justify-start text-base"
                     onClick={() => {
                       setOpen(false);
                       void signOut();
@@ -227,10 +233,10 @@ export function SiteHeader() {
                 </>
               ) : (
                 <>
-                  <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                  <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                     <Link to="/auth">{t("nav.signIn")}</Link>
                   </Button>
-                  <Button asChild onClick={() => setOpen(false)}>
+                  <Button className="h-12 text-base" asChild onClick={() => setOpen(false)}>
                     <Link to="/auth">{t("nav.getStarted")}</Link>
                   </Button>
                 </>
@@ -313,10 +319,87 @@ function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
+// ─── Mobile bottom tab bar ──────────────────────────────────────────────────
+
+/**
+ * App-style bottom navigation on phones (< md). Fixed, safe-area aware,
+ * and hidden on md+ where the header nav takes over. The active tab is
+ * highlighted via the current route. Auth-gated tabs deep-link into /auth
+ * with a returnTo when signed out.
+ */
+export function MobileTabBar() {
+  const { isAuthenticated } = useAuth();
+  const { t } = useLang();
+  const navigate = useNavigate();
+  const authed = isAuthenticated;
+
+  const tabs = [
+    {
+      label: t("nav.auctions"),
+      icon: Gavel,
+      active: (p: string) => p === "/",
+      go: () => {
+        if (window.location.pathname === "/") {
+          document
+            .querySelector("#auctions")
+            ?.scrollIntoView({ behavior: "smooth" });
+        } else {
+          navigate("/#auctions");
+        }
+      },
+    },
+    {
+      label: t("dashboard.myBids"),
+      icon: Eye,
+      active: (p: string) => p.startsWith("/auction") || (p === "/dashboard" && window.location.hash.includes("bids")),
+      go: () => (authed ? navigate("/dashboard?tab=bids") : navigate("/auth?returnTo=/dashboard?tab=bids")),
+    },
+    {
+      label: t("wallet.balance"),
+      icon: Wallet,
+      active: (p: string) => p === "/dashboard",
+      go: () => (authed ? navigate("/dashboard?tab=wallet") : navigate("/auth?returnTo=/dashboard?tab=wallet")),
+    },
+    {
+      label: t("dashboard.profile"),
+      icon: Settings,
+      active: (p: string) => p === "/dashboard" && window.location.hash.includes("profile"),
+      go: () => (authed ? navigate("/dashboard?tab=profile") : navigate("/auth?returnTo=/dashboard?tab=profile")),
+    },
+  ] as const;
+
+  return (
+    <nav
+      aria-label="Primary"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 backdrop-blur-lg md:hidden"
+      style={{ paddingBottom: "var(--safe-bottom)" }}
+    >
+      <div className="mx-auto grid max-w-lg grid-cols-4">
+        {tabs.map((tab) => {
+          const isActive = tab.active(window.location.pathname);
+          return (
+            <button
+              key={tab.label}
+              onClick={tab.go}
+              className={cn(
+                "flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors no-touch-min",
+                isActive ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <tab.icon className="size-5" strokeWidth={isActive ? 2.25 : 2} />
+              <span className="max-w-full truncate px-1">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 export function SiteFooter() {
   const { t } = useLang();
   return (
-    <footer className="border-t border-border/70 bg-card/60">
+    <footer className="border-t border-border/70 bg-card/60 pb-16 md:pb-0">
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <LubaWordmark />
@@ -604,19 +687,22 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
           </span>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      {/* Narrow 2-up phone layout: tighter padding/type, hidden code label.
+          md+ keeps the comfortable sizing. */}
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="hidden text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:block">
             {auction.auctionCode}
           </p>
-          <h3 className="mt-0.5 text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary">
+          <h3 className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-snug text-foreground group-hover:text-primary sm:text-[15px]">
             {prize?.title ?? auction.title}
           </h3>
         </div>
 
-        <div className="mt-auto space-y-3">
-          {/* §3.10: engagement stats live on the card itself. */}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="mt-auto space-y-2 sm:space-y-3">
+          {/* §3.10: engagement stats live on the card itself. Compact on
+              phones — icon+value only. */}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground sm:gap-3 sm:text-xs">
             <span className="inline-flex items-center gap-1">
               <Eye className="size-3.5" />
               {compactCount(auction.viewCount ?? 0)}
@@ -635,9 +721,9 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
               Worth {formatETBShort(prize?.valueSantims ?? 0)}
             </span>
           </div>
-          <div className="flex items-center justify-between border-t border-border/70 pt-3">
+          <div className="flex items-center justify-between gap-2 border-t border-border/70 pt-2 sm:pt-3">
             <Countdown to={auction.closesAt} compact />
-            <span className="rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-xs font-semibold text-primary ring-1 ring-inset ring-primary/20">
+            <span className="shrink-0 whitespace-nowrap rounded-lg bg-primary/10 px-2 py-1 font-mono text-[11px] font-semibold text-primary ring-1 ring-inset ring-primary/20 sm:px-2.5 sm:text-xs">
               Fee {formatETBShort(auction.bidServiceFeeSantims)}
             </span>
           </div>

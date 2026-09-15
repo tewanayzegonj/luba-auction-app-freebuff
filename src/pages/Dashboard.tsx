@@ -322,18 +322,19 @@ export default function Dashboard() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
-        {/* Header row */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 md:pb-8">
+        {/* Header row — sign-out lives in the avatar menu on phones (the
+            bottom tab bar owns nav); visible from sm up. */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
               Account overview
             </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">
+            <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
               Welcome{user?.name ? `, ${user.name}` : ""}
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 sm:flex">
             <Button variant="outline" className="gap-2" onClick={handleSignOut}>
               <LogOut className="size-4" />
               Sign out
@@ -341,8 +342,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stat cards */}
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stat cards — 2×2 on phones (4-across stamps get illegible),
+            4-across from lg. */}
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:gap-4 lg:grid-cols-4">
           <StatCard
             icon={<Wallet className="size-5" />}
             label="Wallet balance"
@@ -628,10 +630,10 @@ export default function Dashboard() {
                       placeholder="e.g. 100.00"
                       value={topUpInput}
                       onChange={(e) => setTopUpInput(e.target.value)}
-                      className="h-11 font-mono"
+                      className="h-12 font-mono text-base sm:h-11 sm:text-sm"
                     />
                     <Button
-                      className="h-11 w-full"
+                      className="h-12 w-full text-base sm:h-11 sm:text-sm"
                       disabled={
                         busy === "topup" ||
                         parseETBToSantims(topUpInput) === null ||
@@ -657,12 +659,15 @@ export default function Dashboard() {
                       )}
                     </Button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  {/* Presets: 2-up grid on phones — four tiny buttons in a
+                      row mis-tap constantly on narrow screens. */}
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                     {TOPUP_PRESETS.map((p) => (
                       <Button
                         key={p}
                         variant="outline"
                         size="sm"
+                        className="h-10 sm:h-8"
                         disabled={busy === "topup"}
                         onClick={() => handleTopUp(p)}
                       >
@@ -1684,11 +1689,11 @@ function StatCard({
   tone?: "default" | "primary" | "amber";
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 shadow-layered">
+    <div className="rounded-2xl border border-border bg-card p-3 shadow-layered sm:p-4">
       <div className="flex items-center justify-between">
         <span
           className={cn(
-            "flex size-9 items-center justify-center rounded-lg",
+            "flex size-8 items-center justify-center rounded-lg sm:size-9",
             tone === "primary"
               ? "bg-primary/10 text-primary"
               : tone === "amber"
@@ -1698,10 +1703,12 @@ function StatCard({
         >
           {icon}
         </span>
-        <TrendingUp className="size-4 text-muted-foreground/40" />
+        <TrendingUp className="hidden size-4 text-muted-foreground/40 sm:block" />
       </div>
-      <p className="mt-3 font-mono text-xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-2 font-mono text-lg font-bold sm:mt-3 sm:text-xl">{value}</p>
+      <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
+        {label}
+      </p>
     </div>
   );
 }

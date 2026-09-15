@@ -57,7 +57,7 @@ export default function Landing() {
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,oklch(0.62_0.11_195/0.12),transparent_70%)]"
         />
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-16 pt-14 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:pb-24 md:pt-20">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-8 px-4 pb-14 pt-10 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:gap-10 md:pb-24 md:pt-20">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -65,33 +65,40 @@ export default function Landing() {
           >
             <Badge
               variant="outline"
-              className="mb-5 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 font-mono text-xs text-primary"
+              className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 font-mono text-xs text-primary md:mb-5"
             >
               <TrendingDown className="size-3.5" />
               Lowest unique bid wins
             </Badge>
-            <h1 className="text-balance text-4xl font-bold leading-[1.08] tracking-tight md:text-6xl">
+            {/* 36px on phones (3 tight lines), 60px from md up. */}
+            <h1 className="text-balance text-3xl font-bold leading-[1.12] tracking-tight sm:text-4xl sm:leading-[1.08] md:text-6xl">
               {t("hero.title.line1")}
               <br />
               {t("hero.title.line2")}
               <br />
               <span className="text-primary">{t("hero.title.line3")}</span>
             </h1>
-            <p className="mt-5 max-w-md text-pretty text-base leading-7 text-muted-foreground md:text-lg">
+            <p className="mt-4 max-w-md text-pretty text-[15px] leading-6 text-muted-foreground md:mt-5 md:text-lg md:leading-7">
               {t("hero.subtitle")}
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button size="lg" className="h-11 px-6" asChild>
+            {/* Full-width stacked CTAs on phones — thumb-sized targets. */}
+            <div className="mt-6 grid gap-2.5 sm:mt-8 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+              <Button size="lg" className="h-12 px-6 sm:h-11 sm:flex-1 sm:px-6" asChild>
                 <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
                   {isAuthenticated ? t("hero.ctaSignedIn") : t("hero.cta")}
                   <ArrowRight className="ml-1 size-4" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="h-11 px-6" asChild>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 px-6 sm:h-11 sm:flex-1 sm:px-6"
+                asChild
+              >
                 <a href="#how-it-works">{t("hero.ctaSecondary")}</a>
               </Button>
             </div>
-            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <div className="mt-6 flex flex-col gap-2 font-mono text-xs uppercase tracking-wider text-muted-foreground sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck className="size-4 text-primary" /> Deterministic
                 settlement
@@ -194,16 +201,17 @@ export default function Landing() {
           </div>
 
           {auctions === undefined ? (
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-5 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-72 animate-pulse rounded-xl border border-border bg-card"
+                  className="h-48 animate-pulse rounded-xl border border-border bg-card sm:h-72"
                 />
-              ))}
+              ))
+              }
             </div>
           ) : liveAuctions.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-border bg-card/60 p-12 text-center">
+            <div className="mt-8 rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center sm:p-12">
               <Search className="mx-auto size-8 text-muted-foreground/60" />
               <h3 className="mt-3 font-semibold">No live auctions right now</h3>
               <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
@@ -212,7 +220,9 @@ export default function Landing() {
               </p>
             </div>
           ) : (
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            /* 2-up on phones keeps cards scannable; a 1-up stack buries the
+               second card below the fold. */
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-5 lg:grid-cols-3">
               {liveAuctions.map((a) => (
                 <AuctionCard key={a._id} auction={a} />
               ))}
