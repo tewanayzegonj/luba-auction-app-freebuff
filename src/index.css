@@ -211,14 +211,70 @@
   }
   html.light .shadow-layered {
     box-shadow:
-      0 1px 2px oklch(0 0 0 / 0.06),
-      0 0 0 1px oklch(0 0 0 / 0.05) inset;
+      0 1px 2px oklch(0 0 0 / 0.04),
+      0 1px 3px oklch(0 0 0 / 0.03),
+      0 0 0 1px oklch(0 0 0 / 0.04) inset;
   }
   html.light .shadow-layered-lg {
     box-shadow:
-      0 1px 2px oklch(0 0 0 / 0.05),
-      0 12px 32px -8px oklch(0 0 0 / 0.12),
-      0 0 0 1px oklch(0 0 0 / 0.05) inset;
+      0 1px 2px oklch(0 0 0 / 0.04),
+      0 8px 24px -6px oklch(0 0 0 / 0.1),
+      0 20px 48px -12px oklch(0 0 0 / 0.07),
+      0 0 0 1px oklch(0 0 0 / 0.04) inset;
+  }
+
+  /* ─── Light-theme premium refinements ────────────────────────────────
+     Fintech-grade depth: hairline borders, layered elevation, tinted
+     accents, and quieter secondary text. Scope: html.light only. */
+  html.light {
+    --border: oklch(0.9 0.006 250);
+    --input: oklch(0.9 0.006 250);
+    --muted-foreground: oklch(0.48 0.014 250);
+    --secondary: oklch(0.965 0.005 250);
+    --muted: oklch(0.965 0.005 250);
+    --accent: oklch(0.965 0.005 250);
+  }
+
+  /* Cards read as elevated surfaces, not outlined boxes. */
+  html.light .bg-card {
+    box-shadow:
+      0 1px 2px oklch(0 0 0 / 0.03),
+      0 0 0 1px oklch(0 0 0 / 0.035) inset;
+  }
+
+  /* Primary buttons get a subtle top-light gradient + pressed depth. */
+  html.light [data-slot="button"]
+    :where([data-slot="button"]) {
+  }
+  html.light button.bg-primary,
+  html.light button[data-variant="default"] {
+    background-image: linear-gradient(
+      to bottom,
+      oklch(from var(--primary) 1.06 l c),
+      var(--primary)
+    );
+    box-shadow:
+      0 1px 2px oklch(from var(--primary) 0.35 l c / 0.35),
+      inset 0 1px 0 oklch(1 0 0 / 0.18);
+  }
+  html.light button.bg-primary:active,
+  html.light button[data-variant="default"]:active {
+    transform: translateY(0.5px);
+  }
+
+  /* Focus rings are the accent at lower opacity — calmer than raw ring. */
+  html.light :focus-visible {
+    outline: 2px solid oklch(from var(--primary) l c h / 0.45);
+    outline-offset: 2px;
+  }
+
+  /* Smooth theme transition instead of a hard swap. */
+  html.light body,
+  html.light .bg-background,
+  html.light .bg-card {
+    transition:
+      background-color 200ms ease,
+      border-color 200ms ease;
   }
   .text-balance {
     text-wrap: balance;
