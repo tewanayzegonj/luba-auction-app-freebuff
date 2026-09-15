@@ -129,11 +129,22 @@ export const initializeCheckout = action({
 
     const etb = (args.amountSantims / 100).toFixed(2);
 
+    // Chapa validates that `email` looks like an email and rejects checkout
+    // initialization with HTTP 400 otherwise. Telegram-only users have a
+    // numeric chat ID in their identifier, so substitute a deterministic
+    // stand-in (payments are confirmed by tx_ref, never by this address).
+    let email = args.email?.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const idPart = (email ?? "user").replace(/[^a-z0-9]/gi, "") || "user";
+      email = `${idPart}@luba.et`;
+    }
+
     const body: Record<string, unknown> = {
       amount: etb,
       currency: "ETB",
       tx_ref: args.merchantReference,
       return_url: args.returnUrl,
+      email,
       // Chapa limits customization.title to 16 characters — longer titles
       // are rejected with an HTTP 400 validation error.
       customization: {
@@ -141,7 +152,6 @@ export const initializeCheckout = action({
         description: `Deposit ${args.merchantReference}`.slice(0, 60),
       },
     };
-    if (args.email) body.email = args.email;
     if (args.firstName) body.first_name = args.firstName;
     if (args.lastName) body.last_name = args.lastName;
     // Chapa requires 09xxxxxxxx / 07xxxxxxxx format for phone_number.

@@ -36,6 +36,7 @@ export const ACCOUNT_CODES = {
   prizeExpense: "PLATFORM_PRIZE_EXPENSE",
   prizeLiability: "PLATFORM_PRIZE_LIABILITY",
   settlement: "PLATFORM_SETTLEMENT",
+  withdrawals: "PLATFORM_WITHDRAWALS",
 } as const;
 
 function isUserAccount(code: string): boolean {

@@ -87,6 +87,7 @@ export default function Dashboard() {
 
   const markRead = useMutation(api.bids.markNotificationsRead);
   const topUp = useMutation(api.payments.initiateTopUp);
+  const requestWithdrawal = useMutation(api.accountOps.requestWithdrawal);
   const confirmManualTopUp = useMutation(api.payments.confirmManualTopUp);
   const cancelMyTopUp = useMutation(api.payments.cancelMyTopUp);
   const startChapaCheckout = useAction(api.chapa.initializeCheckout);
@@ -779,14 +780,32 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border shadow-layered">
-                <CardHeader>
-                  <CardTitle className="text-base">Payment history</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PaymentsList />
-                </CardContent>
-              </Card>
+              <div className="space-y-5">
+                <Card className="border-border shadow-layered">
+                  <CardHeader>
+                    <CardTitle className="text-base">Withdraw funds</CardTitle>
+                    <CardDescription>
+                      Payouts go to telebirr/CBE/bank via manual review — funds
+                      leave your spendable balance immediately and are refunded
+                      automatically if the request is rejected.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <WithdrawCard
+                      balanceSantims={wallet?.paidBalanceSantims ?? 0}
+                      embedded
+                    />
+                  </CardContent>
+                </Card>
+                <Card className="border-border shadow-layered">
+                  <CardHeader>
+                    <CardTitle className="text-base">Payment history</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PaymentsList />
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 

@@ -1,5 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/lib/i18n";
@@ -8,14 +16,17 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import {
+  Eye,
   Gavel,
   Gift,
   Languages,
+  LogOut,
   Moon,
   Sun,
   LayoutDashboard,
   LogIn,
   Menu,
+  Settings,
   ShieldCheck,
   Sparkles,
   Timer,
@@ -94,7 +105,7 @@ function ThemeToggle() {
 }
 
 export function SiteHeader() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, signOut } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -106,13 +117,13 @@ export function SiteHeader() {
 
         <nav className="hidden items-center gap-1 md:flex">
           <Button variant="ghost" asChild>
-            <Link to="/#auctions">{t("nav.auctions")}</Link>
+            <a href="/#auctions" onClick={scrollToAnchor}>{t("nav.auctions")}</a>
           </Button>
           <Button variant="ghost" asChild>
-            <Link to="/#how-it-works">{t("nav.howItWorks")}</Link>
+            <a href="/#how-it-works" onClick={scrollToAnchor}>{t("nav.howItWorks")}</a>
           </Button>
           <Button variant="ghost" asChild>
-            <Link to="/#faq">{t("nav.faq")}</Link>
+            <a href="/#faq" onClick={scrollToAnchor}>{t("nav.faq")}</a>
           </Button>
         </nav>
 
@@ -121,13 +132,7 @@ export function SiteHeader() {
           <ThemeToggle />
           {isLoading ? null : isAuthenticated ? (
             <>
-              <Button variant="ghost" className="gap-2" asChild>
-                <Link to="/dashboard">
-                  <LayoutDashboard className="size-4" />
-                  {t("nav.dashboard")}
-                </Link>
-              </Button>
-              {user?.role === "admin" && (
+              {(user?.role === "admin" || user?.role === "super_admin") && (
                 <Button variant="ghost" className="gap-2" asChild>
                   <Link to="/admin">
                     <ShieldCheck className="size-4" />
@@ -135,9 +140,14 @@ export function SiteHeader() {
                   </Link>
                 </Button>
               )}
-              <span className="inline-flex size-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground">
-                {initials(user?.name ?? user?.email ?? "L")}
-              </span>
+              <UserMenu
+                name={user?.name ?? user?.email ?? "L"}
+                isOwner={user?.role === "super_admin"}
+                onSignOut={() => {
+                  void signOut();
+                  navigate("/");
+                }}
+              />
             </>
           ) : (
             <>
@@ -155,52 +165,135 @@ export function SiteHeader() {
           className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card md:hidden"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
+          aria-expanded={open}
         >
           <Menu className="size-4.5" />
         </button>
       </div>
 
+      {/* Mobile drawer: fixed overlay closes on outside tap (§3.12). */}
       {open && (
-        <div className="border-t border-border/70 bg-background px-4 py-3 md:hidden">
-          <div className="mb-2 flex items-center gap-2">
-            <LangToggle />
-            <ThemeToggle />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-              <Link to="/#auctions">{t("nav.auctions")}</Link>
-            </Button>
-            <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-              <Link to="/#how-it-works">{t("nav.howItWorks")}</Link>
-            </Button>
-            <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-              <Link to="/#faq">{t("nav.faq")}</Link>
-            </Button>
-            {isAuthenticated ? (
-              <>
-                <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-                  <Link to="/dashboard">{t("nav.dashboard")}</Link>
-                </Button>
-                {user?.role === "admin" && (
+        <>
+          <div
+            aria-hidden
+            className="fixed inset-0 top-16 z-30 bg-black/40 md:hidden"
+            onClick={() => setOpen(false)}
+          />
+          <div className="relative z-40 border-t border-border/70 bg-background px-4 py-3 md:hidden">
+            <div className="mb-2 flex items-center gap-2">
+              <LangToggle />
+              <ThemeToggle />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                <a href="/#auctions">{t("nav.auctions")}</a>
+              </Button>
+              <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                <a href="/#how-it-works">{t("nav.howItWorks")}</a>
+              </Button>
+              <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                <a href="/#faq">{t("nav.faq")}</a>
+              </Button>
+              {isAuthenticated ? (
+                <>
                   <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-                    <Link to="/admin">Admin</Link>
+                    <Link to="/dashboard">{t("nav.dashboard")}</Link>
                   </Button>
-                )}
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" asChild onClick={() => setOpen(false)}>
-                  <Link to="/auth">{t("nav.signIn")}</Link>
-                </Button>
-                <Button asChild onClick={() => setOpen(false)}>
-                  <Link to="/auth">{t("nav.getStarted")}</Link>
-                </Button>
-              </>
-            )}
+                  {(user?.role === "admin" || user?.role === "super_admin") && (
+                    <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                      <Link to="/admin">Admin</Link>
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    className="justify-start"
+                    onClick={() => {
+                      setOpen(false);
+                      void signOut();
+                      navigate("/");
+                    }}
+                  >
+                    <LogOut className="mr-1.5 size-4" />
+                    Sign out
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" asChild onClick={() => setOpen(false)}>
+                    <Link to="/auth">{t("nav.signIn")}</Link>
+                  </Button>
+                  <Button asChild onClick={() => setOpen(false)}>
+                    <Link to="/auth">{t("nav.getStarted")}</Link>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </header>
+  );
+}
+
+/** Smooth-scroll anchor handler — native hash links without a router jump. */
+function scrollToAnchor(e: React.MouseEvent<HTMLAnchorElement>) {
+  const hash = e.currentTarget.hash;
+  if (!hash) return;
+  const target = document.querySelector(hash);
+  if (target) {
+    e.preventDefault();
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+/** §3.11 — the header avatar is a dropdown with profile shortcuts. */
+function UserMenu({
+  name,
+  isOwner,
+  onSignOut,
+}: {
+  name: string;
+  isOwner: boolean;
+  onSignOut: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="inline-flex size-9 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground ring-1 ring-inset ring-foreground/10 transition-shadow hover:ring-primary/40"
+          aria-label="Account menu"
+        >
+          {initials(name)}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuLabel className="truncate font-mono text-xs text-muted-foreground">
+          {name}
+          {isOwner ? " · Owner" : ""}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard" className="cursor-pointer">
+            <LayoutDashboard className="mr-2 size-4" />
+            Dashboard
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/dashboard?tab=profile" className="cursor-pointer">
+            <Settings className="mr-2 size-4" />
+            Profile settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={onSignOut}
+          className="cursor-pointer text-destructive focus:text-destructive"
+        >
+          <LogOut className="mr-2 size-4" />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -366,14 +459,29 @@ export function PrizeVisual({
   const gradient = PRIZE_GRADIENTS[idx];
   if (imageUrl) {
     return (
-      <img
-        src={imageUrl}
-        alt=""
-        // object-contain keeps the full product visible without zoom/crop
-        // distortion on any aspect ratio (P3.7); the parent supplies a
-        // subtle background via the `bg` on its container.
-        className={cn("h-full w-full object-contain", className)}
-      />
+      <span className="relative block h-full w-full overflow-hidden">
+        {/* Blurred self-backdrop (§3.9): the same image scaled behind itself
+            fills the letterbox space object-contain leaves, so the full
+            product is visible without dead side bars. */}
+        <img
+          src={imageUrl}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full scale-125 object-cover blur-xl"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+        <img
+          src={imageUrl}
+          alt=""
+          className="relative h-full w-full object-contain"
+          onError={(e) => {
+            e.currentTarget.src = "/placeholder.svg";
+            e.currentTarget.style.objectFit = "cover";
+          }}
+        />
+      </span>
     );
   }
   return (
@@ -437,6 +545,8 @@ export interface AuctionListItem {
   maxBidSantims: number;
   bidCount: number;
   uniqueBidCount: number;
+  participantCount?: number;
+  viewCount?: number;
   prize: {
     title: string;
     emoji?: string | null;
@@ -444,6 +554,12 @@ export interface AuctionListItem {
     valueSantims: number;
     category?: string | null;
   } | null;
+}
+
+/** 3.1K-style compact display for view/participant counts. */
+function compactCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
 }
 
 export function AuctionCard({ auction }: { auction: AuctionListItem }) {
@@ -479,14 +595,24 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
         </div>
 
         <div className="mt-auto space-y-3">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Gift className="size-3.5" />
-              Worth {formatETBShort(prize?.valueSantims ?? 0)}
+          {/* §3.10: engagement stats live on the card itself. */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Eye className="size-3.5" />
+              {compactCount(auction.viewCount ?? 0)}
             </span>
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1">
+              <Gift className="size-3.5" />
+              {auction.bidCount} {auction.bidCount === 1 ? "bid" : "bids"}
+            </span>
+            <span className="inline-flex items-center gap-1">
               <Users className="size-3.5" />
-              {auction.bidCount} bids
+              {compactCount(auction.participantCount ?? 0)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Worth {formatETBShort(prize?.valueSantims ?? 0)}
             </span>
           </div>
           <div className="flex items-center justify-between border-t border-border/70 pt-3">
@@ -502,12 +628,10 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
 }
 
 function formatETBShort(santims: number): string {
-  const abs = Math.abs(Math.trunc(santims));
-  if (abs >= 1_000_000) {
-    return `${(abs / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}M ETB`;
-  }
-  if (abs >= 10_000) {
-    return `${(abs / 1000).toFixed(abs % 1000 === 0 ? 0 : 1)}K ETB`;
-  }
-  return `${(abs / 100).toFixed(2)} ETB`;
+  const etb = Math.abs(Math.trunc(santims)) / 100;
+  // §3.10: standard thousands formatting (145,000 ETB) — never “14.5M”.
+  return `${etb.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })} ETB`;
 }

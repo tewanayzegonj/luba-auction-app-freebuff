@@ -1,13 +1,18 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+} from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import {
   noWinnerPolicyValidator,
   ROLES,
   roleValidator,
 } from "./schema";
+import { requireSuperAdmin } from "./accountOps";
 import { deductUser, deposit, refundUser } from "./lib/finance";
 import { isChapaConfigured } from "./chapa";
 import { insertAuditLog, insertNotification } from "./lib/notifications";
@@ -73,25 +78,95 @@ export const bootstrapAdmin = mutation({
   },
 });
 
-/** Grant or change a user's role (admin only, audited). */
+/** Grant or change a user's role (admin only, audited).
+ *  Super-admin is protected: regular admins cannot grant or revoke admin,
+ *  and the super admin account itself can never be downgraded. Only the
+ *  platform owner (super_admin) can create/revoke other admins. */
 export const grantRole = mutation({
   args: { userId: v.id("users"), role: roleValidator },
   handler: async (ctx, args) => {
     const adminId = await requireAdmin(ctx);
     if (args.userId === adminId) throw new Error("CANNOT_CHANGE_OWN_ROLE");
 
+    const actor = await ctx.db.get(adminId);
+    if (!actor) throw new Error("UNAUTHENTICATED");
     const target = await ctx.db.get(args.userId);
     if (!target) throw new Error("USER_NOT_FOUND");
+
+    if (
+      actor.role !== ROLES.SUPER_ADMIN &&
+      (args.role === ROLES.ADMIN || args.role === ROLES.SUPER_ADMIN)
+    ) {
+      throw new Error("ONLY_SUPER_ADMIN_CAN_GRANT_ADMIN");
+    }
+    if (args.role === ROLES.SUPER_ADMIN) {
+      throw new Error("OWNERSHIP_TRANSFER_NOT_ALLOWED_HERE");
+    }
+    if (target.role === ROLES.SUPER_ADMIN) {
+      throw new Error("SUPER_ADMIN_IS_PROTECTED");
+    }
 
     ctx.db.patch(args.userId, { role: args.role });
     await insertAuditLog(ctx, {
       actor: adminId,
       action: "ROLE_GRANTED",
       resource: `user:${args.userId}`,
-      details: `role=${args.role}`,
+      details: `role=${args.role} by=${actor.role}`,
       now: Date.now(),
     });
     return { ok: true };
+  },
+});
+
+/** Revoke a regular admin (super admin only) — part of the owner toolkit. */
+export const revokeAdmin = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const adminId = await requireSuperAdmin(ctx);
+    if (args.userId === adminId) throw new Error("CANNOT_MODIFY_SELF");
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("USER_NOT_FOUND");
+    if (target.role !== ROLES.ADMIN) throw new Error("TARGET_NOT_ADMIN");
+
+    ctx.db.patch(args.userId, { role: ROLES.USER });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "ADMIN_REVOKED",
+      resource: `user:${args.userId}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+/**
+ * Owner recovery — CLI/Dashboard only:
+ *   npx convex run internal/admin:recoverSuperAdmin '{"newOwnerId":"...", "recoveryKey":"..."}'
+ * Demotes all current super admins and assigns a new owner. The key comes
+ * from SUPER_ADMIN_RECOVERY_KEY; without it the mutation is fail-closed.
+ */
+export const recoverSuperAdmin = internalMutation({
+  args: { newOwnerId: v.id("users"), recoveryKey: v.string() },
+  handler: async (ctx, args) => {
+    const expected = process.env.SUPER_ADMIN_RECOVERY_KEY;
+    if (!expected) throw new Error("RECOVERY_NOT_CONFIGURED");
+    if (args.recoveryKey !== expected) throw new Error("INVALID_RECOVERY_KEY");
+
+    const previous = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), ROLES.SUPER_ADMIN))
+      .collect();
+    for (const u of previous) {
+      ctx.db.patch(u._id, { role: ROLES.ADMIN });
+    }
+    ctx.db.patch(args.newOwnerId, { role: ROLES.SUPER_ADMIN });
+    await insertAuditLog(ctx, {
+      action: "SUPER_ADMIN_RECOVERED",
+      resource: `user:${args.newOwnerId}`,
+      details: `previous=${previous.map((u) => u._id).join(",") || "none"}`,
+      now: Date.now(),
+    });
+    return { ok: true, demoted: previous.length };
   },
 });
 
@@ -1443,6 +1518,114 @@ export const listBidsAdmin = query({
         acceptedAt: b.acceptedAt,
         idempotencyKey: b.idempotencyKey,
       }));
+  },
+});
+
+/**
+ * Fraud review queue (spec §39) — unseen signals for admin triage, newest
+ * first, with user context joined for display.
+ */
+export const listFraudSignalsAdmin = query({
+  args: { reviewed: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const signals = await ctx.db
+      .query("fraudSignals")
+      .withIndex("by_reviewed", (q) =>
+        q.eq("reviewed", args.reviewed ?? false),
+      )
+      .collect();
+    const users = await ctx.db.query("users").collect();
+    const byId = new Map(users.map((u) => [u._id, u]));
+    return signals
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 100)
+      .map((s) => ({
+        id: s._id,
+        userId: s.userId ?? null,
+        userEmail: s.userId ? (byId.get(s.userId)?.email ?? "—") : "system",
+        userName: s.userId ? (byId.get(s.userId)?.name ?? null) : null,
+        signal: s.signal,
+        severity: s.severity,
+        details: s.details ?? null,
+        reviewed: s.reviewed,
+        createdAt: s.createdAt,
+      }));
+  },
+});
+
+/** Mark a fraud signal reviewed/unreviewed (audited). */
+export const reviewFraudSignal = mutation({
+  args: { signalId: v.id("fraudSignals"), reviewed: v.boolean() },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const signal = await ctx.db.get(args.signalId);
+    if (!signal) throw new Error("SIGNAL_NOT_FOUND");
+    ctx.db.patch(args.signalId, { reviewed: args.reviewed });
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "FRAUD_SIGNAL_REVIEWED",
+      resource: `fraudSignal:${args.signalId}`,
+      details: `reviewed=${args.reviewed}`,
+      now: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+/**
+ * Scan completed DEPOSIT payments for a shared payer phone across different
+ * accounts — the multi-account / same-source funding heuristic (spec §39).
+ * Runs on demand from the fraud tab (cheap: payer_phone index).
+ */
+export const scanSharedPayerPhones = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const adminId = await requireAdmin(ctx);
+    const payments = await ctx.db
+      .query("payments")
+      .withIndex("by_status", (q) => q.eq("status", "COMPLETED"))
+      .collect();
+    const byPhone = new Map<string, Set<Id<"users">>>();
+    for (const p of payments) {
+      if (!p.payerPhone || p.kind !== "DEPOSIT") continue;
+      const set = byPhone.get(p.payerPhone) ?? new Set<Id<"users">>();
+      set.add(p.userId);
+      byPhone.set(p.payerPhone, set);
+    }
+    let flagged = 0;
+    for (const [phone, accounts] of byPhone) {
+      if (accounts.size < 2) continue;
+      // Dedupe: one open signal per shared phone.
+      const existing = await ctx.db
+        .query("fraudSignals")
+        .withIndex("by_reviewed", (q) => q.eq("reviewed", false))
+        .collect()
+        .then((rows) =>
+          rows.find(
+            (r) =>
+              r.signal === "MULTI_ACCOUNT_SUSPECT" &&
+              (r.details ?? "").includes(phone),
+          ),
+        );
+      if (existing) continue;
+      await ctx.db.insert("fraudSignals", {
+        signal: "MULTI_ACCOUNT_SUSPECT",
+        severity: accounts.size >= 3 ? "HIGH" : "MEDIUM",
+        details: `Payment source ${phone} funded ${accounts.size} different accounts`,
+        reviewed: false,
+        createdAt: Date.now(),
+      });
+      flagged++;
+    }
+    await insertAuditLog(ctx, {
+      actor: adminId,
+      action: "FRAUD_SCAN_RUN",
+      resource: "payments",
+      details: `flagged=${flagged}`,
+      now: Date.now(),
+    });
+    return { flagged };
   },
 });
 

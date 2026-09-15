@@ -51,4 +51,13 @@ crons.interval(
   internal.engagement.reconcileInternal,
 );
 
+// Phase 6 §6.4: auto-bidder plans — randomized bid execution through the
+// shared attemptBid engine. Short interval keeps plan latency low while
+// per-tick randomized values avoid telegraphing a pattern.
+crons.interval(
+  "auto-bid executor",
+  { seconds: 30 },
+  internal.accountOps.processAutoBids,
+);
+
 export default crons;

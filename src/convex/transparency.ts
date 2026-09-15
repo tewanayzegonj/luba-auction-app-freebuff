@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 /**
  * Transparency & trust queries (spec §33, §71).
@@ -67,6 +68,11 @@ function maskName(name: string): string {
   return parts[0];
 }
 
+/** Premium anonymized bidder label: "User ***89" from the user id tail. */
+function maskBidder(userId: Id<"users">): string {
+  return `User ***${userId.toString().slice(-2)}`;
+}
+
 /**
  * Full public frequency map for a CLOSED/COMPLETED auction — only when the
  * admin enabled publishBidHistory. Values ascending; reveals exactly how
@@ -119,6 +125,51 @@ export const publishedBidHistory = query({
   },
 });
 
+/**
+ * Bid heatmap (§6.5): anonymized, aggregated bid-frequency buckets over the
+ * auction's configured range. Reveals where bidding is crowded and where it
+ * is empty without exposing exact values, so users are nudged toward empty
+ * zones instead of being handed the winner. Bounded: one indexed read of the
+ * auction's accepted bids (the display reconciler pattern).
+ */
+export const bidHeatmap = query({
+  args: { auctionCode: v.string(), bucketCount: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const auction = await ctx.db
+      .query("auctions")
+      .withIndex("by_code", (q) => q.eq("auctionCode", args.auctionCode))
+      .unique();
+    if (!auction) return null;
+
+    const buckets = Math.max(4, Math.min(16, args.bucketCount ?? 8));
+    const span = auction.maxBidSantims - auction.minBidSantims;
+    const width = Math.max(1, Math.ceil(span / buckets));
+
+    const bids = await ctx.db
+      .query("auctionBids")
+      .withIndex("by_auction_value", (q) => q.eq("auctionId", auction._id))
+      .collect();
+    const accepted = bids.filter((b) => b.status === "ACCEPTED");
+
+    const counts = new Array<number>(buckets).fill(0);
+    for (const b of accepted) {
+      const idx = Math.min(
+        buckets - 1,
+        Math.floor((b.bidValueSantims - auction.minBidSantims) / width),
+      );
+      counts[idx]++;
+    }
+    return {
+      buckets: counts.map((count, i) => ({
+        fromSantims: auction.minBidSantims + i * width,
+        toSantims: auction.minBidSantims + (i + 1) * width,
+        count,
+      })),
+      totalBids: accepted.length,
+    };
+  },
+});
+
 /** Live activity feed for an OPEN auction (countdown-page ticker). */
 export const auctionActivity = query({
   args: { auctionCode: v.string() },
@@ -154,10 +205,9 @@ export const auctionActivity = query({
       uniqueValues: counts.size,
       uniqueBids: [...counts.values()].filter((c) => c === 1).length,
       recent: bids.map((b) => ({
-        // Anonymized ticker: masked user + fee tier, never the bid value.
-        who: maskName(
-          `Bidder ${b.userId.toString().slice(-4)}`,
-        ),
+        // Anonymized ticker (§4.16): "User ***89" premium masking — last two
+        // characters of the user id, never a name, never the bid value.
+        who: maskBidder(b.userId),
         feeSantims: b.bidServiceFeeSantims,
         acceptedAt: b.acceptedAt,
       })),

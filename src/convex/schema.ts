@@ -4,12 +4,14 @@ import { Infer, v } from "convex/values";
 
 // default user roles. can add / remove based on the project as needed
 export const ROLES = {
+  SUPER_ADMIN: "super_admin", // platform owner — cannot be downgraded/deleted
   ADMIN: "admin",
   USER: "user",
   MEMBER: "member",
 } as const;
 
 export const roleValidator = v.union(
+  v.literal(ROLES.SUPER_ADMIN),
   v.literal(ROLES.ADMIN),
   v.literal(ROLES.USER),
   v.literal(ROLES.MEMBER),
@@ -78,6 +80,11 @@ export const schema = defineSchema(
           ),
         ),
       ),
+      // Soft delete (account self-service closure): personal data is
+      // anonymized, financial/bid history stays intact for ledger math.
+      // Re-registration with the same Telegram ID / email is then possible.
+      deletedAt: v.optional(v.number()),
+      isActive: v.optional(v.boolean()),
     })
       .index("email", ["email"])
       .index("phone", ["phone"])
@@ -246,6 +253,10 @@ export const schema = defineSchema(
       provider: v.string(), // "wallet" | "telebirr" | … provider adapter id
       providerReference: v.optional(v.string()), // UNIQUE with provider
       merchantReference: v.string(), // UNIQUE — our id for this payment
+      // Normalized payer phone captured at checkout initiation — the fraud
+      // key for MULTI_ACCOUNT_SUSPECT (multiple accounts funded by the same
+      // payment source, spec §39).
+      payerPhone: v.optional(v.string()),
       status: v.union(
         v.literal("PENDING"),
         v.literal("COMPLETED"),
@@ -258,6 +269,52 @@ export const schema = defineSchema(
       .index("by_merchant_ref", ["merchantReference"])
       .index("by_user", ["userId"])
       .index("by_provider_ref", ["provider", "providerReference"])
+      .index("by_status", ["status"])
+      .index("by_payer_phone", ["payerPhone"]),
+
+    // ─── Withdrawals (manual, fraud-safe pipeline) ─────────────────────────
+    // User requests a payout of wallet funds; the request DEBITS the wallet
+    // immediately into a platform withdrawal liability. Admins review and
+    // either mark PAID (payout executed off-platform) or REJECT (funds are
+    // refunded to the wallet via compensating ledger posting).
+    withdrawals: defineTable({
+      userId: v.id("users"),
+      amountSantims: v.number(),
+      method: v.union(v.literal("TELEBIRR"), v.literal("CBE_BIRR"), v.literal("BANK")),
+      destination: v.string(), // phone or bank account for the payout
+      status: v.union(
+        v.literal("PENDING"),
+        v.literal("PAID"),
+        v.literal("REJECTED"),
+        v.literal("CANCELLED"),
+      ),
+      userNote: v.optional(v.string()),
+      reviewedBy: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      reviewNote: v.optional(v.string()),
+      createdAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_status", ["status"]),
+
+    // ─── Auto-bidder plans (Phase 6, §6.4) ─────────────────────────────────
+    // A user pre-commits a budget across a bid range; the scheduler executes
+    // individual bids through the SAME engine (attemptBid) at randomized
+    // moments so the plan does not telegraph its values.
+    autoBids: defineTable({
+      userId: v.id("users"),
+      auctionId: v.id("auctions"),
+      budgetSantims: v.number(), // total fees the plan may spend
+      spentSantims: v.number(), // fees spent so far
+      minBidSantims: v.number(),
+      maxBidSantims: v.number(),
+      bidCount: v.number(), // planned number of bids
+      bidsPlaced: v.number(),
+      status: v.union(v.literal("ACTIVE"), v.literal("DONE"), v.literal("CANCELLED")),
+      createdAt: v.number(),
+    })
+      .index("by_auction_status", ["auctionId", "status"])
+      .index("by_user", ["userId"])
       .index("by_status", ["status"]),
 
     paymentEvents: defineTable({

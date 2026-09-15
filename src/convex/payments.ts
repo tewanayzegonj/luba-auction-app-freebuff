@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { getChapaSecretKey, hmacSha256Hex } from "./chapa";
+import { normalizePhone } from "./auth/senders";
 import {
   internalMutation,
   internalQuery,
@@ -94,9 +95,16 @@ export const getMySettlements = query({
 const initiateArgs = v.object({
   amountSantims: v.number(),
   provider: v.union(v.literal(PROVIDER_MANUAL), v.literal(PROVIDER_CHAPA)),
+  // Optional: the payer's telebirr/mobile-money phone, used only as a
+  // fraud-correlation key (MULTI_ACCOUNT_SUSPECT) — never for marketing.
+  payerPhone: v.optional(v.string()),
 });
 
-type InitiateArgs = { amountSantims: number; provider: "manual" | "chapa" };
+type InitiateArgs = {
+  amountSantims: number;
+  provider: "manual" | "chapa";
+  payerPhone?: string;
+};
 
 async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
   const userId = await getAuthUserId(ctx);
@@ -121,6 +129,25 @@ async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
   const now = Date.now();
   const merchantReference = `LUBA-${now}-${Math.floor(Math.random() * 1_000_000)}`;
 
+  // Chapa requires an email in the checkout payload (HTTP 400 otherwise),
+  // but Telegram-only users have a numeric chat ID in the email field. Give
+  // Chapa a deterministic stand-in — payments are confirmed by tx_ref, not
+  // by this address; receipts are delivered in-app and via Telegram.
+  const rawIdentifier = (await ctx.db.get(userId))?.email ?? "";
+  const payerEmail =
+    rawIdentifier && rawIdentifier.includes("@")
+      ? rawIdentifier
+      : `user_${rawIdentifier || userId.toString().replace(/[^a-z0-9]/gi, "")}@luba.et`;
+
+  // Normalized payer phone (Ethiopian format) — the fraud key for
+  // MULTI_ACCOUNT_SUSPECT detection when several accounts top up from the
+  // same payment source (spec §39).
+  let payerPhone: string | undefined;
+  if (args.payerPhone) {
+    const normalized = normalizePhone(args.payerPhone);
+    if (/^251[79]\d{8}$/.test(normalized)) payerPhone = normalized;
+  }
+
   await ctx.db.insert("payments", {
     userId,
     amountSantims: args.amountSantims,
@@ -128,6 +155,7 @@ async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
     kind: "DEPOSIT",
     provider: args.provider,
     merchantReference,
+    payerPhone,
     status: "PENDING",
     createdAt: now,
   });
