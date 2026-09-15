@@ -154,6 +154,11 @@ export const initializeCheckout = action({
     };
     if (args.firstName) body.first_name = args.firstName;
     if (args.lastName) body.last_name = args.lastName;
+    // Chapa validates first_name/last_name as required — accounts registered
+    // via Telegram often have no display name, so substitute neutral
+    // fallbacks (never used for payment confirmation, tx_ref only).
+    if (!body.first_name) body.first_name = "LUBA";
+    if (!body.last_name) body.last_name = "Bidder";
     // Chapa requires 09xxxxxxxx / 07xxxxxxxx format for phone_number.
     if (args.phone && /^0[97]\d{8}$/.test(args.phone)) {
       body.phone_number = args.phone;
@@ -180,10 +185,14 @@ export const initializeCheckout = action({
       try {
         const errPayload = (await response.json()) as {
           message?: string;
-          data?: unknown;
+          data?: { message?: string } | string;
         };
         detail =
-          typeof errPayload?.message === "string" ? errPayload.message : "";
+          typeof errPayload?.message === "string"
+            ? errPayload.message
+            : typeof errPayload?.data === "string"
+              ? errPayload.data
+              : (errPayload?.data?.message ?? "");
       } catch {
         // non-JSON error body — fall back to the status code alone
       }

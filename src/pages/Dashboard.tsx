@@ -162,7 +162,15 @@ export default function Dashboard() {
       return;
     }
     setBusy("topup");
-    fetch("/payments/chapa/verify", {
+    // The verify endpoint lives on the Convex site deployment (web actions),
+    // NOT on this app's origin — in dev/preview the two domains differ, so an
+    // app-relative path would 404 and the catch below would fire.
+    const convexSiteUrl = (
+      import.meta.env.VITE_CONVEX_SITE_URL as string | undefined
+    )?.replace(/\/$/, "");
+    const verifyBase =
+      convexSiteUrl ?? "https://giant-bat-855.convex.site";
+    fetch(`${verifyBase}/payments/chapa/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1437,7 +1445,11 @@ function TelegramLinkRow({
     telegramChatId: string | null;
     telegramConfigured: boolean;
   };
-  onStart: (args: { method: "telegram" | "phone"; destination: string }) => Promise<unknown>;
+  onStart: (args: {
+    method: "telegram" | "phone";
+    destination: string;
+    appOrigin?: string;
+  }) => Promise<unknown>;
   onUnlink: (args: { method: "telegram" | "phone" }) => Promise<unknown>;
   busy: boolean;
   setBusy: (v: string | null) => void;
@@ -1500,7 +1512,11 @@ function TelegramLinkRow({
             onClick={async () => {
               setBusy("link-telegram");
               try {
-                await onStart({ method: "telegram", destination: chatId.trim() });
+                await onStart({
+                  method: "telegram",
+                  destination: chatId.trim(),
+                  appOrigin: window.location.origin,
+                });
                 toast.success("Check your Telegram", {
                   description: "We sent a confirmation link — open it to finish linking.",
                 });
@@ -1549,7 +1565,11 @@ function PhoneLinkRow({
   setBusy,
 }: {
   methods: { phone: string | null; phoneVerified: boolean; smsConfigured: boolean };
-  onStart: (args: { method: "telegram" | "phone"; destination: string }) => Promise<unknown>;
+  onStart: (args: {
+    method: "telegram" | "phone";
+    destination: string;
+    appOrigin?: string;
+  }) => Promise<unknown>;
   onUnlink: (args: { method: "telegram" | "phone" }) => Promise<unknown>;
   busy: boolean;
   setBusy: (v: string | null) => void;
@@ -1610,7 +1630,11 @@ function PhoneLinkRow({
             onClick={async () => {
               setBusy("link-phone");
               try {
-                await onStart({ method: "phone", destination: phone.trim() });
+                await onStart({
+                  method: "phone",
+                  destination: phone.trim(),
+                  appOrigin: window.location.origin,
+                });
                 toast.success("Check your messages", {
                   description: "We sent a confirmation link by SMS — open it to finish linking.",
                 });

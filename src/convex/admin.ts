@@ -39,7 +39,9 @@ export async function requireAdmin(ctx: AdminCheckCtx): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("UNAUTHENTICATED");
   const user = await ctx.db.get(userId);
-  if (!user || user.role !== ROLES.ADMIN) {
+  // super_admin is the owner — every admin capability applies to them too.
+  // Rejecting them here locked the owner out of the entire console.
+  if (!user || (user.role !== ROLES.ADMIN && user.role !== ROLES.SUPER_ADMIN)) {
     throw new Error("FORBIDDEN_ADMIN_ONLY");
   }
   return userId;

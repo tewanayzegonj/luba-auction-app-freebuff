@@ -51,18 +51,39 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
   }
 
   const rawBody = await request.text();
-  const provided =
-    request.headers.get("x-chapa-signature") ??
-    request.headers.get("chapa-signature");
-  if (!provided) {
+  const providedPayloadSig = request.headers
+    .get("x-chapa-signature")
+    ?.trim()
+    .toLowerCase();
+  const providedSecretSig = request.headers
+    .get("chapa-signature")
+    ?.trim()
+    .toLowerCase();
+  if (!providedPayloadSig && !providedSecretSig) {
     return new Response("Missing signature", { status: 401 });
   }
 
-  const expected = await hmacSha256Hex(secret, rawBody);
-  if (!timingSafeEqualHex(expected, provided.trim().toLowerCase())) {
+  // Chapa sends TWO headers with DIFFERENT semantics (developer.chapa.co —
+  // "Verify webhook origin"):
+  //   x-chapa-signature: HMAC-SHA256(secret, raw request body)
+  //   chapa-signature:   HMAC-SHA256(secret, secret)
+  // Accept either valid one; discard the request if both are present and both
+  // are invalid (docs: "if one of the headers is valid, it is sufficient").
+  const payloadHmac = await hmacSha256Hex(secret, rawBody);
+  const secretHmac = await hmacSha256Hex(secret, secret);
+  const payloadOk =
+    !!providedPayloadSig &&
+    timingSafeEqualHex(payloadHmac, providedPayloadSig);
+  const secretOk =
+    !!providedSecretSig && timingSafeEqualHex(secretHmac, providedSecretSig);
+  if (!payloadOk && !secretOk) {
     return new Response("Invalid signature", { status: 401 });
   }
 
+  // Best practice (Chapa: "Always Verify Critical Transaction Data"): when a
+  // transaction webhook claims success, re-verify against the API before
+  // granting value. The verification result is forwarded so the internal
+  // mutation can compare the provider-reported amount.
   let event: ChapaEvent;
   try {
     event = JSON.parse(rawBody) as ChapaEvent;
@@ -86,6 +107,35 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
     event.updated_at ?? event.created_at ?? ""
   }`;
 
+  // Chapa best practice: re-query the API to confirm status/amount/tx_ref
+  // before granting value — the webhook body alone is never sufficient.
+  let verifiedAmountSantims: number | undefined = event.amount
+    ? (chapaAmountToSantims(event.amount) ?? undefined)
+    : undefined;
+  if (succeeded) {
+    try {
+      const verified = await ctx.runAction(api.chapa.verifyTransaction, {
+        merchantReference: txRef,
+      });
+      if (!verified.ok || !verified.succeeded) {
+        // Provider disagrees with the webhook (or is unreachable) — do not
+        // credit. The return-flow verify / a replayed webhook can complete it
+        // later; log so the reconciliation gap is visible in the dashboard.
+        console.warn(
+          "[chapa-webhook] verify disagreed with webhook; not crediting",
+          txRef,
+        );
+        return jsonResponse({ received: true, processed: false, verified: false });
+      }
+      if (verified.amountSantims != null) {
+        verifiedAmountSantims = verified.amountSantims;
+      }
+    } catch {
+      console.warn("[chapa-webhook] verify action failed; not crediting", txRef);
+      return jsonResponse({ received: true, processed: false, verified: false });
+    }
+  }
+
   try {
     await ctx.runMutation(internal.payments.confirmProviderPaymentInternal, {
       providerEventId,
@@ -93,9 +143,7 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
       providerReference: event.reference ?? undefined,
       succeeded,
       failureReason: event.failure_reason,
-      expectedAmountSantims: event.amount
-        ? (chapaAmountToSantims(event.amount) ?? undefined)
-        : undefined,
+      expectedAmountSantims: verifiedAmountSantims,
     });
   } catch (err) {
     // PAYMENT_NOT_FOUND / AMOUNT_MISMATCH: acknowledge but do not retry —

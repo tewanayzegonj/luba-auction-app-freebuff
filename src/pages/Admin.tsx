@@ -85,6 +85,7 @@ export default function Admin() {
 
 
 function AdminConsole() {
+  const { user: currentUser } = useAuth();
   const stats = useQuery(api.admin.getPlatformStats, {});
   const users = useQuery(api.admin.listUsers, {});
   const payments = useQuery(api.admin.listPaymentsAdmin, {});
@@ -96,6 +97,7 @@ function AdminConsole() {
   const notifSettings = useQuery(api.admin.getNotificationSettings, {});
 
   const grantRole = useMutation(api.admin.grantRole);
+  const revokeAdmin = useMutation(api.admin.revokeAdmin);
   const setUserStatus = useMutation(api.admin.setUserStatus);
   const cancelAuction = useMutation(api.admin.adminCancelAuction);
   const settleAuction = useMutation(api.admin.adminSettleAuction);
@@ -340,8 +342,32 @@ function AdminConsole() {
                         </td>
                         <td className="px-4 py-3">
                           {u.role === "admin" ? (
-                            <Badge className="border-transparent bg-primary/15 text-primary">
-                              admin
+                            <div className="flex items-center gap-2">
+                              <Badge className="border-transparent bg-primary/15 text-primary">
+                                admin
+                              </Badge>
+                              {/* Owner-only revoke (Phase 2 §4) */}
+                              {currentUser?.role === "super_admin" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs text-rose-400"
+                                  disabled={busy === `role-${u.id}`}
+                                  onClick={() => {
+                                    if (!window.confirm(`Revoke admin from ${u.email ?? u.name ?? "this user"}?`)) return;
+                                    void act(`role-${u.id}`, () =>
+                                      revokeAdmin({ userId: u.id }),
+                                      "Admin revoked",
+                                    );
+                                  }}
+                                >
+                                  Revoke
+                                </Button>
+                              )}
+                            </div>
+                          ) : u.role === "super_admin" ? (
+                            <Badge className="border-transparent bg-amber-500/15 text-amber-400">
+                              owner
                             </Badge>
                           ) : (
                             <Button

@@ -99,7 +99,14 @@ export const getLinkMethods = query({
 
 /** Kick off linking: stores a hashed token and schedules channel delivery. */
 export const startLink = mutation({
-  args: { method: v.union(v.literal("telegram"), v.literal("phone")), destination: v.string() },
+  args: {
+    method: v.union(v.literal("telegram"), v.literal("phone")),
+    destination: v.string(),
+    // The browser's own origin — the ONLY reliable base for the confirmation
+    // link, since env fallbacks resolve to the Convex deployment domain where
+    // the SPA (and its /auth route) does not exist → "No matching routes".
+    appOrigin: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("UNAUTHENTICATED");
@@ -177,6 +184,7 @@ export const startLink = mutation({
       token,
       method: args.method,
       destination,
+      appOrigin: args.appOrigin,
     });
 
     return { ok: true as const, destination };
@@ -185,9 +193,29 @@ export const startLink = mutation({
 
 /** Internal sender — runs outside the client's transaction. */
 export const deliverLink = internalAction({
-  args: { token: v.string(), method: v.union(v.literal("telegram"), v.literal("phone")), destination: v.string() },
+  args: {
+    token: v.string(),
+    method: v.union(v.literal("telegram"), v.literal("phone")),
+    destination: v.string(),
+    appOrigin: v.optional(v.string()),
+  },
   handler: async (_ctx, args) => {
-    const appUrl = (process.env.VLY_APP_URL ?? process.env.CONVEX_SITE_URL ?? "").replace(/\/$/, "");
+    const envUrl = (
+      process.env.VLY_APP_URL ??
+      process.env.CONVEX_SITE_URL ??
+      ""
+    ).replace(/\/$/, "");
+    // Prefer the browser-reported origin; env fallbacks point at the Convex
+    // deployment (no SPA routes there).
+    const isConvexDomain = /\.convex\.(site|cloud)$/.test(envUrl);
+    const appUrl =
+      args.appOrigin?.replace(/\/$/, "") ??
+      (isConvexDomain ? "" : envUrl);
+    if (!appUrl) {
+      throw new Error(
+        "Cannot build the confirmation link: no app origin available.",
+      );
+    }
     const link = `${appUrl}/auth?link=${args.token}`;
     if (args.method === "telegram") {
       await sendTelegramMessage(
