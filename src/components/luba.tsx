@@ -459,23 +459,35 @@ export function PrizeVisual({
   const gradient = PRIZE_GRADIENTS[idx];
   if (imageUrl) {
     return (
-      <span className="relative block h-full w-full overflow-hidden">
-        {/* Blurred self-backdrop (§3.9): the same image scaled behind itself
-            fills the letterbox space object-contain leaves, so the full
-            product is visible without dead side bars. */}
+      <span
+        className={cn(
+          "relative block h-full w-full overflow-hidden",
+          // Opaque backdrop so transparent PNG pixels never show the card's
+          // plain background through the blurred layer (the "one side white"
+          // artifact).
+          "bg-gradient-to-br",
+          gradient,
+          className,
+        )}
+      >
+        {/* Blurred self-backdrop (§3.9): the same image scaled well past the
+            box so the blur's transparent fade band lands fully outside the
+            visible area — a mere scale-125 leaves it peeking through on one
+            side. object-cover + saturate keeps the backdrop vivid. */}
         <img
           src={imageUrl}
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full scale-125 object-cover blur-xl"
+          className="absolute inset-0 h-full w-full scale-150 object-cover blur-2xl saturate-150 brightness-90"
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}
         />
+        {/* Foreground: the full product, never cropped. */}
         <img
           src={imageUrl}
           alt=""
-          className="relative h-full w-full object-contain"
+          className="relative h-full w-full object-contain drop-shadow-lg"
           onError={(e) => {
             e.currentTarget.src = "/placeholder.svg";
             e.currentTarget.style.objectFit = "cover";
