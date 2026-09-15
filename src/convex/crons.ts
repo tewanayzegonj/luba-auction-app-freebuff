@@ -45,6 +45,14 @@ crons.interval(
   internal.engagement.chasePaymentDeadlines,
 );
 
+// Abandoned checkouts: PENDING payments past their TTL become FAILED so
+// history stays truthful (manual/sandbox 1h, Chapa 24h).
+crons.interval(
+  "stale payment sweeper",
+  { minutes: 30 },
+  internal.payments.sweepStalePendingPayments,
+);
+
 crons.interval(
   "ledger reconciliation",
   { minutes: 15 },

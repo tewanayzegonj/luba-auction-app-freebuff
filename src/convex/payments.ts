@@ -457,3 +457,28 @@ export const failPendingManualPaymentInternal = internalMutation({
     return { marked: true };
   },
 });
+
+/**
+ * Cron sweeper: PENDING payments older than 24h are dead checkouts —
+ * mark FAILED so history reflects reality. Manual (sandbox) payments expire
+ * after 1h. Chapa payments get the full 24h (slow bank channels, retries).
+ * Never touches COMPLETED payments — crediting is idempotent and terminal.
+ */
+export const sweepStalePendingPayments = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const pending = await ctx.db
+      .query("payments")
+      .withIndex("by_status", (q) => q.eq("status", "PENDING"))
+      .collect();
+    let expired = 0;
+    for (const p of pending) {
+      const ttl = p.provider === PROVIDER_CHAPA ? 24 * 3_600_000 : 3_600_000;
+      if (now - p.createdAt <= ttl) continue;
+      ctx.db.patch(p._id, { status: "FAILED" });
+      expired++;
+    }
+    return { expired };
+  },
+});

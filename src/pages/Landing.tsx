@@ -35,10 +35,18 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 
+/** First-name + last-initial masking for the winners strip. */
+function maskName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return `${parts[0].slice(0, 2)}***`;
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+}
+
 export default function Landing() {
   const { isAuthenticated } = useAuth();
   const { t } = useLang();
   const auctions = useQuery(api.auctions.listOpenAuctions, {}) ?? [];
+  const winners = useQuery(api.auctions.recentWinners, {}) ?? [];
   const openAuctions = auctions.filter(
     (a) => a.status === "OPEN" || a.status === "CLOSING",
   );
@@ -230,6 +238,50 @@ export default function Landing() {
           )}
         </div>
       </section>
+
+      {/* ─── Recent winners: social proof no competitor shows ────────────── */}
+      {winners.length > 0 && (
+        <section className="border-b border-border/70 py-12">
+          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight md:text-2xl">
+                  Recent winners
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Real wins, real prices — every result independently verifiable
+                  on its auction page.
+                </p>
+              </div>
+              <Trophy className="hidden size-5 text-amber-400 sm:block" />
+            </div>
+            <div className="snap-x-rail mt-6 md:grid md:grid-cols-3 md:gap-4">
+              {winners.map((w) => (
+                <Link
+                  key={w.resultId}
+                  to={`/auction/${w.auctionCode}`}
+                  className="group flex w-72 shrink-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg md:w-auto"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-400/15 text-lg">
+                    🏆
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold group-hover:text-primary">
+                      {w.prizeTitle}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {w.winnerName ? `${maskName(w.winnerName)} won with ` : "Won with "}
+                      <span className="font-mono font-semibold text-primary">
+                        {formatETB(w.winningBidValueSantims)}
+                      </span>
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── Ending soon ──────────────────────────────────────────────────── */}
       {endingSoon.length > 0 && (

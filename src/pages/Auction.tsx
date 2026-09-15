@@ -33,6 +33,7 @@ import {
   Ban,
   BarChart3,
   Send,
+  Sparkles,
   Clock,
   Eye,
   Gavel,
@@ -165,6 +166,34 @@ export default function AuctionPage() {
     api.winnerJourney.provablyFairResults,
     auction ? { auctionCode: code } : "skip",
   );
+  // Crowding map: anonymized bid-density buckets across the range.
+  const heatmap = useQuery(
+    api.transparency.bidHeatmap,
+    auction ? { auctionCode: code, bucketCount: 8 } : "skip",
+  );
+
+  // Smart Bid: lowest amount in the least-crowded low half of the range,
+  // snapped to the increment grid. Falls back to the minimum bid.
+  const smartBid: number | null = useMemo(() => {
+    if (!auction) return null;
+    const increment = auction.bidIncrementSantims || 1;
+    if (!heatmap || heatmap.totalBids === 0) return auction.minBidSantims;
+    const half = Math.max(1, Math.floor(heatmap.buckets.length / 2));
+    let bestIdx = 0;
+    let bestCount = Infinity;
+    for (let i = 0; i < half; i++) {
+      const c = heatmap.buckets[i]?.count ?? 0;
+      if (c < bestCount) {
+        bestCount = c;
+        bestIdx = i;
+      }
+    }
+    const b = heatmap.buckets[bestIdx];
+    if (!b) return auction.minBidSantims;
+    // First on-grid value inside the chosen bucket.
+    const onGrid = Math.ceil(b.fromSantims / increment) * increment;
+    return Math.min(Math.max(onGrid, auction.minBidSantims), auction.maxBidSantims);
+  }, [auction, heatmap]);
 
   const recordView = useMutation(api.auctions.recordAuctionView);
 
@@ -719,6 +748,25 @@ export default function AuctionPage() {
                         {validationError}
                       </p>
                     )}
+                    {/* Smart Bid: one tap fills an amount in the least-crowded
+                        low zone (from the live heatmap). Only shown when the
+                        typed amount is empty or taken. */}
+                    {isOpen &&
+                      isAuthenticated &&
+                      bidsLeft > 0 &&
+                      smartBid !== null &&
+                      (taken ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                          onClick={() =>
+                            setAmountInput((smartBid / 100).toFixed(2))
+                          }
+                        >
+                          <Sparkles className="size-3.5" />
+                          Smart bid: {formatETB(smartBid)} — least crowded zone
+                        </button>
+                      )}
                   </div>
 
                   {isAuthenticated ? (
@@ -731,6 +779,48 @@ export default function AuctionPage() {
                       </span>
                     </div>
                   ) : null}
+
+                  {/* Bid heatmap: crowding across the bid range, lowest →
+                      highest. Taller/warmer = more crowded. Never reveals
+                      exact values — strategy signal only. */}
+                  {heatmap && heatmap.totalBids > 0 && (
+                    <div className="rounded-xl border border-border bg-background/60 p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                          Crowding map
+                        </p>
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {heatmap.totalBids} bids
+                        </span>
+                      </div>
+                      <div className="mt-2 flex h-12 items-end gap-1">
+                        {heatmap.buckets.map((b, i) => {
+                          const max = Math.max(...heatmap.buckets.map((x) => x.count), 1);
+                          const hPct = Math.max(6, Math.round((b.count / max) * 100));
+                          return (
+                            <div
+                              key={i}
+                              title={`${formatETB(b.fromSantims)}–${formatETB(b.toSantims)}: ${b.count} bids`}
+                              className="flex-1 rounded-sm bg-primary/25"
+                              style={{
+                                height: `${hPct}%`,
+                                backgroundColor:
+                                  b.count === 0
+                                    ? undefined
+                                    : `oklch(0.55 0.11 210 / ${0.2 + 0.6 * (b.count / max)})`,
+                              }}
+                              data-empty={b.count === 0 || undefined}
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className="mt-1 flex justify-between font-mono text-[9px] text-muted-foreground">
+                        <span>{formatETB(heatmap.buckets[0]?.fromSantims ?? 0)}</span>
+                        <span className="hidden sm:inline">low ← crowded → high</span>
+                        <span>{formatETB(heatmap.buckets[heatmap.buckets.length - 1]?.toSantims ?? 0)}</span>
+                      </div>
+                    </div>
+                  )}
 
                   {!isAuthenticated ? (
                     <Button className="h-11 w-full" asChild>
