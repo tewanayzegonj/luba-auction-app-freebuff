@@ -37,6 +37,9 @@ import { assertRateLimit } from "./lib/rateLimit";
  */
 
 export const PROVIDER_MANUAL = "manual";
+/** links.et bank-receipt verification: user transfers on their own, then a
+    bank-fetched receipt confirms the deposit (src/convex/linkset.ts). */
+export const PROVIDER_LINKSET = "linkset";
 export const PROVIDER_CHAPA = "chapa";
 
 // ─── Queries ────────────────────────────────────────────────────────────────
@@ -94,7 +97,11 @@ export const getMySettlements = query({
 
 const initiateArgs = v.object({
   amountSantims: v.number(),
-  provider: v.union(v.literal(PROVIDER_MANUAL), v.literal(PROVIDER_CHAPA)),
+  provider: v.union(
+    v.literal(PROVIDER_MANUAL),
+    v.literal(PROVIDER_CHAPA),
+    v.literal(PROVIDER_LINKSET),
+  ),
   // Optional: the payer's telebirr/mobile-money phone, used only as a
   // fraud-correlation key (MULTI_ACCOUNT_SUSPECT) — never for marketing.
   payerPhone: v.optional(v.string()),
@@ -102,7 +109,7 @@ const initiateArgs = v.object({
 
 type InitiateArgs = {
   amountSantims: number;
-  provider: "manual" | "chapa";
+  provider: "manual" | "chapa" | "linkset";
   payerPhone?: string;
 };
 
@@ -148,7 +155,7 @@ async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
     if (/^251[79]\d{8}$/.test(normalized)) payerPhone = normalized;
   }
 
-  await ctx.db.insert("payments", {
+  const paymentId = await ctx.db.insert("payments", {
     userId,
     amountSantims: args.amountSantims,
     currency: "ETB",
@@ -171,7 +178,7 @@ async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
       : undefined;
   }
 
-  return { merchantReference, verifyToken };
+  return { merchantReference, verifyToken, paymentId };
 }
 
 async function confirmCore(
@@ -402,6 +409,22 @@ export const payWinningBid = mutation({
 
 // ─── Internal functions (webhook / system adapters only) ────────────────────
 
+/** Payment facts by id (links.et adapter: ownership + state checks). */
+export const getPaymentInternal = internalQuery({
+  args: { paymentId: v.id("payments") },
+  handler: async (ctx, args) => {
+    const payment = await ctx.db.get(args.paymentId);
+    if (!payment) return null;
+    return {
+      _id: payment._id,
+      userId: payment.userId,
+      provider: payment.provider,
+      status: payment.status,
+      amountSantims: payment.amountSantims,
+    };
+  },
+});
+
 /** Minimal payment facts for the adapter's verify-and-settle flow. */
 export const getPaymentByReferenceInternal = internalQuery({
   args: { merchantReference: v.string() },
@@ -474,7 +497,12 @@ export const sweepStalePendingPayments = internalMutation({
       .collect();
     let expired = 0;
     for (const p of pending) {
-      const ttl = p.provider === PROVIDER_CHAPA ? 24 * 3_600_000 : 3_600_000;
+      // Chapa + linkset: 24h (slow bank channels, users paste the receipt
+      // after transferring). Sandbox: 1h.
+      const ttl =
+        p.provider === PROVIDER_CHAPA || p.provider === PROVIDER_LINKSET
+          ? 24 * 3_600_000
+          : 3_600_000;
       if (now - p.createdAt <= ttl) continue;
       ctx.db.patch(p._id, { status: "FAILED" });
       expired++;

@@ -99,9 +99,12 @@ export default function Dashboard() {
   const payWinningBid = useMutation(api.payments.payWinningBid);
 
   const [topUpInput, setTopUpInput] = useState("");
-  const [topUpProvider, setTopUpProvider] = useState<"chapa" | "manual">(
-    "chapa",
-  );
+  const [topUpProvider, setTopUpProvider] = useState<
+    "chapa" | "manual" | "linkset"
+  >("chapa");
+  // links.et bank-receipt verification (provider === "linkset").
+  const [receiptInput, setReceiptInput] = useState("");
+  const startReceiptVerify = useMutation(api.linkset.submitReceipt);
   const [busy, setBusy] = useState<string | null>(null);
 
   const chapaStatus = useQuery(api.chapa.getChapaStatus, {});
@@ -229,6 +232,24 @@ export default function Dashboard() {
   const handleTopUp = async (santims: number) => {
     setBusy("topup");
     try {
+      if (topUpProvider === "linkset") {
+        // links.et bank receipt: create the PENDING payment, remember it,
+        // then the user pastes the receipt link/reference to verify.
+        const { paymentId } = await topUp({
+          amountSantims: santims,
+          provider: "linkset",
+        });
+        sessionStorage.setItem(
+          "luba_linkset_payment",
+          JSON.stringify({ paymentId, amountSantims: santims }),
+        );
+        toast.info("Transfer first, then verify", {
+          description:
+            "Send the money to our account (details below), then paste your receipt link or telebirr reference.",
+        });
+        setTopUpInput("");
+        return;
+      }
       if (topUpProvider === "manual") {
         // Sandbox adapter: settles immediately so the product is testable
         // before production PSP credentials are configured.
@@ -289,6 +310,55 @@ export default function Dashboard() {
             : raw === "UNAUTHENTICATED"
               ? "Your session expired — sign in and try again."
               : raw,
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** links.et: submit the pasted receipt for bank-side verification. The
+      scheduled action writes linksetStatus back onto the payment row — the
+      reactive query below picks up the result (verifying → verified/failed). */
+  const handleVerifyReceipt = async () => {
+    const stored = sessionStorage.getItem("luba_linkset_payment");
+    if (!stored) {
+      toast.error("No pending top-up", {
+        description: "Start a top-up first, transfer the money, then verify.",
+      });
+      return;
+    }
+    const { paymentId, amountSantims } = JSON.parse(stored) as {
+      paymentId: string;
+      amountSantims: number;
+    };
+    const value = receiptInput.trim();
+    if (!value) {
+      toast.error("Paste your receipt first", {
+        description:
+          "Copy the receipt link from your bank app or SMS, or type your telebirr reference.",
+      });
+      return;
+    }
+    const isUrl = /^https?:\/\//i.test(value);
+    setBusy("verify-receipt");
+    try {
+      await startReceiptVerify({
+        paymentId: paymentId as unknown as Id<"payments">,
+        receiptUrl: isUrl ? value : undefined,
+        telebirrReference: isUrl ? undefined : value,
+      });
+      toast.info("Verifying with your bank…", {
+        description: `Checking ${formatETB(amountSantims)} — this usually takes under a minute.`,
+      });
+      setReceiptInput("");
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : "UNKNOWN";
+      toast.error("Could not start verification", {
+        description: raw.startsWith("PASTE")
+          ? "Paste your receipt link or telebirr reference first."
+          : raw === "RECEIPT_URL_MUST_BE_HTTPS"
+            ? "Paste the full https:// link from your bank app or SMS."
+            : raw,
       });
     } finally {
       setBusy(null);
@@ -774,6 +844,36 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => setTopUpProvider("linkset")}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                          topUpProvider === "linkset"
+                            ? "border-primary/50 bg-primary/5"
+                            : "border-border hover:border-border/80 hover:bg-secondary/40",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex size-8 shrink-0 items-center justify-center rounded-md",
+                            topUpProvider === "linkset"
+                              ? "bg-primary/15 text-primary"
+                              : "bg-secondary text-muted-foreground",
+                          )}
+                        >
+                          <ReceiptText className="size-4" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium">
+                            Bank transfer — verified by the bank
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            Transfer to our account, paste your receipt link —
+                            credited in under a minute.
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setTopUpProvider("manual")}
                         className={cn(
                           "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
@@ -803,6 +903,18 @@ export default function Dashboard() {
                       </button>
                     </div>
                   </div>
+
+                  {/* links.et bank-receipt verification — appears after the
+                      user starts a bank-transfer top-up. */}
+                  {topUpProvider === "linkset" && (
+                    <ReceiptVerifyPanel
+                      receiptInput={receiptInput}
+                      onInputChange={setReceiptInput}
+                      onVerify={handleVerifyReceipt}
+                      busy={busy === "verify-receipt"}
+                    />
+                  )}
+
                   <p className="text-xs leading-5 text-muted-foreground">
                     Deposits are credited to your wallet as soon as the provider
                     confirms the payment. Bid fees are charged from this balance
@@ -1211,6 +1323,77 @@ function WatchlistPanel() {
           {w.status === "OPEN" && <Countdown to={w.closesAt} compact />}
         </Link>
       ))}
+    </div>
+  );
+}
+
+/**
+ * links.et bank-receipt verification panel: shows the transfer instructions
+ * and takes the receipt link / telebirr reference. After submit, the
+ * scheduled action verifies at the bank — linksetStatus flows back through
+ * the reactive payment query.
+ */
+function ReceiptVerifyPanel({
+  receiptInput,
+  onInputChange,
+  onVerify,
+  busy,
+}: {
+  receiptInput: string;
+  onInputChange: (v: string) => void;
+  onVerify: () => void;
+  busy: boolean;
+}) {
+  const [pending, setPending] = useState<{
+    paymentId: string;
+    amountSantims: number;
+  } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("luba_linkset_payment");
+      setPending(raw ? JSON.parse(raw) : null);
+    } catch {
+      setPending(null);
+    }
+  }, []);
+
+  return (
+    <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
+      <p className="text-xs font-semibold">Bank transfer — how it works</p>
+      <ol className="mt-1.5 list-decimal space-y-0.5 pl-4 text-xs leading-5 text-muted-foreground">
+        <li>Transfer the exact amount to our telebirr (see below).</li>
+        <li>Copy the receipt link from your bank app or SMS confirmation.</li>
+        <li>Paste it here — the bank itself confirms it, usually under a minute.</li>
+      </ol>
+      <div className="mt-2.5 space-y-2">
+        <Input
+          placeholder="Receipt link (https://…) or telebirr reference"
+          value={receiptInput}
+          onChange={(e) => onInputChange(e.target.value)}
+          className="h-12 text-base sm:h-10 sm:text-sm"
+        />
+        <Button
+          className="h-12 w-full text-base sm:h-10 sm:text-sm"
+          disabled={busy || !pending || !receiptInput.trim()}
+          onClick={onVerify}
+        >
+          {busy ? (
+            <>
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              Verifying with your bank…
+            </>
+          ) : (
+            "Verify receipt"
+          )}
+        </Button>
+      </div>
+      {!pending && (
+        <p className="mt-2 text-[11px] text-amber-500">
+          Start a top-up first (enter an amount above), then transfer and
+          verify.
+        </p>
+      )}
     </div>
   );
 }
@@ -1820,15 +2003,27 @@ function PaymentsList() {
     <div className="divide-y divide-border/60">
       {payments.map((p) => (
         <div key={p._id} className="flex items-center justify-between py-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium">
               {p.kind === "DEPOSIT" ? "Wallet top-up" : "Winning bid payment"}
             </p>
-            <p className="font-mono text-xs text-muted-foreground">
-              {p.merchantReference}
-            </p>
+            {/* links.et receipts surface their live verification state. */}
+            {p.provider === "linkset" && p.linksetStatus === "verifying" ? (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-300">
+                <Loader2 className="size-3 animate-spin" /> Verifying with
+                bank…
+              </p>
+            ) : p.provider === "linkset" && p.linksetError ? (
+              <p className="mt-0.5 line-clamp-2 max-w-xs text-xs text-rose-300">
+                {p.linksetError}
+              </p>
+            ) : (
+              <p className="truncate font-mono text-xs text-muted-foreground">
+                {p.merchantReference}
+              </p>
+            )}
           </div>
-          <div className="text-right">
+          <div className="shrink-0 text-right">
             <p className="text-sm font-semibold tabular-nums">
               {formatETB(p.amountSantims)}
             </p>
@@ -1842,7 +2037,9 @@ function PaymentsList() {
                     : "bg-rose-500/10 text-rose-300",
               )}
             >
-              {p.status}
+              {p.status === "PENDING" && p.linksetStatus === "verifying"
+                ? "VERIFYING"
+                : p.status}
             </Badge>
           </div>
         </div>

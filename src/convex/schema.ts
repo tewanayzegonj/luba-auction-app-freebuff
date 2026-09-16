@@ -285,6 +285,16 @@ export const schema = defineSchema(
       ),
       completedAt: v.optional(v.number()),
       createdAt: v.number(),
+      // links.et bank-receipt verification state (provider === "linkset"):
+      // verifying → verified | failed. The error is a user-facing message.
+      linksetStatus: v.optional(
+        v.union(
+          v.literal("verifying"),
+          v.literal("verified"),
+          v.literal("failed"),
+        ),
+      ),
+      linksetError: v.optional(v.string()),
     })
       .index("by_merchant_ref", ["merchantReference"])
       .index("by_user", ["userId"])
