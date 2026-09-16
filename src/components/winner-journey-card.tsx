@@ -228,7 +228,7 @@ export function WinnerJourneyCard({ settlement }: { settlement: Settlement }) {
           </>
         ) : (
           <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-3 py-2.5">
-            <p className="text-sm font-medium text-emerald-400">
+            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
               {settlement.status === "FULFILLED"
                 ? "Prize handed over — enjoy! 🎉"
                 : settlement.deliveryMethod === "DELIVERY"
@@ -237,7 +237,7 @@ export function WinnerJourneyCard({ settlement }: { settlement: Settlement }) {
             </p>
             <Badge
               variant="outline"
-              className="border-emerald-500/40 font-mono text-[10px] uppercase text-emerald-400"
+              className="border-emerald-500/40 font-mono text-[10px] uppercase text-emerald-700 dark:text-emerald-400"
             >
               {settlement.status}
             </Badge>

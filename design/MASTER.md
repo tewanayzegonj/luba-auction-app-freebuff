@@ -90,3 +90,124 @@ Apple HIG — adapted to this product's actual decisions, not generic.
 - Edge fades that never disappear → looked like cut-off content. Fixed:
   scroll-aware (`ScrollableTabs` pattern) — affordances only while content
   is actually hidden in that direction.
+- `w-full` TabsList inside the scroll strip → trailing triggers spilled
+  OUTSIDE the rounded pill on phones (labels scrolling over bare background).
+  Fixed: `min-w-max` so the pill grows to content when it can't fit.
+- Bottom-bar section navigation could select an off-screen tab; user landed
+  on a hidden trigger. Fixed: `ActiveTabScroll` keeps the active tab visible
+  with strip-local scroll math (never `scrollIntoView`, which yanks the page).
+
+---
+
+## Visual QA is a required pass — never judge from source code alone
+
+The single workflow rule that most improves output quality: after rendering,
+**look at the rendered page** (or the platform preview) at 375px and 1280px
+before declaring done. The compile passing proves nothing about layout.
+Inspect for: alignment drift, overflow, contrast of muted text, focus rings,
+empty/loading states, long titles (`line-clamp` present?), tabular alignment
+of money, mobile safe-area clearance of fixed bars.
+
+If the preview is unavailable, re-derive the layout mentally: trace every
+fixed bar against content spacing, every scroll container against its parent's
+min-width, every theme's variables against every surface.
+
+---
+
+## Anti-pattern catalog (search for these before delivery)
+
+Generic AI/SaaS patterns become violations only when they appear WITHOUT a
+product-specific reason. Each needs a justification comment in code or a line
+in a page-override doc:
+
+- Purple/blue default gradients; Inter/Roboto chosen by inertia rather than
+  decision (Luba's Inter choice IS deliberate — see Decision Record)
+- Centered-everything layouts; three identical feature cards
+- Card-in-card-in-card; every section boxed; borders on every element
+- Glassmorphism decoration; shadows as decoration rather than elevation
+- Emoji as interface icons; random icon mixing; icon without label where the
+  meaning isn't universal
+- Excessive badges/pills; badges used as decoration rather than state
+- Random animation; animation without a state to communicate
+- `#999`-class contrast on important text; color-only status
+- Placeholder carrying instructions; placeholder-as-label
+- Button labels: Submit / Okay / Continue / Click here (unless context makes
+  the action unambiguous — e.g. a wizard's next step)
+- Tiny controls; destructive next to primary without separation
+- Desktop table shrunk to unreadable on mobile instead of row layout or
+  priority columns
+- Dashboard widgets answering no question (the 4-stat-cards + 2-random-charts
+  template)
+
+## State matrix — every data surface needs all four
+
+| State | Requirement |
+|---|---|
+| Loading | Skeleton mirrors final layout; never a bare spinner for content-heavy areas |
+| Empty | Why it's empty + what to do + the action as a button. No fake data. |
+| Error | What happened, why (if useful), how to fix. Never color alone. |
+| Success | Immediate confirmation; where relevant, the next step. |
+
+When adding a tab, panel, or list: check it against this matrix. Missing
+states are the most common gap after layout bugs.
+
+## Component checklist (before shipping any new control)
+
+- [ ] States: default / hover / focus-visible / active / disabled / loading
+- [ ] Error and success handled (form controls)
+- [ ] Accessible name (label, aria-label, or visible text)
+- [ ] 44px target on coarse pointers (or `data-slot` exemption with halo)
+- [ ] Token-based styling (no one-off values that duplicate a token)
+- [ ] Contrast of all text on its surface ≥4.5:1 (≥3:1 large)
+- [ ] Keyboard reachable; Escape closes if it's an overlay
+
+## Final quality gate (run before declaring UI work complete)
+
+**UX** — primary task obvious · navigation answers where-am-I / where-can-I-go
+/ how-do-I-get-back · recognition over recall · cognitive load controlled ·
+errors recoverable · feedback immediate.
+
+**UI** — hierarchy (squint test) · tokens used consistently · typography
+intentional (mono=codes, Inter+tnum=money) · radius language consistent ·
+components reused · no decoration without a job.
+
+**A11y** — keyboard complete · focus visible and never obscured · contrast ·
+targets sized · forms labeled · status never color-only · reduced-motion
+respected.
+
+**Responsive** — 375px and 1280px coherent · no horizontal overflow · text
+breaks gracefully (`line-clamp`, `truncate`, `min-w-0`) · fixed bars clear
+content and each other · safe-area insets respected.
+
+**Anti-AI** — would the interface still be recognizable with the logo removed?
+If not, the identity is generic and needs work.
+
+---
+
+## Page overrides
+
+Global system is law; pages deviate deliberately, with a documented reason.
+Add deviations here as they arise:
+
+- **Admin** — medium/high density, tables scroll within cards (`.table-scroll`),
+  secondary actions live in overflow menus. Justified: professional operators,
+  not consumer flow.
+- **Landing** — the only page allowed full-bleed sections and larger display
+  type. Justified: marketing surface.
+- **Auction detail** — the bid bar is fixed on mobile with safe-area padding;
+  content bottom-padding clears it. Justified: primary task is bidding, must
+  be one thumb-reach away.
+
+## Amharic (Fidel) overrides — mandatory when lang="am"
+
+Ethiopic scripts need leading ≥1.6 for vowel marks above/below the Fidel, no
+mid-word breaks in chips/buttons, extra horizontal padding on buttons. See
+`html[lang="am"]` rules in `src/index.css`. Never tighten leading or tracking
+"for style" on text that can render in Amharic.
+
+## The Golden Rule
+
+Never ask "what would AI generate here?" — ask "what would an exceptional
+product designer create for THIS product, audience, task, and context?"
+Then implement it with engineering discipline. The objective is not to look
+less like AI; it is to look like someone cared enough to design it.

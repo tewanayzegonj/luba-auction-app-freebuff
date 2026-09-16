@@ -848,18 +848,29 @@ function hashSeed(seed: string): number {
 // ─── Status badge ───────────────────────────────────────────────────────────
 
 export function StatusBadge({ status }: { status: string }) {
+  /* Dual-tone rule (master skill, contrast section): dark theme uses the
+     300-weight tints; light theme needs 700-weight on white cards — 300/400
+     on white is ~2:1 and fails WCAG AA. Never introduce a single-tone
+     status color again. */
   const styles: Record<string, string> = {
-    OPEN: "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/30",
-    CLOSING: "bg-amber-500/10 text-amber-300 ring-1 ring-inset ring-amber-500/30",
-    SCHEDULED: "bg-sky-500/10 text-sky-300 ring-1 ring-inset ring-sky-500/30",
-    CLOSED: "bg-foreground/5 text-muted-foreground ring-1 ring-inset ring-foreground/10",
-    SETTLING: "bg-violet-500/10 text-violet-300 ring-1 ring-inset ring-violet-500/30",
-    COMPLETED: "bg-teal-500/10 text-teal-300 ring-1 ring-inset ring-teal-500/30",
-    CANCELLED: "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/30",
+    OPEN:
+      "bg-emerald-500/10 text-emerald-700 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300",
+    CLOSING:
+      "bg-amber-500/10 text-amber-700 ring-1 ring-inset ring-amber-500/30 dark:text-amber-300",
+    SCHEDULED:
+      "bg-sky-500/10 text-sky-700 ring-1 ring-inset ring-sky-500/30 dark:text-sky-300",
+    CLOSED:
+      "bg-foreground/5 text-muted-foreground ring-1 ring-inset ring-foreground/10",
+    SETTLING:
+      "bg-violet-500/10 text-violet-700 ring-1 ring-inset ring-violet-500/30 dark:text-violet-300",
+    COMPLETED:
+      "bg-teal-500/10 text-teal-700 ring-1 ring-inset ring-teal-500/30 dark:text-teal-300",
+    CANCELLED:
+      "bg-rose-500/10 text-rose-700 ring-1 ring-inset ring-rose-500/30 dark:text-rose-300",
   };
   return (
     <Badge className={cn("border-transparent bg-transparent font-medium text-xs uppercase tracking-wider", styles[status] ?? "bg-secondary text-secondary-foreground")}>
-      {status === "OPEN" && <span className="mr-1.5 inline-block size-1.5 animate-pulse rounded-full bg-emerald-400" />}
+      {status === "OPEN" && <span className="mr-1.5 inline-block size-1.5 animate-pulse rounded-full bg-emerald-500 dark:bg-emerald-400" />}
       {status.charAt(0) + status.slice(1).toLowerCase()}
     </Badge>
   );

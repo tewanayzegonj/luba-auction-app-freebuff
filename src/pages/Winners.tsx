@@ -44,7 +44,7 @@ export default function Winners() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 md:py-14">
         <PageFade>
         <div className="mx-auto max-w-2xl text-center">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-amber-400/15 text-amber-400">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-amber-400/15 text-amber-700 dark:text-amber-400">
             <Trophy className="size-6" />
           </span>
           <h1 className="mt-4 text-2xl font-bold tracking-tight md:text-3xl">
@@ -55,7 +55,7 @@ export default function Winners() {
             exactly one person picked wins. Open any auction to see every bid
             and check the math yourself.
           </p>
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
             <ShieldCheck className="size-3.5" />
             Provably fair — no manual picks, ever
           </div>

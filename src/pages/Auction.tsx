@@ -29,9 +29,11 @@ import { useMutation, useQuery } from "convex/react";
 import {
   ArrowLeft,
   Activity,
+  AlertTriangle,
   BadgeCheck,
   Ban,
   BarChart3,
+  CheckCircle2,
   Send,
   Sparkles,
   Clock,
@@ -537,7 +539,7 @@ export default function AuctionPage() {
                       className={cn(
                         "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs tabular-nums",
                         row.isWinning
-                          ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
                           : row.unique
                             ? "bg-primary/5 text-primary"
                             : "bg-secondary/50 text-secondary-foreground",
@@ -573,7 +575,7 @@ export default function AuctionPage() {
                       className={cn(
                         "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs tabular-nums",
                         row.isWinning
-                          ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
                           : row.unique
                             ? "bg-primary/5 text-primary"
                             : "bg-secondary/50 text-secondary-foreground",
@@ -585,7 +587,7 @@ export default function AuctionPage() {
                         className={cn(
                           "text-[11px]",
                           row.isWinning
-                            ? "font-semibold text-emerald-400"
+                            ? "font-semibold text-emerald-700 dark:text-emerald-400"
                             : row.unique
                               ? "text-primary"
                               : "text-muted-foreground",
@@ -787,14 +789,22 @@ export default function AuctionPage() {
                       </button>
                     </div>
                     {bidValueSantims !== null && !validationError && (
+                      /* Status pairs icon + text (never color alone — the
+                         amber/emerald distinction must survive color-blind
+                         users and cheap low-gamut screens). */
                       <p
                         className={cn(
-                          "text-xs",
+                          "flex items-center gap-1.5 text-xs",
                           taken
-                            ? "text-amber-400"
-                            : "text-emerald-400",
+                            ? "text-amber-700 dark:text-amber-400"
+                            : "text-emerald-700 dark:text-emerald-400",
                         )}
                       >
+                        {taken ? (
+                          <AlertTriangle className="size-3.5 shrink-0" />
+                        ) : (
+                          <CheckCircle2 className="size-3.5 shrink-0" />
+                        )}
                         {taken
                           ? `${taken} other ${taken === 1 ? "bid" : "bids"} already at this amount — you'd need to stay unique.`
                           : "Not bid yet — currently would be unique!"}
@@ -973,9 +983,9 @@ export default function AuctionPage() {
                         "rounded-md px-2 py-1 text-xs tabular-nums",
                         b.status === "ACCEPTED"
                           ? (uniqueMap.get(b.bidValueSantims) ?? 0) === 1
-                            ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
+                            ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
                             : "bg-secondary text-secondary-foreground ring-1 ring-inset ring-foreground/5"
-                          : "bg-rose-500/10 text-rose-300 line-through",
+                          : "bg-rose-500/10 text-rose-700 dark:text-rose-300 line-through",
                       )}
                     >
                       {formatETB(b.bidValueSantims)}
@@ -1084,7 +1094,7 @@ export default function AuctionPage() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wallet className="size-5 text-amber-400" />
+              <Wallet className="size-5 text-amber-700 dark:text-amber-400" />
               {t("auction.insufficientTitle")}
             </DialogTitle>
             <DialogDescription>

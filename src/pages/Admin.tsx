@@ -234,8 +234,8 @@ function AdminConsole() {
             className={cn(
               "mt-4 rounded-xl border p-4 text-sm",
               stats.ledger.balanced
-                ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
-                : "border-rose-500/30 bg-rose-500/5 text-rose-300",
+                ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+                : "border-rose-500/30 bg-rose-500/5 text-rose-700 dark:text-rose-300",
             )}
           >
             {stats.ledger.balanced ? (
@@ -348,7 +348,7 @@ function AdminConsole() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-7 text-xs text-rose-400"
+                                  className="h-7 text-xs text-rose-700 dark:text-rose-400"
                                   disabled={busy === `role-${u.id}`}
                                   onClick={() => {
                                     if (!window.confirm(`Revoke admin from ${u.email ?? u.name ?? "this user"}?`)) return;
@@ -363,7 +363,7 @@ function AdminConsole() {
                               )}
                             </div>
                           ) : u.role === "super_admin" ? (
-                            <Badge className="border-transparent bg-amber-500/15 text-amber-400">
+                            <Badge className="border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400">
                               owner
                             </Badge>
                           ) : (
@@ -386,8 +386,8 @@ function AdminConsole() {
                             className={cn(
                               "border-transparent",
                               u.status === "ACTIVE"
-                                ? "bg-emerald-500/10 text-emerald-300"
-                                : "bg-rose-500/10 text-rose-300",
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
                             )}
                           >
                             {u.status}
@@ -398,10 +398,10 @@ function AdminConsole() {
                             className={cn(
                               "border-transparent font-mono text-[10px] uppercase",
                               u.kycStatus === "VERIFIED"
-                                ? "bg-emerald-500/10 text-emerald-300"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                 : u.kycStatus === "REJECTED"
-                                  ? "bg-rose-500/10 text-rose-300"
-                                  : "bg-amber-500/10 text-amber-300",
+                                  ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300",
                             )}
                           >
                             {u.kycStatus}
@@ -520,7 +520,7 @@ function AdminConsole() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-rose-300"
+                              className="text-rose-700 dark:text-rose-300"
                               disabled={busy === `deduct-${u.id}`}
                               onClick={() => {
                                 const input = window.prompt(
@@ -611,10 +611,10 @@ function AdminConsole() {
                             className={cn(
                               "border-transparent",
                               p.status === "COMPLETED"
-                                ? "bg-emerald-500/10 text-emerald-300"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                 : p.status === "PENDING"
-                                  ? "bg-amber-500/10 text-amber-300"
-                                  : "bg-rose-500/10 text-rose-300",
+                                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                  : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
                             )}
                           >
                             {p.status}
@@ -818,7 +818,7 @@ function AdminConsole() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-amber-300"
+                          className="text-amber-700 dark:text-amber-300"
                           disabled={busy === `close-${a.id}`}
                           onClick={() => {
                             const reason = window.prompt(
@@ -902,7 +902,7 @@ function AdminConsole() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-rose-300"
+                          className="text-rose-700 dark:text-rose-300"
                           disabled={busy === `close-${a.id}`}
                           onClick={() => {
                             const reason = window.prompt(
@@ -1072,7 +1072,7 @@ function AdminConsole() {
                         <td className="px-4 py-3 text-xs">
                           {new Date(s.paymentDeadline).toLocaleString()}
                           {s.overdue && (
-                            <Badge className="ml-1.5 border-transparent bg-rose-500/10 text-rose-300">
+                            <Badge className="ml-1.5 border-transparent bg-rose-500/10 text-rose-700 dark:text-rose-300">
                               OVERDUE
                             </Badge>
                           )}
@@ -1082,10 +1082,10 @@ function AdminConsole() {
                             className={cn(
                               "border-transparent font-mono text-[10px] uppercase",
                               s.status === "PAID" || s.status === "FULFILLED"
-                                ? "bg-emerald-500/10 text-emerald-300"
+                                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                 : s.status === "FORFEITED"
-                                  ? "bg-rose-500/10 text-rose-300"
-                                  : "bg-amber-500/10 text-amber-300",
+                                  ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                                  : "bg-amber-500/10 text-amber-700 dark:text-amber-300",
                             )}
                           >
                             {s.status.replace(/_/g, " ")}
@@ -1113,7 +1113,7 @@ function AdminConsole() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="text-rose-300"
+                                  className="text-rose-700 dark:text-rose-300"
                                   disabled={busy === `forfeit-${s.id}`}
                                   onClick={() => {
                                     const reason = window.prompt(
@@ -1223,8 +1223,8 @@ function AdminConsole() {
                               className={cn(
                                 "ml-auto font-mono text-xs",
                                 t.balanced
-                                  ? "text-emerald-300"
-                                  : "font-semibold text-rose-300",
+                                  ? "text-emerald-700 dark:text-emerald-300"
+                                  : "font-semibold text-rose-700 dark:text-rose-300",
                               )}
                             >
                               {t.balanced
@@ -1293,7 +1293,7 @@ function AdminConsole() {
                               <td className="px-4 py-3 font-mono text-xs">
                                 <span
                                   className={cn(
-                                    t.balanced ? "text-emerald-300" : "font-bold text-rose-400",
+                                    t.balanced ? "text-emerald-700 dark:text-emerald-300" : "font-bold text-rose-700 dark:text-rose-400",
                                   )}
                                 >
                                   {formatETB(t.debitsSantims)} = {formatETB(t.creditsSantims)}
@@ -1569,7 +1569,7 @@ function AdminConsole() {
                         className={cn(
                           "ml-auto font-mono text-[10px] uppercase",
                           w.status === "PAID" && "text-emerald-500",
-                          w.status === "REJECTED" && "text-rose-500",
+                          w.status === "REJECTED" && "text-rose-700 dark:text-rose-500",
                           w.status === "CANCELLED" && "text-muted-foreground",
                         )}
                       >
@@ -1627,8 +1627,8 @@ function AdminConsole() {
                         variant="outline"
                         className={cn(
                           "font-mono text-[10px] uppercase",
-                          s.severity === "HIGH" && "border-rose-500/40 text-rose-400",
-                          s.severity === "MEDIUM" && "border-amber-500/40 text-amber-500",
+                          s.severity === "HIGH" && "border-rose-500/40 text-rose-700 dark:text-rose-400",
+                          s.severity === "MEDIUM" && "border-amber-500/40 text-amber-700 dark:text-amber-500",
                         )}
                       >
                         {s.severity}
@@ -1737,8 +1737,8 @@ function AdminConsole() {
                     className={cn(
                       "border-transparent",
                       profile.user.status === "ACTIVE"
-                        ? "bg-emerald-500/10 text-emerald-300"
-                        : "bg-rose-500/10 text-rose-300",
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
                     )}
                   >
                     {profile.user.status}
@@ -1747,8 +1747,8 @@ function AdminConsole() {
                     className={cn(
                       "border-transparent",
                       profile.user.kycStatus === "VERIFIED"
-                        ? "bg-emerald-500/10 text-emerald-300"
-                        : "bg-amber-500/10 text-amber-300",
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : "bg-amber-500/10 text-amber-700 dark:text-amber-300",
                     )}
                   >
                     KYC {profile.user.kycStatus}
@@ -1835,7 +1835,7 @@ function AdminConsole() {
                             variant="outline"
                             className={cn(
                               "ml-auto font-mono text-[10px] uppercase",
-                              w.overdue && "border-rose-500/40 text-rose-300",
+                              w.overdue && "border-rose-500/40 text-rose-700 dark:text-rose-300",
                             )}
                           >
                             {w.status.replace(/_/g, " ")}
@@ -1972,7 +1972,7 @@ function AdminConsole() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-xs text-rose-300"
+                        className="h-6 px-2 text-xs text-rose-700 dark:text-rose-300"
                         disabled={busy === `rm-${f.bidIds[0]}`}
                         onClick={() => {
                           const reason = window.prompt(
@@ -2094,7 +2094,7 @@ function RestrictedArea({ userName }: { userName: string | null }) {
   return (
     <div className="mx-auto max-w-md py-24 text-center">
       <div className="flex justify-center">
-        <span className="flex size-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-300">
+        <span className="flex size-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300">
           <ShieldX className="size-6" />
         </span>
       </div>
@@ -2157,13 +2157,13 @@ function StatusBadge({ status }: { status: string }) {
   // Distinct semantic colors (P4.11): active = emerald, pending/transition
   // = amber, closed = slate, voided/cancelled = rose.
   const styles: Record<string, string> = {
-    SCHEDULED: "bg-amber-500/10 text-amber-300",
-    OPEN: "bg-emerald-500/10 text-emerald-300",
-    CLOSING: "bg-amber-500/10 text-amber-300",
+    SCHEDULED: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    OPEN: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    CLOSING: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
     CLOSED: "bg-slate-500/15 text-slate-300",
-    SETTLING: "bg-amber-500/10 text-amber-300",
-    COMPLETED: "bg-emerald-500/10 text-emerald-300",
-    CANCELLED: "bg-rose-500/10 text-rose-300",
+    SETTLING: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    COMPLETED: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    CANCELLED: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
   };
   return (
     <Badge

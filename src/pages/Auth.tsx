@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   InputOTP,
   InputOTPGroup,
@@ -35,6 +36,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useNavigate, useSearchParams } from "react-router";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 const TELEGRAM_BOT_URL =
   (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim()
@@ -244,8 +246,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       className={cn(
                         "flex size-12 items-center justify-center rounded-xl",
                         linkState === "success"
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : "bg-rose-500/10 text-rose-400",
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                          : "bg-rose-500/10 text-rose-700 dark:text-rose-400",
                       )}
                     >
                       {linkState === "success" ? (
@@ -368,7 +370,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   </Button>
 
                   {!anyMethodEnabled && (
-                    <p className="mt-2 text-center text-sm text-red-500">
+                    <p role="alert" className="mt-2 text-center text-sm text-destructive">
                       No sign-in methods are currently available.
                     </p>
                   )}
@@ -411,32 +413,53 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                 </CardHeader>
                 <form onSubmit={handleIdentifierSubmit}>
                   <CardContent>
-                    <div className="relative">
-                      {provider === "email-otp" ? (
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      )}
-                      <Input
-                        value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
-                        placeholder={
-                          provider === "email-otp"
-                            ? "name@example.com"
-                            : provider === "telegram-otp"
-                              ? "e.g. 123456789"
-                              : "e.g. 0911223344"
-                        }
-                        type={
-                          provider === "email-otp" ? "email" : "tel"
-                        }
-                        className="pl-9"
-                        disabled={isLoading}
-                        required
-                      />
+                    <div className="space-y-1.5">
+                      {/* Visible label — placeholders are never a substitute
+                          (master skill: placeholders are not labels). The
+                          helper text below carries the example so the
+                          placeholder stays minimal. */}
+                      <Label htmlFor="auth-identifier" className="text-sm">
+                        {provider === "email-otp"
+                          ? "Email address"
+                          : provider === "telegram-otp"
+                            ? "Your Telegram ID"
+                            : "Phone number"}
+                      </Label>
+                      <div className="relative">
+                        {provider === "email-otp" ? (
+                          <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Smartphone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        )}
+                        <Input
+                          id="auth-identifier"
+                          value={identifier}
+                          onChange={(e) => setIdentifier(e.target.value)}
+                          placeholder={
+                            provider === "email-otp"
+                              ? "name@example.com"
+                              : provider === "telegram-otp"
+                                ? "e.g. 123456789"
+                                : "e.g. 0911223344"
+                          }
+                          type={
+                            provider === "email-otp" ? "email" : "tel"
+                          }
+                          className="pl-9"
+                          disabled={isLoading}
+                          required
+                        />
+                      </div>
                     </div>
+                    {/* destructive token, not raw red-500: raw Tailwind red
+                        fails WCAG AA contrast on the card surface. */}
                     {error && (
-                      <p className="mt-2 text-sm text-red-500">{error}</p>
+                      <p
+                        role="alert"
+                        className="mt-2 text-sm text-destructive"
+                      >
+                        {error}
+                      </p>
                     )}
 
                     {provider === "telegram-otp" && (
@@ -511,6 +534,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                 <form onSubmit={handleOtpSubmit}>
                   <CardContent className="pb-4">
                     <div className="flex justify-center">
+                      {/* Screen readers need a fieldset-style label for the
+                          OTP group; visually the card title carries it. */}
+                      <VisuallyHidden>
+                        <Label htmlFor="otp">6-digit verification code</Label>
+                      </VisuallyHidden>
                       <InputOTP
                         value={otp}
                         onChange={setOtp}
@@ -539,7 +567,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       </InputOTP>
                     </div>
                     {error && (
-                      <p className="mt-2 text-sm text-red-500 text-center">
+                      <p
+                        role="alert"
+                        className="mt-2 text-sm text-destructive text-center"
+                      >
                         {error}
                       </p>
                     )}

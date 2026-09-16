@@ -65,7 +65,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
-const TOPUP_PRESETS = [5000, 10000, 25000, 50000, 100000]; // santims: 50 / 100 / 250 / 500 / 1000 ETB
+const TOPUP_PRESETS = [5000, 10000, 25000, 50000, 100000]; // santims: 50/100/250/500/1000 ETB
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
@@ -475,7 +475,7 @@ export default function Dashboard() {
         {/* Pay-your-win banner */}
         {pendingSettlements.length > 0 && (
           <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
-            <h2 className="flex items-center gap-2 font-semibold text-amber-300">
+            <h2 className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-300">
               <Trophy className="size-5" />
               {t("dashboard.wins")} — {t("dashboard.payToWin")}
             </h2>
@@ -647,8 +647,8 @@ export default function Dashboard() {
                               className={cn(
                                 "border-transparent",
                                 b.status === "ACCEPTED"
-                                  ? "bg-emerald-500/10 text-emerald-300"
-                                  : "bg-rose-500/10 text-rose-300",
+                                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                  : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
                               )}
                             >
                               {b.status === "ACCEPTED" ? "Accepted" : "Refunded"}
@@ -786,8 +786,8 @@ export default function Dashboard() {
                       className={cn(
                         "flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-5",
                         chapaStatus.configured && chapaStatus.webhookSecretSet
-                          ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-300"
-                          : "border-amber-500/30 bg-amber-500/5 text-amber-200",
+                          ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+                          : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-200",
                       )}
                     >
                       {chapaStatus.configured && chapaStatus.webhookSecretSet ? (
@@ -982,7 +982,7 @@ export default function Dashboard() {
                     {
                       label: "Unread",
                       value: unreadCount,
-                      tone: unreadCount > 0 ? "text-amber-500" : "text-muted-foreground",
+                      tone: unreadCount > 0 ? "text-amber-700 dark:text-amber-500" : "text-muted-foreground",
                     },
                     {
                       label: "Read",
@@ -1037,7 +1037,7 @@ export default function Dashboard() {
                       className={cn(
                         "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg",
                         n.type === "WINNER_ANNOUNCED"
-                          ? "bg-amber-500/10 text-amber-300"
+                          ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
                           : "bg-primary/10 text-primary",
                       )}
                     >
@@ -1123,7 +1123,7 @@ export default function Dashboard() {
                     <span className="text-muted-foreground">
                       Verification status
                     </span>
-                    <Badge className="border-transparent bg-emerald-500/10 text-emerald-300">
+                    <Badge className="border-transparent bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                       Verified
                     </Badge>
                   </div>
@@ -1253,6 +1253,7 @@ export default function Dashboard() {
           </DialogHeader>
           <Input
             autoFocus
+            aria-label="Your display name"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
             placeholder="e.g. Abel Tesfaye"
@@ -1374,8 +1375,12 @@ function ReceiptVerifyPanel({
         <li>Paste it here — the bank itself confirms it, usually under a minute.</li>
       </ol>
       <div className="mt-2.5 space-y-2">
+        <Label htmlFor="receipt-value" className="text-xs">
+          Receipt link or reference
+        </Label>
         <Input
-          placeholder="Receipt link (https://…) or telebirr reference"
+          id="receipt-value"
+          placeholder="https://… or telebirr reference"
           value={receiptInput}
           onChange={(e) => onInputChange(e.target.value)}
           className="h-12 text-base sm:h-10 sm:text-sm"
@@ -1396,7 +1401,7 @@ function ReceiptVerifyPanel({
         </Button>
       </div>
       {!pending && (
-        <p className="mt-2 text-[11px] text-amber-500">
+        <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-500">
           Start a top-up first (enter an amount above), then transfer and
           verify.
         </p>
@@ -1443,7 +1448,9 @@ function ReceiptsPanel() {
               <td
                 className={cn(
                   "px-4 py-3 text-right font-semibold tabular-nums",
-                  r.amountSantims >= 0 ? "text-emerald-400" : "text-foreground",
+                  r.amountSantims >= 0
+                    ? "text-emerald-700 dark:text-emerald-400"
+                    : "text-foreground",
                 )}
               >
                 {r.amountSantims >= 0 ? "+" : "−"}
@@ -1624,12 +1631,12 @@ function ResponsiblePlayCard() {
           </span>
         </p>
         {limits.capPendingSantims !== null && (
-          <p className="mt-1 text-xs text-amber-400">
+          <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
             Raise to {formatETB(limits.capPendingSantims)} takes effect after 24h.
           </p>
         )}
         {limits.currentlyExcluded && limits.selfExcludedUntil && (
-          <p className="mt-1 text-xs text-rose-400">
+          <p className="mt-1 text-xs text-rose-700 dark:text-rose-400">
             You are self-excluded until{" "}
             {new Date(limits.selfExcludedUntil).toLocaleDateString()}.
           </p>
@@ -1638,9 +1645,10 @@ function ResponsiblePlayCard() {
       {/* Stack on phones — input + button side-by-side overflows at 320px. */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
+          aria-label="Daily deposit cap in ETB"
           value={capInput}
           onChange={(e) => setCapInput(e.target.value)}
-          placeholder="Daily cap in ETB, e.g. 500"
+          placeholder="e.g. 500"
           inputMode="decimal"
           className="h-10"
         />
@@ -1668,7 +1676,7 @@ function ResponsiblePlayCard() {
       </div>
       <Button
         variant="outline"
-        className="w-full border-rose-500/40 text-rose-400 hover:bg-rose-500/10"
+        className="w-full border-rose-500/40 text-rose-700 hover:bg-rose-500/10 dark:text-rose-400"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -1717,7 +1725,7 @@ function MethodRow({
         <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
       </div>
       {connected ? (
-        <Badge className="border-transparent bg-emerald-500/10 text-emerald-300">
+        <Badge className="border-transparent bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="mr-1 size-3" /> Connected
         </Badge>
       ) : (
@@ -1799,6 +1807,7 @@ function TelegramLinkRow({
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <Input
             value={chatId}
+            aria-label="Your Telegram chat ID"
             onChange={(e) => setChatId(e.target.value)}
             placeholder="Your Telegram ID — e.g. 123456789"
             inputMode="numeric"
@@ -1917,6 +1926,7 @@ function PhoneLinkRow({
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <Input
             value={phone}
+            aria-label="Your phone number"
             onChange={(e) => setPhone(e.target.value)}
             placeholder="e.g. 0911223344"
             inputMode="tel"
@@ -2016,12 +2026,12 @@ function PaymentsList() {
             </p>
             {/* links.et receipts surface their live verification state. */}
             {p.provider === "linkset" && p.linksetStatus === "verifying" ? (
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-300">
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
                 <Loader2 className="size-3 animate-spin" /> Verifying with
                 bank…
               </p>
             ) : p.provider === "linkset" && p.linksetError ? (
-              <p className="mt-0.5 line-clamp-2 max-w-xs text-xs text-rose-300">
+              <p className="mt-0.5 line-clamp-2 max-w-xs text-xs text-rose-700 dark:text-rose-300">
                 {p.linksetError}
               </p>
             ) : (
@@ -2038,10 +2048,10 @@ function PaymentsList() {
               className={cn(
                 "mt-0.5 border-transparent",
                 p.status === "COMPLETED"
-                  ? "bg-emerald-500/10 text-emerald-300"
+                  ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                   : p.status === "PENDING"
-                    ? "bg-amber-500/10 text-amber-300"
-                    : "bg-rose-500/10 text-rose-300",
+                    ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                    : "bg-rose-500/10 text-rose-700 dark:text-rose-300",
               )}
             >
               {p.status === "PENDING" && p.linksetStatus === "verifying"
@@ -2104,11 +2114,13 @@ function KycVerificationCard() {
     return <p className="text-sm text-muted-foreground">Sign in to manage verification.</p>;
   }
 
+  /* Dual-tone status map — light theme needs 700-weights on white (master
+     skill contrast rule); 500-weight on a 15% tint is ~2.5:1. */
   const statusBadge = {
     UNVERIFIED: { label: "Not verified", cls: "bg-secondary text-secondary-foreground" },
-    PENDING: { label: "Under review", cls: "bg-amber-500/15 text-amber-500" },
-    VERIFIED: { label: "Verified", cls: "bg-emerald-500/15 text-emerald-500" },
-    REJECTED: { label: "Rejected — you can resubmit", cls: "bg-red-500/15 text-red-500" },
+    PENDING: { label: "Under review", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-500" },
+    VERIFIED: { label: "Verified", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-500" },
+    REJECTED: { label: "Rejected — you can resubmit", cls: "bg-rose-500/15 text-rose-700 dark:text-rose-500" },
   }[kyc.kycStatus] ?? { label: kyc.kycStatus, cls: "bg-secondary text-secondary-foreground" };
 
   async function handleFile(file: File) {
@@ -2140,7 +2152,7 @@ function KycVerificationCard() {
         <Badge variant="outline" className={cn("border-transparent", statusBadge.cls)}>
           {statusBadge.label}
         </Badge>
-        {kyc.kycStatus === "VERIFIED" && <CheckCircle2 className="size-4 text-emerald-500" />}
+        {kyc.kycStatus === "VERIFIED" && <CheckCircle2 className="size-4 text-emerald-700 dark:text-emerald-500" />}
       </div>
 
       {kyc.kycNote && kyc.kycStatus === "REJECTED" && (
@@ -2160,9 +2172,10 @@ function KycVerificationCard() {
               <span
                 className={cn(
                   "ml-2 shrink-0 font-medium",
-                  doc.status === "APPROVED" && "text-emerald-500",
-                  doc.status === "PENDING" && "text-amber-500",
-                  doc.status === "REJECTED" && "text-red-500",
+                  doc.status === "APPROVED" &&
+                    "text-emerald-700 dark:text-emerald-500",
+                  doc.status === "PENDING" && "text-amber-700 dark:text-amber-500",
+                  doc.status === "REJECTED" && "text-rose-700 dark:text-rose-500",
                 )}
               >
                 {doc.status}
