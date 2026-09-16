@@ -34,7 +34,7 @@ import { useLang } from "@/lib/i18n";
 import { WithdrawCard } from "@/components/withdraw-card";
 import { WinnerJourneyCard } from "@/components/winner-journey-card";
 import { DailyBonusCard } from "@/components/daily-bonus-card";
-import { ScrollableTabs } from "@/components/scrollable-tabs";
+import { ScrollableTabs, ActiveTabScroll } from "@/components/scrollable-tabs";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { PageFade } from "@/components/motion-primitives";
 import { cn } from "@/lib/utils";
@@ -545,7 +545,11 @@ export default function Dashboard() {
           {/* Scrollable tab strip on small screens — scroll-aware fades +
               chevrons (see ScrollableTabs). */}
           <ScrollableTabs>
-            <TabsList className="h-11 w-full justify-start gap-1 rounded-xl bg-secondary/70 p-1">
+            {/* min-w-max: when the labels can't fit the viewport the pill grows
+                to its content and scrolls inside ScrollableTabs — without it
+                the trailing triggers spill OUTSIDE the rounded background
+                (the "junky" cut-off look on phones). */}
+            <TabsList className="h-11 w-full min-w-max justify-start gap-1 rounded-xl bg-secondary/70 p-1">
               <TabsTrigger value="bids" className="gap-1.5 rounded-lg">
                 <Gavel className="size-4" /> {t("dashboard.myBids")}
               </TabsTrigger>
@@ -571,6 +575,9 @@ export default function Dashboard() {
                 {t("dashboard.profile")}
               </TabsTrigger>
             </TabsList>
+            {/* Keeps the selected tab in view when navigating from the bottom
+                bar (?tab= can select a trigger that's scrolled off-screen). */}
+            <ActiveTabScroll />
           </ScrollableTabs>
 
           {/* ─── My Bids ──────────────────────────────────────────────────── */}

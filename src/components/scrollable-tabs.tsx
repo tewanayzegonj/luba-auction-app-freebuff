@@ -70,7 +70,7 @@ export function ScrollableTabs({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="absolute inset-y-0 left-0 z-10 flex w-11 items-center justify-start bg-gradient-to-r from-background via-background/80 to-transparent pl-0.5 text-muted-foreground active:text-foreground md:hidden"
+            className="absolute inset-y-0 left-0 z-10 flex w-7 items-center justify-start bg-gradient-to-r from-background/90 via-background/40 to-transparent pl-0.5 text-muted-foreground/80 active:text-foreground md:hidden"
           >
             <ChevronLeft className="size-4" />
           </motion.button>
@@ -95,7 +95,7 @@ export function ScrollableTabs({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-0.5 text-muted-foreground active:text-foreground md:hidden"
+            className="absolute inset-y-0 right-0 z-10 flex w-7 items-center justify-end bg-gradient-to-l from-background/90 via-background/40 to-transparent pr-0.5 text-muted-foreground/80 active:text-foreground md:hidden"
           >
             <ChevronRight className="size-4" />
           </motion.button>
@@ -103,4 +103,56 @@ export function ScrollableTabs({
       </AnimatePresence>
     </div>
   );
+}
+
+/**
+ * Keep the ACTIVE tab fully visible inside its ScrollableTabs strip.
+ * Section navigation (bottom bar → `?tab=`) can activate a trigger the user
+ * can't currently see; without this, a phone user lands on a hidden tab.
+ *
+ * Self-contained: renders nothing, watches Radix's own data-state flips, and
+ * adjusts with manual `scrollLeft` math — `scrollIntoView` would also scroll
+ * the WINDOW (every scrollable ancestor), yanking the page vertically.
+ *
+ * Usage: `<ActiveTabScroll />` right after `</TabsList>` inside
+ * `<ScrollableTabs>`.
+ */
+export function ActiveTabScroll() {
+  useEffect(() => {
+    const adjust = () => {
+      const trigger = document.querySelector<HTMLElement>(
+        '[data-slot="tabs-trigger"][data-state="active"]',
+      );
+      const strip = trigger?.closest('[data-slot="tabs-list"]')?.parentElement;
+      if (!trigger || !strip || strip.scrollWidth <= strip.clientWidth) return;
+
+      const tLeft = trigger.offsetLeft;
+      const tRight = tLeft + trigger.offsetWidth;
+      const viewLeft = strip.scrollLeft;
+      const viewRight = viewLeft + strip.clientWidth;
+
+      if (tLeft < viewLeft) {
+        strip.scrollTo({ left: tLeft, behavior: "smooth" });
+      } else if (tRight > viewRight) {
+        strip.scrollTo({ left: tRight - strip.clientWidth, behavior: "smooth" });
+      }
+    };
+
+    // Measure after layout settles (fonts/labels can shift the strip).
+    const raf = requestAnimationFrame(adjust);
+    // Watch future tab activations (clicks, ?tab= navigation) — Radix flips
+    // data-state on triggers. Scroll position changes don't fire this.
+    const mo = new MutationObserver(adjust);
+    mo.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-state"],
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      mo.disconnect();
+    };
+  }, []);
+
+  return null;
 }
