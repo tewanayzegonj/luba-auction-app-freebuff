@@ -1,5 +1,5 @@
 import '@vly-ai/integrations';
-import { MobileTabBar, SupportButton } from "@/components/luba";
+import { MobileTabBar } from "@/components/luba";
 import { Toaster } from "@/components/ui/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { LanguageProvider } from "@/lib/i18n";
@@ -209,7 +209,6 @@ createRoot(document.getElementById("root")!).render(
             </Suspense>
             {/* Inside the Router: both use routing hooks. */}
             <MobileTabBar />
-            <SupportButton />
           </BrowserRouter>
           <Toaster />
           </LanguageProvider>

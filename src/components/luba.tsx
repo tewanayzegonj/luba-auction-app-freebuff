@@ -26,6 +26,7 @@ import {
   Moon,
   Sun,
   LayoutDashboard,
+  LifeBuoy,
   LogIn,
   Menu,
   Search,
@@ -40,7 +41,12 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useLocation, useNavigate } from "react-router";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router";
 
 // ─── Brand wordmark ─────────────────────────────────────────────────────────
 
@@ -108,39 +114,16 @@ export function AlertsBell({
   );
 }
 
-// ─── Floating support button (HowLow's trust pattern) ───────────────────
+// ─── Support links (drawer section) ──────────────────────────────────────
 
-/**
- * Always-visible one-tap path to the Telegram bot. HowLow keeps a support
- * affordance on every screen — on a platform where users hand over real
- * money, "help is one tap away" is a trust feature, not decoration.
- * Route-aware bottom offset: above the tab bar normally, above the auction
- * page's sticky bid bar when one is present.
- */
-export function SupportButton() {
-  const location = useLocation();
-  const onAuction = location.pathname.startsWith("/auction/");
-  const botUrl = import.meta.env.VITE_TELEGRAM_BOT_USERNAME?.trim()
-    ? `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME.trim()}`
-    : "https://t.me/luba_auction_bot";
-  return (
-    <a
-      href={botUrl}
-      target="_blank"
-      rel="noreferrer"
-      aria-label="Get help on Telegram"
-      title="Direct support on Telegram"
-      className="fixed right-4 z-30 inline-flex size-13 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-layered-lg transition-transform hover:scale-105 active:scale-95 lg:right-6"
-      style={{
-        bottom: onAuction
-          ? "calc(9rem + var(--safe-bottom))"
-          : "calc(5.25rem + var(--safe-bottom))",
-      }}
-    >
-      <Send className="size-5.5" />
-    </a>
-  );
-}
+/** Human support contact — a real Telegram ACCOUNT (not the bot), so users
+    talk to a person. Configurable via env; falls back to the bot. */
+export const SUPPORT_TELEGRAM_URL =
+  import.meta.env.VITE_SUPPORT_TELEGRAM_USERNAME?.trim()
+    ? `https://t.me/${import.meta.env.VITE_SUPPORT_TELEGRAM_USERNAME.trim()}`
+    : import.meta.env.VITE_TELEGRAM_BOT_USERNAME?.trim()
+      ? `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME.trim()}`
+      : "https://t.me/luba_auction_bot";
 
 // ─── Language & theme toggles ─────────────────────────────────────────────
 
@@ -423,6 +406,23 @@ export function SiteHeader() {
                 </>
               )}
             </div>
+
+            {/* Contact support — a real Telegram ACCOUNT (a person), not the
+                bot. Deliberately outside the nav list so it reads as a footer
+                action, always available signed in or out. */}
+            <div className="mt-3 border-t border-border/70 pt-3">
+              <a
+                href={SUPPORT_TELEGRAM_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-12 items-center gap-2 rounded-lg px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                onClick={() => setOpen(false)}
+              >
+                <LifeBuoy className="size-4.5" />
+                Contact support
+                <Send className="ml-auto size-4" />
+              </a>
+            </div>
           </div>,
             document.body,
           )}
@@ -514,6 +514,7 @@ export function MobileTabBar() {
   const { isAuthenticated } = useAuth();
   const { t } = useLang();
   const navigate = useNavigate();
+  const setSearchParams = useSearchParams()[1];
   const authed = isAuthenticated;
   const path = window.location.pathname;
   // Dashboard tabs are selected with ?tab= (not hash) — read it so the
@@ -522,6 +523,28 @@ export function MobileTabBar() {
 
   // The auth screen is a focused flow — no tab bar there.
   if (path.startsWith("/auth")) return null;
+
+  /** Land on the exact section: make sure the right dashboard tab is
+      active, then smooth-scroll to its panel. */
+  const goToDashSection = (tab: string) => {
+    if (!authed) {
+      navigate(`/auth?returnTo=${encodeURIComponent(`/dashboard?tab=${tab}`)}`);
+      return;
+    }
+    if (window.location.pathname !== "/dashboard") {
+      navigate(`/dashboard?tab=${tab}&scroll=1`);
+      return;
+    }
+    // Already on the dashboard — switch tab if needed, then scroll.
+    if (dashTab !== tab) {
+      setSearchParams({ tab }, { replace: true });
+    }
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`#section-${tab}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
 
   const tabs = [
     {
@@ -544,39 +567,27 @@ export function MobileTabBar() {
       active: () =>
         path.startsWith("/auction") ||
         (path === "/dashboard" && dashTab === "bids"),
-      go: () =>
-        authed
-          ? navigate("/dashboard?tab=bids")
-          : navigate("/auth?returnTo=/dashboard?tab=bids"),
+      go: () => goToDashSection("bids"),
     },
     {
       label: t("wallet.balance"),
       icon: Wallet,
       active: () =>
         path === "/dashboard" && (dashTab === "wallet" || !dashTab),
-      go: () =>
-        authed
-          ? navigate("/dashboard?tab=wallet")
-          : navigate("/auth?returnTo=/dashboard?tab=wallet"),
+      go: () => goToDashSection("wallet"),
     },
     {
       label: t("dashboard.notifications"),
       icon: Bell,
       active: () =>
         path === "/dashboard" && dashTab === "notifications",
-      go: () =>
-        authed
-          ? navigate("/dashboard?tab=notifications")
-          : navigate("/auth?returnTo=/dashboard?tab=notifications"),
+      go: () => goToDashSection("notifications"),
     },
     {
       label: t("dashboard.profile"),
       icon: Settings,
       active: () => path === "/dashboard" && dashTab === "profile",
-      go: () =>
-        authed
-          ? navigate("/dashboard?tab=profile")
-          : navigate("/auth?returnTo=/dashboard?tab=profile"),
+      go: () => goToDashSection("profile"),
     },
   ] as const;
 

@@ -121,6 +121,26 @@ export default function Dashboard() {
     setAlertsBannerDismissed(localStorage.getItem("luba.dismissedAlerts") === "1");
   }, [user]);
 
+  // Cross-page section landing: /dashboard?tab=X&scroll=1 scrolls to the
+  // panel once it's mounted (retry ~1s for lazy content), then cleans the
+  // URL so back-navigation doesn't re-scroll.
+  useEffect(() => {
+    if (searchParams.get("scroll") !== "1" || !requestedTab) return;
+    let frames = 0;
+    const tryScroll = () => {
+      const el = document.getElementById(`section-${requestedTab}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        searchParams.delete("scroll");
+        setSearchParams(searchParams, { replace: true });
+      } else if (frames++ < 60) {
+        requestAnimationFrame(tryScroll);
+      }
+    };
+    requestAnimationFrame(tryScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedTab]);
+
   useEffect(() => {
     if (user && !user.name && !onboardingDismissed) {
       setNameInput("");
@@ -485,7 +505,7 @@ export default function Dashboard() {
           </ScrollableTabs>
 
           {/* ─── My Bids ──────────────────────────────────────────────────── */}
-          <TabsContent value="bids" className="mt-5">
+          <TabsContent value="bids" id="section-bids" className="mt-5 scroll-mt-24">
             {myBids === undefined ? (
               <LoadingRows />
             ) : myBids.length === 0 ? (
@@ -603,7 +623,7 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* ─── Wallet ───────────────────────────────────────────────────── */}
-          <TabsContent value="wallet" className="mt-5">
+          <TabsContent value="wallet" id="section-wallet" className="mt-5 scroll-mt-24">
             <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
               <Card className="border-border shadow-layered">
                 <CardHeader>
@@ -817,7 +837,7 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* ─── Notifications ────────────────────────────────────────────── */}
-          <TabsContent value="notifications" className="mt-5">
+          <TabsContent value="notifications" id="section-notifications" className="mt-5 scroll-mt-24">
             {notifications === undefined ? (
               <LoadingRows />
             ) : notifications.length === 0 ? (
@@ -938,17 +958,17 @@ export default function Dashboard() {
           </TabsContent>
 
           {/* ─── Watchlist ────────────────────────────────────────────────── */}
-          <TabsContent value="watchlist" className="mt-5">
+          <TabsContent value="watchlist" id="section-watchlist" className="mt-5 scroll-mt-24">
             <WatchlistPanel />
           </TabsContent>
 
           {/* ─── Receipts ─────────────────────────────────────────────────── */}
-          <TabsContent value="receipts" className="mt-5">
+          <TabsContent value="receipts" id="section-receipts" className="mt-5 scroll-mt-24">
             <ReceiptsPanel />
           </TabsContent>
 
           {/* ─── Profile ──────────────────────────────────────────────────── */}
-          <TabsContent value="profile" className="mt-5">
+          <TabsContent value="profile" id="section-profile" className="mt-5 scroll-mt-24">
             <div className="grid max-w-4xl gap-5">
               <Card className="border-border shadow-layered">
                 <CardHeader>
