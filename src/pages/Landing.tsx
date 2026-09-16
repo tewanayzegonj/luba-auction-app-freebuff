@@ -227,8 +227,9 @@ export default function Landing() {
             </div>
           ) : (
             /* Phones: single-column full-width row cards — thumb-sized
-               targets, no 160px cramping. lg: the 3-col grid. */
-            <div className="mt-6 flex flex-col gap-3 sm:mt-8 lg:grid lg:grid-cols-3 lg:gap-5">
+               targets, no 160px cramping. sm+: proper 2-up media-top cards,
+               lg: the 3-col grid. */
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:grid sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
               {liveAuctions.map((a) => (
                 <AuctionCard
                   key={a._id}

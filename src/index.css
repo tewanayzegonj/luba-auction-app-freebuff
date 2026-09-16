@@ -190,6 +190,39 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* ─── Horizontal-overflow guards (last-resort net) ──────────────────
+     The layout should never overflow by construction; these catch stray
+     content (long codes, unbroken URLs, wide tables outside .table-scroll,
+     mis-sized flex children) so one bad element can never stretch the page.
+     Full-width fixed bars (tab bar, bid bar) need min-width:auto instead —
+     they're inset-x-0 and must span the viewport exactly. */
+  body,
+  header,
+  main,
+  section,
+  div,
+  footer {
+    min-width: 0;
+  }
+  /* Percentage caps (not 100vw — vw includes the scrollbar width, which
+     itself overflows by ~17px on classic-scrollbar browsers). Combined with
+     min-width:0 above, every block is mathematically capped at its parent. */
+  body,
+  #root,
+  main,
+  section {
+    max-width: 100%;
+  }
+  header > div,
+  footer > div,
+  nav > div {
+    max-width: 100%;
+  }
+  body,
+  #root {
+    overflow-x: clip;
+  }
   .table-scroll table {
     min-width: 640px;
   }

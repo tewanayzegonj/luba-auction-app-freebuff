@@ -166,8 +166,9 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
         <LubaWordmark />
 
-        {/* Code search on desktop — sitewide quick jump. */}
-        <div className="relative hidden md:block">
+        {/* Code search on desktop — sitewide quick jump. Narrow at lg so the
+            whole header fits 1024px; full width from xl. */}
+        <div className="relative hidden lg:block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={code}
@@ -176,27 +177,28 @@ export function SiteHeader() {
               if (e.key === "Enter") goToCode();
             }}
             placeholder="Search auction code…"
-            className="h-9 w-44 rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50 xl:w-56"
+            className="h-9 w-36 rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50 xl:w-56"
             aria-label="Search by auction code"
           />
         </div>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           <Button variant="ghost" asChild>
             <a href="/#auctions" onClick={scrollToAnchor}>{t("nav.auctions")}</a>
           </Button>
           <Button variant="ghost" asChild>
             <Link to="/winners">Winners</Link>
           </Button>
-          <Button variant="ghost" asChild>
+          {/* Anchor links fit from xl — below that they live in the drawer. */}
+          <Button variant="ghost" className="hidden xl:inline-flex" asChild>
             <a href="/#how-it-works" onClick={scrollToAnchor}>{t("nav.howItWorks")}</a>
           </Button>
-          <Button variant="ghost" asChild>
+          <Button variant="ghost" className="hidden xl:inline-flex" asChild>
             <a href="/#faq" onClick={scrollToAnchor}>{t("nav.faq")}</a>
           </Button>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <LangToggle />
           <ThemeToggle />
           {isLoading ? null : isAuthenticated ? (
@@ -240,9 +242,9 @@ export function SiteHeader() {
           )}
         </div>
 
-        {/* Phones: alerts + search toggle + hamburger. Language/theme live
+        {/* Below lg: alerts + search toggle + hamburger. Language/theme live
             in the drawer so the top bar stays one thumb-row tall. */}
-        <div className="flex items-center gap-1.5 md:hidden">
+        <div className="flex items-center gap-1.5 lg:hidden">
           {isLoading ? null : isAuthenticated ? <AlertsBell className="border-0 bg-transparent" /> : null}
           <button
             className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card"
@@ -265,7 +267,7 @@ export function SiteHeader() {
 
       {/* Mobile search row — full-width input under the top bar. */}
       {searchOpen && (
-        <div className="border-t border-border/70 bg-background px-4 py-3 md:hidden">
+        <div className="border-t border-border/70 bg-background px-4 py-3 lg:hidden">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -286,16 +288,16 @@ export function SiteHeader() {
         </div>
       )}
 
-      {/* Mobile drawer: fixed overlay closes on outside tap (§3.12). */}
+      {/* Drawer (below lg): fixed overlay closes on outside tap (§3.12). */}
       {open && (
         <>
           <div
             aria-hidden
-            className="fixed inset-0 top-16 z-30 bg-black/40 md:hidden"
+            className="fixed inset-0 top-16 z-30 bg-black/40 lg:hidden"
             onClick={() => setOpen(false)}
           />
           <div
-            className="relative z-40 border-t border-border/70 bg-background px-4 py-3 md:hidden"
+            className="relative z-40 border-t border-border/70 bg-background px-4 py-3 lg:hidden"
             style={{ paddingBottom: "calc(0.75rem + var(--safe-bottom))" }}
           >
             <div className="mb-2 flex items-center gap-2">
@@ -509,7 +511,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 backdrop-blur-lg md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 backdrop-blur-lg lg:hidden"
       style={{ paddingBottom: "var(--safe-bottom)" }}
     >
       <div className="mx-auto grid max-w-lg grid-cols-5">
@@ -832,11 +834,12 @@ export function AuctionCard({
   return (
     <Link
       to={`/auction/${auction.auctionCode}`}
-      className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
+      className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg sm:flex-col"
     >
-      {/* Phones: a fixed 96px square thumb in a full-width row card (the
-          booking/fintech list pattern — no more 160px-wide crammed cards).
-          sm+: the thumb becomes the classic fluid 16:10 media area. */}
+      {/* Phones: horizontal row (96px thumb + content). sm+: media-on-top
+          card — the thumb's sm:w-full REQUIRES the column direction, or the
+          shrink-0 thumb forces the row ~1.6× past the card width and
+          stretches the whole page horizontally. */}
       <div className="relative size-24 shrink-0 sm:aspect-[16/10] sm:size-auto sm:w-full sm:self-stretch">
         <PrizeVisual
           emoji={prize?.emoji}

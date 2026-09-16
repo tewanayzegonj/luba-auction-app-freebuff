@@ -76,7 +76,7 @@ export default function Winners() {
               <Link
                 key={w.resultId}
                 to={`/auction/${w.auctionCode}`}
-                className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
+                className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg sm:flex-col"
               >
                 <div className="size-20 shrink-0 sm:aspect-[4/3] sm:size-auto sm:w-full sm:self-stretch">
                   <PrizeVisual
