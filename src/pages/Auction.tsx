@@ -346,7 +346,17 @@ export default function AuctionPage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 md:pb-8">
+      {/* Bottom clearance must clear the fixed stack: mobile tab bar (64px +
+          safe area) + sticky bid bar (~64px) + breathing room. The bid bar only
+          renders while the auction is open. */}
+      <main
+        className={cn(
+          "mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6",
+          isOpen
+            ? "pb-[calc(9.5rem+env(safe-area-inset-bottom))] md:pb-24 lg:pb-8"
+            : "pb-24 md:pb-8",
+        )}
+      >
         <Button
           variant="ghost"
           className="-ml-2 mb-4 gap-1.5 text-muted-foreground"
@@ -445,6 +455,7 @@ export default function AuctionPage() {
                   </div>
                 </div>
               </div>
+            </div>
 
             {/* Watchlist toggle */}
             {isAuthenticated && (
@@ -587,7 +598,6 @@ export default function AuctionPage() {
                 </div>
               </div>
             )}
-            </div>
 
             {/* Result banner for completed auctions */}
             {auction.result && (
@@ -1074,9 +1084,11 @@ export default function AuctionPage() {
           Hidden on lg where the sticky side panel owns the CTA. */}
       {isOpen && (
         <div
-          className="fixed inset-x-0 bottom-16 z-30 border-t border-border/70 bg-background/92 px-4 py-3 backdrop-blur-lg lg:hidden"
+          className="fixed inset-x-0 z-30 border-t border-border/70 bg-background/92 px-4 py-3 backdrop-blur-lg lg:hidden"
           style={{
-            // Sit flush above the mobile tab bar; own safe-area padding.
+            // Sit flush above the mobile tab bar, which itself grows by the
+            // home-indicator safe area — so our offset must include it too.
+            bottom: "calc(4rem + var(--safe-bottom))",
             paddingBottom: "max(0.75rem, var(--safe-bottom))",
           }}
         >

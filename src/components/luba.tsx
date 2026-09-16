@@ -333,6 +333,9 @@ export function MobileTabBar() {
   const navigate = useNavigate();
   const authed = isAuthenticated;
   const path = window.location.pathname;
+  // Dashboard tabs are selected with ?tab= (not hash) — read it so the
+  // active highlight actually tracks My Bids / Wallet / Profile.
+  const dashTab = new URLSearchParams(window.location.search).get("tab");
 
   // The auth screen is a focused flow — no tab bar there.
   if (path.startsWith("/auth")) return null;
@@ -341,7 +344,7 @@ export function MobileTabBar() {
     {
       label: t("nav.auctions"),
       icon: Gavel,
-      active: (p: string) => p === "/",
+      active: () => path === "/",
       go: () => {
         if (window.location.pathname === "/") {
           document
@@ -355,19 +358,19 @@ export function MobileTabBar() {
     {
       label: t("dashboard.myBids"),
       icon: Eye,
-      active: (p: string) => p.startsWith("/auction") || (p === "/dashboard" && window.location.hash.includes("bids")),
+      active: () => path.startsWith("/auction") || (path === "/dashboard" && dashTab === "bids"),
       go: () => (authed ? navigate("/dashboard?tab=bids") : navigate("/auth?returnTo=/dashboard?tab=bids")),
     },
     {
       label: t("wallet.balance"),
       icon: Wallet,
-      active: (p: string) => p === "/dashboard",
+      active: () => path === "/dashboard" && (dashTab === "wallet" || !dashTab),
       go: () => (authed ? navigate("/dashboard?tab=wallet") : navigate("/auth?returnTo=/dashboard?tab=wallet")),
     },
     {
       label: t("dashboard.profile"),
       icon: Settings,
-      active: (p: string) => p === "/dashboard" && window.location.hash.includes("profile"),
+      active: () => path === "/dashboard" && dashTab === "profile",
       go: () => (authed ? navigate("/dashboard?tab=profile") : navigate("/auth?returnTo=/dashboard?tab=profile")),
     },
   ] as const;
@@ -380,7 +383,7 @@ export function MobileTabBar() {
     >
       <div className="mx-auto grid max-w-lg grid-cols-4">
         {tabs.map((tab) => {
-          const isActive = tab.active(path);
+          const isActive = tab.active();
           return (
             <button
               key={tab.label}
@@ -403,7 +406,13 @@ export function MobileTabBar() {
 export function SiteFooter() {
   const { t } = useLang();
   return (
-    <footer className="border-t border-border/70 bg-card/60 pb-16 md:pb-0">
+    <footer
+      className="border-t border-border/70 bg-card/60"
+      style={{
+        // Clear the fixed mobile tab bar (64px) plus the home-indicator area.
+        paddingBottom: "calc(5rem + var(--safe-bottom))",
+      }}
+    >
       <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <LubaWordmark />
