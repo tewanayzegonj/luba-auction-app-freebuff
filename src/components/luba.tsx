@@ -778,37 +778,29 @@ export function PrizeVisual({
       <span
         className={cn(
           "relative block h-full w-full overflow-hidden",
-          // Opaque backdrop so transparent PNG pixels never show the card's
-          // plain background through the blurred layer (the "one side white"
-          // artifact).
-          "bg-gradient-to-br",
-          gradient,
+          /* Studio surface (Amazon/Jumia/Google-Shopping pattern): a neutral,
+             theme-aware backdrop the product floats on — NOT a blur. Blur
+             backdrops are a media-app pattern; in commerce cards they
+             artifact at small sizes and fight the UI. Neutral surface +
+             object-contain is deterministic and clean at every size. */
+          "bg-gradient-to-b from-muted via-card to-card",
           className,
         )}
       >
-        {/* Blurred self-backdrop (Apple Music-style): a fixed 96px overscan on
-            every side. blur-2xl's Gaussian tail fades to transparent over ~2σ
-            ≈ 80px from the element's edge — scale-based overscan (scale-150)
-            only hides that on large boxes, which is why phone thumbs showed a
-            bare gradient on the sides. A fixed -inset-24 puts the element edge
-            96px out on EVERY container, so the fade band never enters view. */}
-        <img
-          src={imageUrl}
-          alt=""
+        {/* Soft centered glow in the brand hue — gives the surface depth
+            without depending on the image at all (nothing to artifact). */}
+        <span
           aria-hidden
-          className="absolute -inset-24 h-auto w-auto object-cover blur-2xl saturate-150 brightness-90"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
+          className="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_42%,oklch(from_var(--primary)_l_c_h/0.08),transparent_72%)]"
         />
-        {/* Foreground: the full product, never cropped. */}
+        {/* Foreground: the full product, generous padding so it never
+            touches the card edges (studio-photography spacing). */}
         <img
           src={imageUrl}
           alt=""
-          className="relative h-full w-full object-contain drop-shadow-lg"
+          className="relative h-full w-full object-contain p-3 drop-shadow-md sm:p-4"
           onError={(e) => {
             e.currentTarget.src = "/placeholder.svg";
-            e.currentTarget.style.objectFit = "cover";
           }}
         />
       </span>
