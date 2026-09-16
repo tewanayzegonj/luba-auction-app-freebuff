@@ -26,12 +26,14 @@ import {
   LayoutDashboard,
   LogIn,
   Menu,
+  Search,
   Settings,
   ShieldCheck,
   Sparkles,
   Timer,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -110,15 +112,45 @@ export function SiteHeader() {
   const { t } = useLang();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  // Auction-code search: type a code (e.g. LUBA-2026-107) → Enter jumps to it.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [code, setCode] = useState("");
+
+  const goToCode = () => {
+    const c = code.trim().toUpperCase();
+    if (!c) return;
+    navigate(`/auction/${encodeURIComponent(c)}`);
+    setCode("");
+    setSearchOpen(false);
+    setOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
         <LubaWordmark />
+
+        {/* Code search on desktop — sitewide quick jump. */}
+        <div className="relative hidden md:block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") goToCode();
+            }}
+            placeholder="Search auction code…"
+            className="h-9 w-44 rounded-lg border border-border bg-card pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary/50 xl:w-56"
+            aria-label="Search by auction code"
+          />
+        </div>
 
         <nav className="hidden items-center gap-1 md:flex">
           <Button variant="ghost" asChild>
             <a href="/#auctions" onClick={scrollToAnchor}>{t("nav.auctions")}</a>
+          </Button>
+          <Button variant="ghost" asChild>
+            <Link to="/winners">Winners</Link>
           </Button>
           <Button variant="ghost" asChild>
             <a href="/#how-it-works" onClick={scrollToAnchor}>{t("nav.howItWorks")}</a>
@@ -170,15 +202,50 @@ export function SiteHeader() {
           )}
         </div>
 
-        <button
-          className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card md:hidden"
-          onClick={() => setOpen((o) => !o)}
-          aria-label="Toggle menu"
-          aria-expanded={open}
-        >
-          <Menu className="size-4.5" />
-        </button>
+        {/* Phones: search toggle + hamburger. Language/theme live in the
+            drawer so the top bar stays one thumb-row tall. */}
+        <div className="flex items-center gap-1.5 md:hidden">
+          <button
+            className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card"
+            onClick={() => setSearchOpen((o) => !o)}
+            aria-label="Toggle search"
+            aria-expanded={searchOpen}
+          >
+            {searchOpen ? <X className="size-4.5" /> : <Search className="size-4.5" />}
+          </button>
+          <button
+            className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card"
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Toggle menu"
+            aria-expanded={open}
+          >
+            <Menu className="size-4.5" />
+          </button>
+        </div>
       </div>
+
+      {/* Mobile search row — full-width input under the top bar. */}
+      {searchOpen && (
+        <div className="border-t border-border/70 bg-background px-4 py-3 md:hidden">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") goToCode();
+              }}
+              placeholder="Enter auction code, e.g. LUBA-2026-107"
+              autoFocus
+              className="h-12 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-base outline-none placeholder:text-muted-foreground/70 focus:border-primary/50"
+              aria-label="Search by auction code"
+            />
+          </div>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Tip: find the code on any auction listing — it's shown above the prize name.
+          </p>
+        </div>
+      )}
 
       {/* Mobile drawer: fixed overlay closes on outside tap (§3.12). */}
       {open && (
@@ -201,6 +268,9 @@ export function SiteHeader() {
             <div className="flex flex-col gap-1">
               <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                 <a href="/#auctions">{t("nav.auctions")}</a>
+              </Button>
+              <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
+                <Link to="/winners">Winners</Link>
               </Button>
               <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                 <a href="/#how-it-works">{t("nav.howItWorks")}</a>
@@ -428,6 +498,11 @@ export function SiteFooter() {
             <li>
               <Link className="hover:text-foreground" to="/#auctions">
                 Live auctions
+              </Link>
+            </li>
+            <li>
+              <Link className="hover:text-foreground" to="/winners">
+                Winners
               </Link>
             </li>
             <li>
@@ -685,38 +760,43 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
   return (
     <Link
       to={`/auction/${auction.auctionCode}`}
-      className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
+      className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
     >
-      <div className="relative aspect-[16/10] w-full overflow-hidden">
+      {/* Phones: a fixed 96px square thumb in a full-width row card (the
+          booking/fintech list pattern — no more 160px-wide crammed cards).
+          sm+: the thumb becomes the classic fluid 16:10 media area. */}
+      <div className="relative size-24 shrink-0 sm:aspect-[16/10] sm:size-auto sm:w-full sm:self-stretch">
         <PrizeVisual
           emoji={prize?.emoji}
           imageUrl={prize?.imageUrl}
           seed={auction.auctionCode}
         />
-        <div className="absolute left-3 top-3 flex gap-2">
+        <div className="absolute left-3 top-3 hidden gap-2 sm:flex">
           <StatusBadge status={auction.status} />
         </div>
         {prize?.category && (
-          <span className="absolute right-3 top-3 rounded-full bg-background/70 px-2.5 py-1 font-mono text-[11px] font-medium text-foreground/80 ring-1 ring-inset ring-foreground/10 backdrop-blur">
+          <span className="absolute right-3 top-3 hidden rounded-full bg-background/70 px-2.5 py-1 font-mono text-[11px] font-medium text-foreground/80 ring-1 ring-inset ring-foreground/10 backdrop-blur sm:inline-flex">
             {prize.category}
           </span>
         )}
       </div>
-      {/* Narrow 2-up phone layout: tighter padding/type, hidden code label.
-          md+ keeps the comfortable sizing. */}
-      <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-4">
-        <div>
-          <p className="hidden text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:block">
-            {auction.auctionCode}
-          </p>
-          <h3 className="mt-0.5 line-clamp-2 text-[13px] font-semibold leading-snug text-foreground group-hover:text-primary sm:text-[15px]">
-            {prize?.title ?? auction.title}
-          </h3>
-        </div>
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:gap-3 sm:p-4">
+        <p className="hidden text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:block">
+          {auction.auctionCode}
+        </p>
+        {/* Phones: only surface non-OPEN status inline (CLOSING is urgent);
+            sm+ always shows the overlay badge on the image instead. */}
+        {auction.status !== "OPEN" && (
+          <div className="mb-1 sm:hidden">
+            <StatusBadge status={auction.status} />
+          </div>
+        )}
+        <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground group-hover:text-primary sm:mt-0.5 sm:text-[15px]">
+          {prize?.title ?? auction.title}
+        </h3>
 
-        <div className="mt-auto space-y-2 sm:space-y-3">
-          {/* §3.10: engagement stats live on the card itself. Compact on
-              phones — icon+value only. */}
+        <div className="mt-auto space-y-1.5 pt-2 sm:space-y-3 sm:pt-0">
+          {/* §3.10: engagement stats live on the card itself. */}
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground sm:gap-3 sm:text-xs">
             <span className="inline-flex items-center gap-1">
               <Eye className="size-3.5" />
@@ -731,16 +811,16 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
               {compactCount(auction.participantCount ?? 0)}
             </span>
           </div>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="min-w-0 truncate">
               Worth {formatETBShort(prize?.valueSantims ?? 0)}
             </span>
-          </div>
-          <div className="flex items-center justify-between gap-2 border-t border-border/70 pt-2 sm:pt-3">
-            <Countdown to={auction.closesAt} compact />
             <span className="shrink-0 whitespace-nowrap rounded-lg bg-primary/10 px-2 py-1 font-mono text-[11px] font-semibold text-primary ring-1 ring-inset ring-primary/20 sm:px-2.5 sm:text-xs">
               Fee {formatETBShort(auction.bidServiceFeeSantims)}
             </span>
+          </div>
+          <div className="flex items-center justify-between border-t border-border/70 pt-1.5 sm:pt-3">
+            <Countdown to={auction.closesAt} compact />
           </div>
         </div>
       </div>

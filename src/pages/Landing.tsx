@@ -35,18 +35,10 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 
-/** First-name + last-initial masking for the winners strip. */
-function maskName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return `${parts[0].slice(0, 2)}***`;
-  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
-}
-
 export default function Landing() {
   const { isAuthenticated } = useAuth();
   const { t } = useLang();
   const auctions = useQuery(api.auctions.listOpenAuctions, {}) ?? [];
-  const winners = useQuery(api.auctions.recentWinners, {}) ?? [];
   const openAuctions = auctions.filter(
     (a) => a.status === "OPEN" || a.status === "CLOSING",
   );
@@ -209,11 +201,13 @@ export default function Landing() {
           </div>
 
           {auctions === undefined ? (
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-5 lg:grid-cols-3">
+            /* Skeleton mirrors the real layout: full-width rows on phones,
+               the 3-col grid from lg. */
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 lg:grid lg:grid-cols-3 lg:gap-5">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-48 animate-pulse rounded-xl border border-border bg-card sm:h-72"
+                  className="h-28 animate-pulse rounded-xl border border-border bg-card sm:h-64"
                 />
               ))
               }
@@ -228,9 +222,9 @@ export default function Landing() {
               </p>
             </div>
           ) : (
-            /* 2-up on phones keeps cards scannable; a 1-up stack buries the
-               second card below the fold. */
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-5 lg:grid-cols-3">
+            /* Phones: single-column full-width row cards — thumb-sized
+               targets, no 160px cramping. lg: the 3-col grid. */
+            <div className="mt-6 flex flex-col gap-3 sm:mt-8 lg:grid lg:grid-cols-3 lg:gap-5">
               {liveAuctions.map((a) => (
                 <AuctionCard key={a._id} auction={a} />
               ))}
@@ -238,50 +232,6 @@ export default function Landing() {
           )}
         </div>
       </section>
-
-      {/* ─── Recent winners: social proof no competitor shows ────────────── */}
-      {winners.length > 0 && (
-        <section className="border-b border-border/70 py-12">
-          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight md:text-2xl">
-                  Recent winners
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Real wins, real prices — every result independently verifiable
-                  on its auction page.
-                </p>
-              </div>
-              <Trophy className="hidden size-5 text-amber-400 sm:block" />
-            </div>
-            <div className="snap-x-rail mt-6 md:grid md:grid-cols-3 md:gap-4">
-              {winners.map((w) => (
-                <Link
-                  key={w.resultId}
-                  to={`/auction/${w.auctionCode}`}
-                  className="group flex w-72 shrink-0 items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg md:w-auto"
-                >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-400/15 text-lg">
-                    🏆
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold group-hover:text-primary">
-                      {w.prizeTitle}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {w.winnerName ? `${maskName(w.winnerName)} won with ` : "Won with "}
-                      <span className="font-mono font-semibold text-primary">
-                        {formatETB(w.winningBidValueSantims)}
-                      </span>
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* ─── Ending soon ──────────────────────────────────────────────────── */}
       {endingSoon.length > 0 && (
@@ -295,7 +245,7 @@ export default function Landing() {
                 <Link
                   key={a._id}
                   to={`/auction/${a.auctionCode}`}
-                  className="group flex items-center gap-4 rounded-xl border border-border bg-card p-3.5 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
+                  className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-3 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg sm:p-3.5"
                 >
                   <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
                     <PrizeVisual
@@ -308,12 +258,14 @@ export default function Landing() {
                     <p className="truncate text-sm font-semibold group-hover:text-primary">
                       {a.prize?.title ?? a.title}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       Fee {formatETB(a.bidServiceFeeSantims)} ·{" "}
                       {a.bidCount} bids
                     </p>
+                    <div className="mt-1.5">
+                      <Countdown to={a.closesAt} compact />
+                    </div>
                   </div>
-                  <Countdown to={a.closesAt} compact className="shrink-0" />
                 </Link>
               ))}
             </div>
@@ -389,15 +341,15 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Recent winners ───────────────────────────────────────────────── */}
+      {/* ─── Winners (social proof + settlement record, consolidated) ────── */}
       <section className="border-y border-border/70 bg-card/50 py-12">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
           <h2 className="text-xl font-bold tracking-tight md:text-2xl">
-            Settlement record
+            Winners & settlement record
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Every closed auction resolves deterministically and is published
-            here — permanently and verifiably.
+            here — permanently and independently verifiable.
           </p>
           <RecentWinners />
         </div>

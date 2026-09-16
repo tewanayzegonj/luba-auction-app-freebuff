@@ -477,7 +477,7 @@ export const recentWinners = query({
     const results = await ctx.db
       .query("auctionResults")
       .order("desc")
-      .take(12);
+      .take(30);
 
     const winners = [];
     for (const r of results) {
@@ -485,16 +485,22 @@ export const recentWinners = query({
       const auction = await ctx.db.get(r.auctionId);
       const winner = await ctx.db.get(r.winnerUserId);
       const prize = auction ? await ctx.db.get(auction.prizeId) : null;
+      const prizeImageUrl =
+        prize?.imageStorageId !== undefined
+          ? await ctx.storage.getUrl(prize.imageStorageId)
+          : prize?.imageUrl;
       winners.push({
         resultId: r._id,
         auctionCode: auction?.auctionCode ?? "",
         prizeTitle: prize?.title ?? auction?.title ?? "Prize",
+        prizeImageUrl,
+        prizeEmoji: prize?.emoji ?? null,
         winnerName: winner?.name ?? null,
         winningBidValueSantims: r.winningBidValueSantims ?? 0,
         bidCount: r.totalBids,
         resolvedAt: r.resolvedAt,
       });
-      if (winners.length >= 6) break;
+      if (winners.length >= 12) break;
     }
     return winners;
   },

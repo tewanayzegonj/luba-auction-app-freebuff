@@ -653,31 +653,33 @@ export default function AuctionPage() {
                       Auction rules
                     </h3>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center justify-between gap-4">
+                {/* Rows wrap at 320px instead of overflowing (long range
+                    values drop under their label). */}
+                <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Bid range</span>
                   <span className="font-mono text-foreground">
                     {formatETB(auction.minBidSantims)} – {formatETB(auction.maxBidSantims)}
                   </span>
                 </li>
-                <li className="flex items-center justify-between gap-4">
+                <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Increment</span>
                   <span className="font-mono text-foreground">
                     {formatETB(auction.bidIncrementSantims)}
                   </span>
                 </li>
-                <li className="flex items-center justify-between gap-4">
+                <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Bid service fee</span>
                   <span className="font-mono text-foreground">
                     {formatETB(fee)} per bid
                   </span>
                 </li>
-                <li className="flex items-center justify-between gap-4">
+                <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Max bids per person</span>
                   <span className="font-mono text-foreground">
                     {auction.maximumBidsPerUser}
                   </span>
                 </li>
-                <li className="flex items-center justify-between gap-4">
+                <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Consecutive bids</span>
                   <span className="text-foreground">
                     {auction.consecutiveBidPolicy === "THREE_THEN_BLOCK_TWO"
@@ -685,7 +687,7 @@ export default function AuctionPage() {
                       : "Unrestricted"}
                   </span>
                 </li>
-                <li className="flex items-center justify-between gap-4">
+                <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>If nobody wins</span>
                   <span className="text-foreground">
                     {auction.noWinnerPolicy === "CANCEL_AND_REFUND"

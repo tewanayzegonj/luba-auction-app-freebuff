@@ -33,6 +33,7 @@ import { formatETB, parseETBToSantims } from "@/lib/money";
 import { useLang } from "@/lib/i18n";
 import { WithdrawCard } from "@/components/withdraw-card";
 import { WinnerJourneyCard } from "@/components/winner-journey-card";
+import { DailyBonusCard } from "@/components/daily-bonus-card";
 import { cn } from "@/lib/utils";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
@@ -340,6 +341,11 @@ export default function Dashboard() {
               Sign out
             </Button>
           </div>
+        </div>
+
+        {/* Daily check-in bonus — one claim per Addis day, growing streak. */}
+        <div className="mt-5">
+          <DailyBonusCard />
         </div>
 
         {/* Stat cards — 2×2 on phones (4-across stamps get illegible),

@@ -20,6 +20,7 @@ const AuctionPage = lazy(() => import("./pages/Auction.tsx"));
 const AdminPage = lazy(() => import("./pages/Admin.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Legal = lazy(() => import("./pages/Legal.tsx"));
+const Winners = lazy(() => import("./pages/Winners.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -164,6 +165,7 @@ createRoot(document.getElementById("root")!).render(
                     </RequireAuth>
                   }
                 />
+                <Route path="/winners" element={<Winners />} />
                 <Route
                   path="/legal/terms"
                   element={<Legal doc="terms" />}

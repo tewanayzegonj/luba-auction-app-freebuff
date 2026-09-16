@@ -69,6 +69,10 @@ export const schema = defineSchema(
       referralCode: v.optional(v.string()), // unique, auto-generated
       referredBy: v.optional(v.id("users")),
       referredAt: v.optional(v.number()),
+      // Daily bonus streak: last claim day as "YYYY-MM-DD" in Africa/Addis_Ababa.
+      // One promo credit per calendar day; consecutive days grow the reward.
+      lastDailyBonusDate: v.optional(v.string()),
+      dailyBonusStreak: v.optional(v.number()),
       // Responsible play (self-set caps; admins cannot raise them)
       selfDepositCapSantims: v.optional(v.number()),
       selfDepositCapPendingSince: v.optional(v.number()),
