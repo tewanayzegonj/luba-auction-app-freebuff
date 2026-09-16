@@ -31,6 +31,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Send,
   Sparkles,
   Timer,
   Users,
@@ -38,7 +39,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 
 // ─── Brand wordmark ─────────────────────────────────────────────────────────
 
@@ -103,6 +104,40 @@ export function AlertsBell({
         </span>
       )}
     </Link>
+  );
+}
+
+// ─── Floating support button (HowLow's trust pattern) ───────────────────
+
+/**
+ * Always-visible one-tap path to the Telegram bot. HowLow keeps a support
+ * affordance on every screen — on a platform where users hand over real
+ * money, "help is one tap away" is a trust feature, not decoration.
+ * Route-aware bottom offset: above the tab bar normally, above the auction
+ * page's sticky bid bar when one is present.
+ */
+export function SupportButton() {
+  const location = useLocation();
+  const onAuction = location.pathname.startsWith("/auction/");
+  const botUrl = import.meta.env.VITE_TELEGRAM_BOT_USERNAME?.trim()
+    ? `https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME.trim()}`
+    : "https://t.me/luba_auction_bot";
+  return (
+    <a
+      href={botUrl}
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Get help on Telegram"
+      title="Direct support on Telegram"
+      className="fixed right-4 z-30 inline-flex size-13 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-layered-lg transition-transform hover:scale-105 active:scale-95 lg:right-6"
+      style={{
+        bottom: onAuction
+          ? "calc(9rem + var(--safe-bottom))"
+          : "calc(5.25rem + var(--safe-bottom))",
+      }}
+    >
+      <Send className="size-5.5" />
+    </a>
   );
 }
 
@@ -550,9 +585,9 @@ export function SiteFooter() {
         <div>
           <LubaWordmark />
           <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
-            A lowest-unique-bid auction engine: deterministic settlement,
-            server-authoritative timing, and an append-only ledger behind every
-            fee.
+            Pick the lowest amount nobody else picks — the lowest unique bid
+            wins the prize. Every fee is just a few Birr, every result is
+            published openly, and help is one tap away on Telegram.
           </p>
         </div>
         <div>

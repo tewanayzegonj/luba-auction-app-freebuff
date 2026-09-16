@@ -829,10 +829,47 @@ export default function Dashboard() {
               />
             ) : (
               <div className="space-y-3">
+                {/* HowLow's stats bar: Total / Unread / Read at a glance, with
+                    mark-all-read attached. One number per bucket, big type. */}
+                <div className="flex items-stretch justify-between gap-2 rounded-2xl border border-border bg-card p-3 shadow-layered">
+                  {[
+                    {
+                      label: "Total",
+                      value: notifications.length,
+                      tone: "text-foreground",
+                    },
+                    {
+                      label: "Unread",
+                      value: unreadCount,
+                      tone: unreadCount > 0 ? "text-amber-500" : "text-muted-foreground",
+                    },
+                    {
+                      label: "Read",
+                      value: notifications.length - unreadCount,
+                      tone: "text-muted-foreground",
+                    },
+                  ].map((s, i) => (
+                    <div
+                      key={s.label}
+                      className={cn(
+                        "flex-1 text-center",
+                        i > 0 && "border-l border-border/70",
+                      )}
+                    >
+                      <p className={cn("font-mono text-xl font-bold", s.tone)}>
+                        {s.value}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {s.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
                 <div className="flex justify-end">
                   <Button
                     variant="ghost"
                     size="sm"
+                    disabled={unreadCount === 0}
                     onClick={() =>
                       markRead({
                         ids: (notifications ?? [])

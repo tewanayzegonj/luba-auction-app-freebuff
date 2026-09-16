@@ -49,9 +49,9 @@ export default function Winners() {
             Winners
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground md:text-base">
-            Every result here was resolved deterministically — the lowest amount
-            submitted exactly once. Open any auction to verify the full math
-            yourself.
+            Every auction ends the same honest way: the lowest amount that
+            exactly one person picked wins. Open any auction to see every bid
+            and check the math yourself.
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
             <ShieldCheck className="size-3.5" />

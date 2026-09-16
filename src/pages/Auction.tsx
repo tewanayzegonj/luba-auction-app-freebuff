@@ -727,19 +727,64 @@ export default function AuctionPage() {
                     <Label htmlFor="bid-amount" className="text-sm">
                       Your bid amount
                     </Label>
-                    <div className="relative">
-                      <Input
-                        id="bid-amount"
-                        inputMode="decimal"
-                        placeholder="e.g. 2.00"
-                        value={amountInput}
-                        onChange={(e) => setAmountInput(e.target.value)}
-                        className="h-12 pr-16 font-mono text-lg"
+                    {/* Stepper input (HowLow pattern): ± buttons step by the
+                        auction's own increment — faster and less error-prone
+                        than typing on a phone keypad. Typing still works. */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label="Decrease bid amount"
                         disabled={!isAuthenticated || bidsLeft === 0}
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-sm text-muted-foreground">
-                        ETB
-                      </span>
+                        onClick={() => {
+                          const step =
+                            auction.bidIncrementSantims > 0
+                              ? auction.bidIncrementSantims
+                              : 25;
+                          const base = bidValueSantims ?? auction.minBidSantims;
+                          const next = Math.max(
+                            auction.minBidSantims,
+                            base - step,
+                          );
+                          setAmountInput((next / 100).toFixed(2));
+                        }}
+                        className="inline-flex size-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                      >
+                        −
+                      </button>
+                      <div className="relative min-w-0 flex-1">
+                        <Input
+                          id="bid-amount"
+                          inputMode="decimal"
+                          placeholder="e.g. 2.00"
+                          value={amountInput}
+                          onChange={(e) => setAmountInput(e.target.value)}
+                          className="h-12 pr-14 text-center font-mono text-lg"
+                          disabled={!isAuthenticated || bidsLeft === 0}
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-sm text-muted-foreground">
+                          ETB
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Increase bid amount"
+                        disabled={!isAuthenticated || bidsLeft === 0}
+                        onClick={() => {
+                          const step =
+                            auction.bidIncrementSantims > 0
+                              ? auction.bidIncrementSantims
+                              : 25;
+                          const base = bidValueSantims ?? auction.minBidSantims;
+                          const next = Math.min(
+                            auction.maxBidSantims,
+                            base + step,
+                          );
+                          setAmountInput((next / 100).toFixed(2));
+                        }}
+                        className="inline-flex size-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-xl font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-40"
+                      >
+                        +
+                      </button>
                     </div>
                     {bidValueSantims !== null && !validationError && (
                       <p
@@ -966,17 +1011,27 @@ export default function AuctionPage() {
               <span className="text-muted-foreground">Auction</span>
               <span className="font-medium">{auction.auctionCode}</span>
             </div>
+            {/* HowLow's color-coding: green = what you bid, red + pill = the
+                non-refundable fee. The two amounts are different financial
+                events; color teaches that instantly. */}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Bid value</span>
-              <span className="font-mono font-semibold">
+              <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                 {bidValueSantims !== null ? formatETB(bidValueSantims) : "—"}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">
                 Service fee (charged now)
               </span>
-              <span className="font-mono font-semibold">{formatETB(fee)}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="font-mono font-semibold text-rose-600 dark:text-rose-400">
+                  {formatETB(fee)}
+                </span>
+                <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                  Non-refundable
+                </span>
+              </span>
             </div>
             <Separator />
             <p className="text-xs leading-5 text-muted-foreground">
