@@ -1094,6 +1094,7 @@ export default function Dashboard() {
             </div>
           </TabsContent>
         </Tabs>
+        </PageFade>
       </main>
 
       {/* P2.5: display-name onboarding (dismissible) */}

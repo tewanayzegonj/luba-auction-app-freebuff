@@ -4,6 +4,7 @@ import {
   SiteFooter,
   SiteHeader,
 } from "@/components/luba";
+import { PageFade } from "@/components/motion-primitives";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { formatETB } from "@/lib/money";
@@ -41,6 +42,7 @@ export default function Winners() {
       <SiteHeader />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 md:py-14">
+        <PageFade>
         <div className="mx-auto max-w-2xl text-center">
           <span className="mx-auto flex size-12 items-center justify-center rounded-xl bg-amber-400/15 text-amber-400">
             <Trophy className="size-6" />
@@ -103,6 +105,7 @@ export default function Winners() {
             ))}
           </div>
         )}
+        </PageFade>
       </main>
 
       <SiteFooter />

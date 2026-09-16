@@ -384,4 +384,27 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* ── Subtle motion layer ─────────────────────────────────────────────
+     Small fade+rise for content that swaps in place (tab panels, dialogs).
+     Driven by data-state so Radix components pick it up automatically.
+     Disabled for users who prefer reduced motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    [data-slot="tabs-content"][data-state="active"],
+    dialog[open],
+    [role="dialog"][data-state="open"] {
+      animation: luba-content-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    @keyframes luba-content-in {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  }
 }
