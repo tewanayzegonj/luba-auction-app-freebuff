@@ -123,6 +123,31 @@ function RouteSyncer() {
   return null;
 }
 
+/** Scrolls to `#anchor` after navigating to /#anchor from another page (and
+    resets to top on plain navigation, which react-router never does). */
+function HashScroll() {
+  const location = useLocation();
+  useEffect(() => {
+    if (location.hash) {
+      // The landing page is lazy-loaded, so the section may not exist for a
+      // few frames after navigation. Retry until it mounts (or give up ~1s).
+      let frames = 0;
+      const tryScroll = () => {
+        const el = document.querySelector(location.hash);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (frames++ < 60) {
+          requestAnimationFrame(tryScroll);
+        }
+      };
+      requestAnimationFrame(tryScroll);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [location.pathname, location.hash]);
+  return null;
+}
+
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -134,6 +159,7 @@ createRoot(document.getElementById("root")!).render(
           <LanguageProvider>
           <BrowserRouter>
             <RouteSyncer />
+            <HashScroll />
             <Suspense fallback={<RouteLoading />}>
               <Routes>
                 <Route path="/" element={<Landing />} />

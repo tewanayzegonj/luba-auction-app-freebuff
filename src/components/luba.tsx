@@ -39,6 +39,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router";
 
 // ─── Brand wordmark ─────────────────────────────────────────────────────────
@@ -185,6 +186,10 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   // Auction-code search: type a code (e.g. LUBA-2026-107) → Enter jumps to it.
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Drawer hygiene: Escape closes it and the page behind can't scroll while
+  // the menu is open (standard drawer behavior — prevents scroll-behind
+  // feeling broken on touch).
   const [code, setCode] = useState("");
 
   const goToCode = () => {
@@ -195,6 +200,20 @@ export function SiteHeader() {
     setSearchOpen(false);
     setOpen(false);
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-md">
@@ -283,7 +302,10 @@ export function SiteHeader() {
           {isLoading ? null : isAuthenticated ? <AlertsBell className="border-0 bg-transparent" /> : null}
           <button
             className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card"
-            onClick={() => setSearchOpen((o) => !o)}
+            onClick={() => {
+              setOpen(false);
+              setSearchOpen((o) => !o);
+            }}
             aria-label="Toggle search"
             aria-expanded={searchOpen}
           >
@@ -291,7 +313,10 @@ export function SiteHeader() {
           </button>
           <button
             className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card"
-            onClick={() => setOpen((o) => !o)}
+            onClick={() => {
+              setSearchOpen(false);
+              setOpen((o) => !o);
+            }}
             aria-label="Toggle menu"
             aria-expanded={open}
           >
@@ -323,18 +348,28 @@ export function SiteHeader() {
         </div>
       )}
 
-      {/* Drawer (below lg): fixed overlay closes on outside tap (§3.12). */}
+      {/* Drawer (below lg): BOTH overlay and panel are portaled to
+          document.body. The header's backdrop-filter creates a containing
+          block that traps position:fixed descendants (CSS spec) — inside the
+          header the overlay could never cover the page, and the panel's
+          z-index was also capped by the header's own context. Portal order +
+          z-40/z-50 puts the overlay above the tab bar and support button, so
+          a tap ANYWHERE outside the menu closes it. */}
       {open && (
         <>
-          <div
-            aria-hidden
-            className="fixed inset-0 top-16 z-30 bg-black/40 lg:hidden"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="relative z-40 border-t border-border/70 bg-background px-4 py-3 lg:hidden"
-            style={{ paddingBottom: "calc(0.75rem + var(--safe-bottom))" }}
-          >
+          {createPortal(
+            <div
+              aria-hidden
+              className="fixed inset-0 top-16 z-40 bg-black/40 lg:hidden"
+              onClick={() => setOpen(false)}
+            />,
+            document.body,
+          )}
+          {createPortal(
+            <div
+              className="fixed inset-x-0 top-16 z-50 border-b border-border/70 bg-background px-4 py-3 lg:hidden"
+              style={{ paddingBottom: "calc(0.75rem + var(--safe-bottom))" }}
+            >
             <div className="mb-2 flex items-center gap-2">
               <LangToggle />
               <ThemeToggle />
@@ -349,7 +384,7 @@ export function SiteHeader() {
                 <Link to="/winners">Winners</Link>
               </Button>
               <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
-                <Link to="/how-it-works">{t("nav.howItWorks")}</Link>
+                <a href="/#how-it-works">{t("nav.howItWorks")}</a>
               </Button>
               <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                 <a href="/#faq">{t("nav.faq")}</a>
@@ -388,7 +423,9 @@ export function SiteHeader() {
                 </>
               )}
             </div>
-          </div>
+          </div>,
+            document.body,
+          )}
         </>
       )}
     </header>
