@@ -153,6 +153,7 @@ export const STRINGS = {
     "dashboard.profile": "Profile",
     "dashboard.wallet": "Wallet",
     "dashboard.alerts": "Alerts",
+    "dashboard.notifications": "Alerts",
     "dashboard.payToWin": "pay your winning bid to claim your prize",
     "dashboard.name": "Display name",
     "dashboard.namePromptTitle": "Enter your display name",
@@ -264,6 +265,7 @@ export const STRINGS = {
 
     // Dashboard
     "dashboard.welcome": "እንኳን ደህና መጡ",
+    "dashboard.notifications": "ማሳወቂያዎች",
     "dashboard.myBids": "የኔ ጨረታዎች",
     "dashboard.watchlist": "የከተከታተሉዋቸው",
     "dashboard.wins": "ድሎች",

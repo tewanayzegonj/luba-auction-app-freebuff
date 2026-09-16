@@ -17,7 +17,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { formatETB, formatSantims } from "@/lib/money";
 import { useLang } from "@/lib/i18n";
 import { api } from "@/convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -38,6 +39,16 @@ import { Link } from "react-router";
 export default function Landing() {
   const { isAuthenticated } = useAuth();
   const { t } = useLang();
+  // Favorites hearts: one reactive subscription for the signed-in user's
+  // watchlist; the mutation fires optimistically per tap.
+  const watchlist = useQuery(
+    api.engagement.listWatchlist,
+    isAuthenticated ? {} : "skip",
+  );
+  const toggleWatch = useMutation(api.engagement.toggleWatchlist);
+  const watchingIds = new Set(
+    (watchlist ?? []).map((w: { auctionId: string }) => w.auctionId),
+  );
   const auctions = useQuery(api.auctions.listOpenAuctions, {}) ?? [];
   const openAuctions = auctions.filter(
     (a) => a.status === "OPEN" || a.status === "CLOSING",
@@ -219,7 +230,24 @@ export default function Landing() {
                targets, no 160px cramping. lg: the 3-col grid. */
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 lg:grid lg:grid-cols-3 lg:gap-5">
               {liveAuctions.map((a) => (
-                <AuctionCard key={a._id} auction={a} />
+                <AuctionCard
+                  key={a._id}
+                  auction={a}
+                  watching={isAuthenticated ? watchingIds.has(a._id) : undefined}
+                  onToggleWatch={
+                    isAuthenticated
+                      ? (auctionId, next) => {
+                          void toggleWatch({ auctionId }).then((r) => {
+                            toast.success(
+                              r.watching
+                                ? "Added to your watchlist — we'll alert you before it closes."
+                                : "Removed from your watchlist.",
+                            );
+                          });
+                        }
+                      : undefined
+                    }
+                />
               ))}
             </div>
           )}

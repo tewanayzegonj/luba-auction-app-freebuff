@@ -16,8 +16,10 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import {
+  Bell,
   Eye,
   Gavel,
+  Heart,
   Gift,
   Languages,
   LogOut,
@@ -69,6 +71,40 @@ export function LubaWordmark({ to = "/" }: { to?: string }) {
 }
 
 // ─── Header / footer ────────────────────────────────────────────────────────
+
+// ─── Alerts bell (HowLow-style unread counter) ────────────────────────────
+
+export function AlertsBell({
+  className,
+  iconClassName,
+}: {
+  className?: string;
+  iconClassName?: string;
+}) {
+  const { isAuthenticated } = useAuth();
+  const unread = useQuery(
+    api.bids.getMyUnreadCount,
+    isAuthenticated ? {} : "skip",
+  );
+  const count = isAuthenticated ? (unread ?? 0) : 0;
+  return (
+    <Link
+      to="/dashboard?tab=notifications"
+      aria-label={count > 0 ? `${count} unread notifications` : "Notifications"}
+      className={cn(
+        "relative inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card transition-colors hover:bg-secondary",
+        className,
+      )}
+    >
+      <Bell className={cn("size-4.5", iconClassName)} />
+      {count > 0 && (
+        <span className="absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 font-mono text-[9px] font-bold leading-4 text-white ring-2 ring-background">
+          {count > 9 ? "9+" : count}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 // ─── Language & theme toggles ─────────────────────────────────────────────
 
@@ -165,6 +201,8 @@ export function SiteHeader() {
           <ThemeToggle />
           {isLoading ? null : isAuthenticated ? (
             <>
+              {/* Alerts — always one tap away (HowLow pattern). */}
+              <AlertsBell />
               {/* Dashboard is a primary destination — sits directly in the
                   header, not only inside the avatar menu. */}
               <Button variant="ghost" className="gap-2" asChild>
@@ -202,9 +240,10 @@ export function SiteHeader() {
           )}
         </div>
 
-        {/* Phones: search toggle + hamburger. Language/theme live in the
-            drawer so the top bar stays one thumb-row tall. */}
+        {/* Phones: alerts + search toggle + hamburger. Language/theme live
+            in the drawer so the top bar stays one thumb-row tall. */}
         <div className="flex items-center gap-1.5 md:hidden">
+          {isLoading ? null : isAuthenticated ? <AlertsBell className="border-0 bg-transparent" /> : null}
           <button
             className="inline-flex size-9 items-center justify-center rounded-lg border border-border bg-card"
             onClick={() => setSearchOpen((o) => !o)}
@@ -273,7 +312,7 @@ export function SiteHeader() {
                 <Link to="/winners">Winners</Link>
               </Button>
               <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
-                <a href="/#how-it-works">{t("nav.howItWorks")}</a>
+                <Link to="/how-it-works">{t("nav.howItWorks")}</Link>
               </Button>
               <Button variant="ghost" className="h-12 justify-start text-base" asChild onClick={() => setOpen(false)}>
                 <a href="/#faq">{t("nav.faq")}</a>
@@ -428,20 +467,42 @@ export function MobileTabBar() {
     {
       label: t("dashboard.myBids"),
       icon: Eye,
-      active: () => path.startsWith("/auction") || (path === "/dashboard" && dashTab === "bids"),
-      go: () => (authed ? navigate("/dashboard?tab=bids") : navigate("/auth?returnTo=/dashboard?tab=bids")),
+      active: () =>
+        path.startsWith("/auction") ||
+        (path === "/dashboard" && dashTab === "bids"),
+      go: () =>
+        authed
+          ? navigate("/dashboard?tab=bids")
+          : navigate("/auth?returnTo=/dashboard?tab=bids"),
     },
     {
       label: t("wallet.balance"),
       icon: Wallet,
-      active: () => path === "/dashboard" && (dashTab === "wallet" || !dashTab),
-      go: () => (authed ? navigate("/dashboard?tab=wallet") : navigate("/auth?returnTo=/dashboard?tab=wallet")),
+      active: () =>
+        path === "/dashboard" && (dashTab === "wallet" || !dashTab),
+      go: () =>
+        authed
+          ? navigate("/dashboard?tab=wallet")
+          : navigate("/auth?returnTo=/dashboard?tab=wallet"),
+    },
+    {
+      label: t("dashboard.notifications"),
+      icon: Bell,
+      active: () =>
+        path === "/dashboard" && dashTab === "notifications",
+      go: () =>
+        authed
+          ? navigate("/dashboard?tab=notifications")
+          : navigate("/auth?returnTo=/dashboard?tab=notifications"),
     },
     {
       label: t("dashboard.profile"),
       icon: Settings,
       active: () => path === "/dashboard" && dashTab === "profile",
-      go: () => (authed ? navigate("/dashboard?tab=profile") : navigate("/auth?returnTo=/dashboard?tab=profile")),
+      go: () =>
+        authed
+          ? navigate("/dashboard?tab=profile")
+          : navigate("/auth?returnTo=/dashboard?tab=profile"),
     },
   ] as const;
 
@@ -451,7 +512,7 @@ export function MobileTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 backdrop-blur-lg md:hidden"
       style={{ paddingBottom: "var(--safe-bottom)" }}
     >
-      <div className="mx-auto grid max-w-lg grid-cols-4">
+      <div className="mx-auto grid max-w-lg grid-cols-5">
         {tabs.map((tab) => {
           const isActive = tab.active();
           return (
@@ -651,15 +712,17 @@ export function PrizeVisual({
           className,
         )}
       >
-        {/* Blurred self-backdrop (§3.9): the same image scaled well past the
-            box so the blur's transparent fade band lands fully outside the
-            visible area — a mere scale-125 leaves it peeking through on one
-            side. object-cover + saturate keeps the backdrop vivid. */}
+        {/* Blurred self-backdrop (Apple Music-style): a fixed 96px overscan on
+            every side. blur-2xl's Gaussian tail fades to transparent over ~2σ
+            ≈ 80px from the element's edge — scale-based overscan (scale-150)
+            only hides that on large boxes, which is why phone thumbs showed a
+            bare gradient on the sides. A fixed -inset-24 puts the element edge
+            96px out on EVERY container, so the fade band never enters view. */}
         <img
           src={imageUrl}
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full scale-150 object-cover blur-2xl saturate-150 brightness-90"
+          className="absolute -inset-24 h-auto w-auto object-cover blur-2xl saturate-150 brightness-90"
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}
@@ -755,7 +818,16 @@ function compactCount(n: number): string {
   return String(n);
 }
 
-export function AuctionCard({ auction }: { auction: AuctionListItem }) {
+export function AuctionCard({
+  auction,
+  watching,
+  onToggleWatch,
+}: {
+  auction: AuctionListItem;
+  /** Signed-in watch state for this auction (favorites heart). */
+  watching?: boolean;
+  onToggleWatch?: (auctionId: Id<"auctions">, next: boolean) => void;
+}) {
   const prize = auction.prize;
   return (
     <Link
@@ -771,6 +843,28 @@ export function AuctionCard({ auction }: { auction: AuctionListItem }) {
           imageUrl={prize?.imageUrl}
           seed={auction.auctionCode}
         />
+        {/* Favorites heart (HowLow parity): stops propagation so tapping it
+            never navigates away from the listing. */}
+        {onToggleWatch && (
+          <button
+            type="button"
+            aria-label={watching ? "Remove from watchlist" : "Add to watchlist"}
+            aria-pressed={watching}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleWatch(auction._id, !watching);
+            }}
+            className="absolute bottom-1.5 right-1.5 inline-flex size-7 items-center justify-center rounded-full bg-background/80 ring-1 ring-inset ring-foreground/10 backdrop-blur transition-transform active:scale-90 sm:bottom-2.5 sm:right-2.5"
+          >
+            <Heart
+              className={cn(
+                "size-3.5 transition-colors",
+                watching ? "fill-rose-500 text-rose-500" : "text-foreground/70",
+              )}
+            />
+          </button>
+        )}
         <div className="absolute left-3 top-3 hidden gap-2 sm:flex">
           <StatusBadge status={auction.status} />
         </div>

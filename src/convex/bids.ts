@@ -17,6 +17,21 @@ export const getMyBids = query({
   },
 });
 
+export const getMyUnreadCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return 0;
+    const rows = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_unread", (q) =>
+        q.eq("userId", userId).eq("read", false),
+      )
+      .collect();
+    return rows.length;
+  },
+});
+
 export const getMyNotifications = query({
   args: {},
   handler: async (ctx) => {
