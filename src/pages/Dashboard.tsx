@@ -354,7 +354,7 @@ export default function Dashboard() {
             bottom tab bar owns nav); visible from sm up. */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Account overview
             </p>
             <h1 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">
@@ -520,9 +520,12 @@ export default function Dashboard() {
                 }
               />
             ) : (
-              /* Wide table scrolls inside its card on phones (.table-scroll). */
-              <div className="table-scroll overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-                <table className="w-full text-sm">
+              /* Scroll container: overflow-x lives here (NOT on the card —
+                 overflow-hidden would kill it). The inner div rounds corners
+                 so the scrolled table still clips cleanly. */
+              <div className="table-scroll">
+                <div className="min-w-[620px] overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
+                  <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">Auction</th>
@@ -554,10 +557,10 @@ export default function Dashboard() {
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-3 font-mono">
+                          <td className="px-4 py-3 tabular-nums">
                             {formatETB(b.bidValueSantims)}
                           </td>
-                          <td className="px-4 py-3 font-mono text-muted-foreground">
+                          <td className="px-4 py-3 text-muted-foreground tabular-nums">
                             {formatETB(b.bidServiceFeeSantims)}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
@@ -580,6 +583,7 @@ export default function Dashboard() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 
@@ -637,7 +641,7 @@ export default function Dashboard() {
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                       Current balance
                     </p>
-                    <p className="mt-1 font-mono text-3xl font-bold">
+                    <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">
                       {formatETB(wallet?.paidBalanceSantims ?? 0)}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -656,7 +660,7 @@ export default function Dashboard() {
                       placeholder="e.g. 100.00"
                       value={topUpInput}
                       onChange={(e) => setTopUpInput(e.target.value)}
-                      className="h-12 font-mono text-base sm:h-11 sm:text-sm"
+                      className="h-12 text-base tabular-nums sm:h-11 sm:text-sm"
                     />
                     <Button
                       className="h-12 w-full text-base sm:h-11 sm:text-sm"
@@ -875,7 +879,7 @@ export default function Dashboard() {
                         i > 0 && "border-l border-border/70",
                       )}
                     >
-                      <p className={cn("font-mono text-xl font-bold", s.tone)}>
+                      <p className={cn("text-xl font-bold tabular-nums", s.tone)}>
                         {s.value}
                       </p>
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -1224,11 +1228,11 @@ function ReceiptsPanel() {
     );
   }
   return (
-    /* .table-scroll: the reference column makes this table wider than a
-       phone screen — it must scroll horizontally inside the card, never
-       clip (the "information is cut and can't scroll" bug). */
-    <div className="table-scroll overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-      <table className="w-full min-w-[560px] text-sm">
+    /* Scroll container outside, rounded card inside — overflow-x must own
+       the scroll or the card's overflow-hidden clips it (prior bug). */
+    <div className="table-scroll">
+      <div className="min-w-[560px] overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
+        <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
             <th className="px-4 py-3 font-medium">Event</th>
@@ -1249,7 +1253,7 @@ function ReceiptsPanel() {
               </td>
               <td
                 className={cn(
-                  "px-4 py-3 text-right font-mono font-semibold",
+                  "px-4 py-3 text-right font-semibold tabular-nums",
                   r.amountSantims >= 0 ? "text-emerald-400" : "text-foreground",
                 )}
               >
@@ -1259,7 +1263,8 @@ function ReceiptsPanel() {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1286,15 +1291,15 @@ function ReferralCard() {
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-secondary/60 p-3">
-          <p className="font-mono text-lg font-bold">{info.totalReferred}</p>
+          <p className="text-lg font-bold tabular-nums">{info.totalReferred}</p>
           <p className="text-[11px] text-muted-foreground">Friends joined</p>
         </div>
         <div className="rounded-xl bg-secondary/60 p-3">
-          <p className="font-mono text-lg font-bold">{info.totalRewarded}</p>
+          <p className="text-lg font-bold tabular-nums">{info.totalRewarded}</p>
           <p className="text-[11px] text-muted-foreground">Rewards earned</p>
         </div>
         <div className="rounded-xl bg-secondary/60 p-3">
-          <p className="font-mono text-lg font-bold text-primary">
+          <p className="text-lg font-bold text-primary tabular-nums">
             {formatETB(info.promoBalanceSantims)}
           </p>
           <p className="text-[11px] text-muted-foreground">Promo balance</p>
@@ -1793,7 +1798,7 @@ function StatCard({
         </span>
         <TrendingUp className="hidden size-4 text-muted-foreground/40 sm:block" />
       </div>
-      <p className="mt-2 font-mono text-lg font-bold sm:mt-3 sm:text-xl">{value}</p>
+      <p className="mt-2 text-lg font-bold tabular-nums sm:mt-3 sm:text-xl">{value}</p>
       <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
         {label}
       </p>

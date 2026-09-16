@@ -684,7 +684,7 @@ export function SiteFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-border/70 py-4 text-center font-mono text-xs text-muted-foreground">
+      <div className="border-t border-border/70 py-4 text-center text-xs text-muted-foreground">
         © {new Date().getFullYear()} Luba. All rights reserved.
       </div>
     </footer>
@@ -718,7 +718,7 @@ export function Countdown({
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 font-mono text-xs tabular-nums",
+          "inline-flex items-center gap-1.5 text-xs tabular-nums",
           remaining === 0 ? "text-muted-foreground" : "text-foreground/80",
           className,
         )}
@@ -748,7 +748,7 @@ export function Countdown({
           key={u.label}
           className="flex flex-col items-center rounded-lg border border-border bg-card px-1 py-2 shadow-layered sm:px-2.5"
         >
-          <span className="font-mono text-base font-semibold tabular-nums sm:text-lg">
+          <span className="text-base font-semibold tabular-nums sm:text-lg">
             {String(u.value).padStart(2, "0")}
           </span>
           <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground sm:text-[10px]">
@@ -858,7 +858,7 @@ export function StatusBadge({ status }: { status: string }) {
     CANCELLED: "bg-rose-500/10 text-rose-300 ring-1 ring-inset ring-rose-500/30",
   };
   return (
-    <Badge className={cn("border-transparent bg-transparent font-medium font-mono text-xs uppercase tracking-wider", styles[status] ?? "bg-secondary text-secondary-foreground")}>
+    <Badge className={cn("border-transparent bg-transparent font-medium text-xs uppercase tracking-wider", styles[status] ?? "bg-secondary text-secondary-foreground")}>
       {status === "OPEN" && <span className="mr-1.5 inline-block size-1.5 animate-pulse rounded-full bg-emerald-400" />}
       {status.charAt(0) + status.slice(1).toLowerCase()}
     </Badge>

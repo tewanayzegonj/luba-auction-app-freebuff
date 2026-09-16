@@ -188,9 +188,12 @@
   }
 
   /* Wide money/prize tables scroll within their card instead of blowing
-      out the page on phones. */
+      out the page on phones. !important because Tailwind's overflow-hidden
+      utility sits in a higher layer and would otherwise win, silently
+      re-clipping the table (the exact bug where columns were unreachable). */
   .table-scroll {
-    overflow-x: auto;
+    overflow-y: hidden;
+    overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
   }
 

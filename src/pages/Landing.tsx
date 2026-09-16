@@ -109,7 +109,7 @@ export default function Landing() {
                 <a href="#how-it-works">{t("hero.ctaSecondary")}</a>
               </Button>
             </div>
-            <div className="mt-6 flex flex-col gap-2 font-mono text-xs uppercase tracking-wider text-muted-foreground sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+            <div className="mt-6 flex flex-col gap-2 text-xs uppercase tracking-wider text-muted-foreground sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck className="size-4 text-primary" /> Deterministic
                 settlement
@@ -155,9 +155,9 @@ export default function Landing() {
                     key={b.v}
                     className={
                       b.state === "win"
-                        ? "flex items-center justify-between rounded-lg bg-primary px-3 py-2 font-mono text-xs font-semibold text-primary-foreground"
+                        ? "flex items-center justify-between rounded-lg bg-primary px-3 py-2 text-xs font-semibold tabular-nums text-primary-foreground"
                         : b.state === "uniq"
-                          ? "flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2 font-mono text-xs font-medium text-primary ring-1 ring-inset ring-primary/25"
+                          ? "flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium tabular-nums text-primary ring-1 ring-inset ring-primary/25"
                           : "flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2 font-mono text-xs text-muted-foreground"
                     }
                   >
