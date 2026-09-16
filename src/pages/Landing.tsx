@@ -112,8 +112,10 @@ export default function Landing() {
             </div>
           </motion.div>
 
-          {/* Hero demo card — explicitly labeled EXAMPLE so it can never be
-              mistaken for a real open auction (which confused new visitors). */}
+          {/* Hero mechanic card — a pure illustration of the RULE. No fake
+              prize name, no price, no countdown: nothing that could be
+              mistaken for a live listing by a new visitor (trust rule).
+              Real listings appear in the Open auctions section below. */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -121,59 +123,50 @@ export default function Landing() {
             className="relative mx-auto w-full max-w-sm"
           >
             <div className="relative rounded-2xl border border-border bg-card p-5 shadow-layered-lg">
-              <span className="absolute -top-2.5 left-4 rounded-full bg-amber-400 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-amber-950 shadow-layered">
-                Example
-              </span>
               <div className="flex items-center justify-between">
                 <Badge className="border-transparent bg-secondary text-secondary-foreground ring-1 ring-inset ring-foreground/10">
-                  How a bid works
+                  How winning works
                 </Badge>
               </div>
-              <div className="mt-4 overflow-hidden rounded-xl">
-                <div className="aspect-[16/10] bg-secondary/50">
-                  <PrizeVisual emoji="📱" seed="hero" />
-                </div>
-              </div>
-              <h3 className="mt-4 font-semibold">iPhone 17 Pro Max</h3>
-              <p className="text-sm text-muted-foreground">
-                Worth 145,000.00 ETB
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                Four bids come in. The lowest amount chosen by{' '}
+                <span className="font-medium text-foreground">exactly one person</span>{' '}
+                wins — not simply the lowest number.
               </p>
-              <div className="mt-4 rounded-xl bg-secondary/50 p-3 ring-1 ring-inset ring-foreground/5">
-                <p className="font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Winning bid in this example
-                </p>
-                <p className="mt-1 font-mono text-2xl font-bold text-primary">
-                  2.00 ETB
-                </p>
-                <div className="mt-2 grid grid-cols-4 gap-1.5 font-mono text-[10px]">
-                  {[
-                    { v: "1.00", n: 2 },
-                    { v: "2.00", n: 1, win: true },
-                    { v: "3.00", n: 2 },
-                    { v: "4.00", n: 1 },
-                  ].map((b) => (
-                    <div
-                      key={b.v}
-                      className={
-                        b.win
-                          ? "rounded-md bg-primary px-1.5 py-1.5 text-center font-semibold text-primary-foreground"
-                          : "rounded-md bg-background/60 px-1.5 py-1.5 text-center text-muted-foreground ring-1 ring-inset ring-foreground/5"
-                      }
-                    >
-                      <div>{b.v}</div>
-                      <div className="text-[9px] opacity-75">×{b.n}</div>
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-4 space-y-1.5">
+                {[
+                  { v: "1.00", n: 2, state: "dup" },
+                  { v: "2.00", n: 1, state: "win" },
+                  { v: "3.00", n: 2, state: "dup" },
+                  { v: "4.00", n: 1, state: "uniq" },
+                ].map((b) => (
+                  <div
+                    key={b.v}
+                    className={
+                      b.state === "win"
+                        ? "flex items-center justify-between rounded-lg bg-primary px-3 py-2 font-mono text-xs font-semibold text-primary-foreground"
+                        : b.state === "uniq"
+                          ? "flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2 font-mono text-xs font-medium text-primary ring-1 ring-inset ring-primary/25"
+                          : "flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2 font-mono text-xs text-muted-foreground"
+                    }
+                  >
+                    <span>{b.v} ETB</span>
+                    <span className="text-[10px] font-medium uppercase tracking-wider">
+                      {b.state === "win"
+                        ? "★ Winner — lowest & unique"
+                        : b.state === "uniq"
+                          ? "Unique, but not lowest"
+                          : `×${b.n} — not unique`}
+                    </span>
+                  </div>
+                ))}
               </div>
-              <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3">
-                <span className="text-xs text-muted-foreground">
-                  Ends in
-                </span>
-                <Countdown
-                  to={Date.now() + 1000 * 60 * 60 * 34 + 42_000}
-                  compact
-                />
+              <div className="mt-4 flex items-start gap-2 border-t border-border/70 pt-3">
+                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+                <p className="text-xs leading-5 text-muted-foreground">
+                  After close, every auction publishes its full bid math —
+                  you can verify each result yourself.
+                </p>
               </div>
             </div>
           </motion.div>
@@ -450,47 +443,17 @@ export default function Landing() {
 function RecentWinners() {
   const winners = useQuery(api.auctions.recentWinners, {}) ?? [];
 
-  // No settled auctions yet — show an honest "coming soon" state plus the
-  // example outcome from the hero so visitors still see how winning works.
+  // No settled auctions yet — an honest empty state only. No fake winner
+  // cards: invented names/prizes read as phantom listings to new visitors.
   if (winners.length === 0) {
     return (
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-dashed border-border bg-card/60 p-6 text-center sm:col-span-3">
-          <Trophy className="mx-auto size-8 text-muted-foreground/50" />
-          <h3 className="mt-3 font-semibold">No settled auctions yet</h3>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Once the first auctions close, every winning bid is recorded here
-            and stays public.
-          </p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 shadow-layered sm:col-span-3">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Example outcome
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            {[
-              { name: "Selam T.", prize: "iPhone 17 Pro Max", bid: "2.00 ETB" },
-              { name: "Dawit M.", prize: "50,000 ETB Voucher", bid: "7.50 ETB" },
-              { name: "Hanna G.", prize: 'Smart TV 43"', bid: "1.25 ETB" },
-            ].map((w) => (
-              <div key={w.name} className="flex items-center gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                  <Trophy className="size-4.5" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold">{w.name}</p>
-                  <p className="text-xs text-muted-foreground">{w.prize}</p>
-                  <p className="font-mono text-xs text-primary">
-                    Winning bid {w.bid}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-[11px] text-muted-foreground">
-            Illustrative example — not real winners.
-          </p>
-        </div>
+      <div className="mt-6 rounded-xl border border-dashed border-border bg-card/60 p-6 text-center">
+        <Trophy className="mx-auto size-8 text-muted-foreground/50" />
+        <h3 className="mt-3 font-semibold">No settled auctions yet</h3>
+        <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+          Once the first auctions close, every winning bid is recorded here
+          and stays public — permanently verifiable.
+        </p>
       </div>
     );
   }
