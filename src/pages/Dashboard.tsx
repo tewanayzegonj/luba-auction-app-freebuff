@@ -57,7 +57,6 @@ import {
   Send,
   Smartphone,
   Trophy,
-  TrendingUp,
   Unlink,
   UserRound,
   Wallet,
@@ -1731,7 +1730,7 @@ function PhoneLinkRow({
             onChange={(e) => setPhone(e.target.value)}
             placeholder="e.g. 0911223344"
             inputMode="tel"
-            className="h-10 font-mono"
+            className="h-10"
           />
           <Button
             className="h-10 shrink-0"
@@ -1782,25 +1781,26 @@ function StatCard({
   tone?: "default" | "primary" | "amber";
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-3 shadow-layered sm:p-4">
-      <div className="flex items-center justify-between">
+    <div className="rounded-2xl border border-border bg-card p-3.5 shadow-layered sm:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-xs font-medium text-muted-foreground">
+          {label}
+        </p>
         <span
           className={cn(
-            "flex size-8 items-center justify-center rounded-lg sm:size-9",
+            "flex size-6 shrink-0 items-center justify-center rounded-md",
             tone === "primary"
               ? "bg-primary/10 text-primary"
               : tone === "amber"
                 ? "bg-amber-100 text-amber-700"
-                : "bg-secondary text-secondary-foreground",
+                : "bg-secondary text-muted-foreground",
           )}
         >
           {icon}
         </span>
-        <TrendingUp className="hidden size-4 text-muted-foreground/40 sm:block" />
       </div>
-      <p className="mt-2 text-lg font-bold tabular-nums sm:mt-3 sm:text-xl">{value}</p>
-      <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
-        {label}
+      <p className="mt-2 text-xl font-bold tabular-nums tracking-tight sm:text-2xl">
+        {value}
       </p>
     </div>
   );
@@ -1829,7 +1829,7 @@ function PaymentsList() {
             </p>
           </div>
           <div className="text-right">
-            <p className="font-mono text-sm font-semibold">
+            <p className="text-sm font-semibold tabular-nums">
               {formatETB(p.amountSantims)}
             </p>
             <Badge
