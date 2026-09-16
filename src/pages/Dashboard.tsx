@@ -34,6 +34,9 @@ import { useLang } from "@/lib/i18n";
 import { WithdrawCard } from "@/components/withdraw-card";
 import { WinnerJourneyCard } from "@/components/winner-journey-card";
 import { DailyBonusCard } from "@/components/daily-bonus-card";
+import { ScrollableTabs } from "@/components/scrollable-tabs";
+import { OnboardingTour } from "@/components/onboarding-tour";
+import { PageFade } from "@/components/motion-primitives";
 import { cn } from "@/lib/utils";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
@@ -322,8 +325,11 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
+      {/* First-visit guided tour — shown once per device, skippable. */}
+      <OnboardingTour />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 md:pb-8">
+        <PageFade>
         {/* Header row — sign-out lives in the avatar menu on phones (the
             bottom tab bar owns nav); visible from sm up. */}
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -447,10 +453,10 @@ export default function Dashboard() {
           }}
           className="mt-8"
         >
-          {/* Scrollable tab strip on small screens (same pattern as Admin):
-              hidden scrollbar + right-edge fade + chevron affordance. */}
-          <div className="relative">
-            <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary/70 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto">
+          {/* Scrollable tab strip on small screens — scroll-aware fades +
+              chevrons (see ScrollableTabs). */}
+          <ScrollableTabs>
+            <TabsList className="h-11 w-full justify-start gap-1 rounded-xl bg-secondary/70 p-1">
               <TabsTrigger value="bids" className="gap-1.5 rounded-lg">
                 <Gavel className="size-4" /> {t("dashboard.myBids")}
               </TabsTrigger>
@@ -476,14 +482,7 @@ export default function Dashboard() {
                 {t("dashboard.profile")}
               </TabsTrigger>
             </TabsList>
-            {/* Visible exactly where the strip overflows (phones/small tablets). */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 right-0 flex w-16 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-1 md:hidden"
-            >
-              <span className="text-xs text-muted-foreground">›</span>
-            </div>
-          </div>
+          </ScrollableTabs>
 
           {/* ─── My Bids ──────────────────────────────────────────────────── */}
           <TabsContent value="bids" className="mt-5">

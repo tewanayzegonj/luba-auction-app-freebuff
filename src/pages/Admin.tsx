@@ -52,6 +52,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollableTabs } from "@/components/scrollable-tabs";
 import { cn } from "@/lib/utils";
 
 /**
@@ -257,10 +258,10 @@ function AdminConsole() {
         )}
 
         <Tabs defaultValue="users" className="mt-8">
-          {/* P4.10: horizontally scrollable tab strip on small screens with a
-              fade + chevron scroll affordance on the right edge */}
-          <div className="relative">
-          <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-xl bg-secondary/70 p-1 sm:w-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* P4.10: horizontally scrollable tab strip on small screens —
+              scroll-aware fades + chevrons (see ScrollableTabs). */}
+          <ScrollableTabs>
+          <TabsList className="h-11 w-full justify-start gap-1 rounded-xl bg-secondary/70 p-1">
             <TabsTrigger value="users" className="gap-1.5 rounded-lg">
               <Users className="size-4" /> Users
             </TabsTrigger>
@@ -292,14 +293,7 @@ function AdminConsole() {
               <Activity className="size-4" /> Audit log
             </TabsTrigger>
           </TabsList>
-          {/* right-edge fade + chevron hinting the strip scrolls (P4.10) */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 flex w-16 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-1 md:hidden"
-          >
-            <span className="text-xs text-muted-foreground">›</span>
-          </div>
-          </div>
+          </ScrollableTabs>
 
           {/* Users */}
           <TabsContent value="users" className="mt-5">

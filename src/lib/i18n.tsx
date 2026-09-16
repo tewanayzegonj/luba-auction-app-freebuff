@@ -148,6 +148,18 @@ export const STRINGS = {
     // Dashboard
     "dashboard.welcome": "Welcome back",
     "dashboard.myBids": "My bids",
+
+    // Onboarding tour (first dashboard visit only)
+    "tour.wallet.title": "Your wallet is your bid fuel",
+    "tour.wallet.body":
+      "Top up once with Chapa, then place bids instantly — no payment redirects for every bid. Fees come straight from your balance.",
+    "tour.bidding.title": "Bid the lowest unique amount",
+    "tour.bidding.body":
+      "The prize goes to the lowest amount nobody else picked. Use the − / + buttons to fine-tune your amount, then confirm.",
+    "tour.alerts.title": "We'll keep you in the loop",
+    "tour.alerts.body":
+      "Get alerted on Telegram or email before an auction you entered closes — and the moment results are out.",
+    "tour.done": "Start bidding",
     "dashboard.watchlist": "Watchlist",
     "dashboard.wins": "Wins",
     "dashboard.profile": "Profile",
@@ -267,6 +279,18 @@ export const STRINGS = {
     "dashboard.welcome": "እንኳን ደህና መጡ",
     "dashboard.notifications": "ማሳወቂያዎች",
     "dashboard.myBids": "የኔ ጨረታዎች",
+
+    // Onboarding tour
+    "tour.wallet.title": "ዋሌትዎ የጨረታ ነዳጅዎ ነው",
+    "tour.wallet.body":
+      "በአንድ ጊዜ ይሙሉ፣ ከዚያ ጨረታዎችዎን ወዲያውኑ ያስገቡ — ለእያንዳንዱ ጨረታ ወደ ክፍያ ገጽ አይዘዋወርም። ክፍያዎች ከቀሪ ሒሳብዎ ይቀንሳሉ።",
+    "tour.bidding.title": "ብቸኛውን እና ዝቅተኛውን ዋጋ ይምረጡ",
+    "tour.bidding.body":
+      "ሽልማቱ ማንም ሰው ያልመረጠው ዝቅተኛ ዋጋ ይሸልማል። − / + አዝራሮችን ተጠቅመው ዋጋዎን ያስተካክሉ።",
+    "tour.alerts.title": "መረጃ እንሰጥዎታለን",
+    "tour.alerts.body":
+      "የገቡት ጨረታዎች ከመዘጋታቸው በፊት በቴሌግራም ወይም በኢሜይል ማሳወቂያ ያገኛሉ።",
+    "tour.done": "ጨረታ ጀምር",
     "dashboard.watchlist": "የከተከታተሉዋቸው",
     "dashboard.wins": "ድሎች",
     "dashboard.profile": "መገለጫ",
