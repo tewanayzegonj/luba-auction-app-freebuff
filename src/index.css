@@ -283,6 +283,19 @@
     padding-left: 0.25rem;
     padding-right: 0.25rem;
   }
+
+  /* Count badges inside tab triggers are LABELS, not controls: they must
+     never inherit the 44px touch floor (or any future min-height rule).
+     Explicit geometry here makes inflation impossible regardless of what
+     else loads. */
+  [data-slot="tabs-trigger"] [data-slot="badge"] {
+    min-height: 0 !important;
+    height: 1.25rem;
+    min-width: 1.25rem;
+    padding-inline: 0.375rem;
+    font-size: 0.625rem;
+    line-height: 1;
+  }
 }
 
 /* Refined scrollbars (dark) */
