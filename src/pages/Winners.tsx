@@ -93,7 +93,7 @@ export default function Winners() {
                   </h3>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
                     {w.winnerName ? `${maskName(w.winnerName)} won with ` : "Won with "}
-                    <span className="font-mono font-semibold text-primary">
+                    <span className="font-semibold text-primary tabular-nums">
                       {formatETB(w.winningBidValueSantims)}
                     </span>
                   </p>

@@ -947,7 +947,7 @@ export function AuctionCard({
           <StatusBadge status={auction.status} />
         </div>
         {prize?.category && (
-          <span className="absolute right-3 top-3 hidden rounded-full bg-background/70 px-2.5 py-1 font-mono text-[11px] font-medium text-foreground/80 ring-1 ring-inset ring-foreground/10 backdrop-blur sm:inline-flex">
+          <span className="absolute right-3 top-3 hidden rounded-full bg-background/70 px-2.5 py-1 text-[11px] font-medium text-foreground/80 ring-1 ring-inset ring-foreground/10 backdrop-blur sm:inline-flex">
             {prize.category}
           </span>
         )}
@@ -987,7 +987,7 @@ export function AuctionCard({
             <span className="min-w-0 truncate">
               Worth {formatETBShort(prize?.valueSantims ?? 0)}
             </span>
-            <span className="shrink-0 whitespace-nowrap rounded-lg bg-primary/10 px-2 py-1 font-mono text-[11px] font-semibold text-primary ring-1 ring-inset ring-primary/20 sm:px-2.5 sm:text-xs">
+            <span className="shrink-0 whitespace-nowrap rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary ring-1 ring-inset ring-primary/20 tabular-nums sm:px-2.5 sm:text-xs">
               Fee {formatETBShort(auction.bidServiceFeeSantims)}
             </span>
           </div>

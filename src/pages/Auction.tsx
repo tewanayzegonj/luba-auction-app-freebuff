@@ -400,7 +400,7 @@ export default function AuctionPage() {
                       <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                         Prize value
                       </p>
-                      <p className="font-mono text-lg font-bold">
+                      <p className="text-lg font-bold tabular-nums">
                         {formatETB(auction.prize.valueSantims)}
                       </p>
                     </div>
@@ -430,7 +430,7 @@ export default function AuctionPage() {
 
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
-                    <p className="font-mono text-xl font-bold">
+                    <p className="text-xl font-bold tabular-nums">
                       {auction.bidCount}
                     </p>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -446,7 +446,7 @@ export default function AuctionPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="font-mono text-xl font-bold">
+                    <p className="text-xl font-bold tabular-nums">
                       {bidsLeft}
                     </p>
                     <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -535,7 +535,7 @@ export default function AuctionPage() {
                     <div
                       key={row.valueSantims}
                       className={cn(
-                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 font-mono text-xs",
+                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs tabular-nums",
                         row.isWinning
                           ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
                           : row.unique
@@ -571,7 +571,7 @@ export default function AuctionPage() {
                     <div
                       key={row.position}
                       className={cn(
-                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 font-mono text-xs",
+                        "flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs tabular-nums",
                         row.isWinning
                           ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
                           : row.unique
@@ -627,7 +627,7 @@ export default function AuctionPage() {
                     auction.result.winningBidValueSantims != null ? (
                       <p className="mt-1 text-sm text-muted-foreground">
                         The lowest unique bid was{" "}
-                        <span className="font-mono font-semibold text-foreground">
+                        <span className="font-semibold text-foreground tabular-nums">
                           {formatETB(auction.result.winningBidValueSantims)}
                         </span>
                         . The winner has been notified.
@@ -657,25 +657,25 @@ export default function AuctionPage() {
                     values drop under their label). */}
                 <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Bid range</span>
-                  <span className="font-mono text-foreground">
+                  <span className="text-foreground tabular-nums">
                     {formatETB(auction.minBidSantims)} – {formatETB(auction.maxBidSantims)}
                   </span>
                 </li>
                 <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Increment</span>
-                  <span className="font-mono text-foreground">
+                  <span className="text-foreground tabular-nums">
                     {formatETB(auction.bidIncrementSantims)}
                   </span>
                 </li>
                 <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Bid service fee</span>
-                  <span className="font-mono text-foreground">
+                  <span className="text-foreground tabular-nums">
                     {formatETB(fee)} per bid
                   </span>
                 </li>
                 <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Max bids per person</span>
-                  <span className="font-mono text-foreground">
+                  <span className="text-foreground tabular-nums">
                     {auction.maximumBidsPerUser}
                   </span>
                 </li>
@@ -758,10 +758,10 @@ export default function AuctionPage() {
                           placeholder="e.g. 2.00"
                           value={amountInput}
                           onChange={(e) => setAmountInput(e.target.value)}
-                          className="h-12 pr-14 text-center font-mono text-lg"
+                          className="h-12 pr-14 text-center text-lg tabular-nums"
                           disabled={!isAuthenticated || bidsLeft === 0}
                         />
-                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-sm text-muted-foreground">
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                           ETB
                         </span>
                       </div>
@@ -831,7 +831,7 @@ export default function AuctionPage() {
                       <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                         <Wallet className="size-4" /> Wallet
                       </span>
-                      <span className="font-mono font-semibold">
+                      <span className="font-semibold tabular-nums">
                         {formatETB(wallet?.paidBalanceSantims ?? 0)}
                       </span>
                     </div>
@@ -846,7 +846,7 @@ export default function AuctionPage() {
                         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                           Crowding map
                         </p>
-                        <span className="font-mono text-[10px] text-muted-foreground">
+                        <span className="text-[10px] tabular-nums text-muted-foreground">
                           {heatmap.totalBids} bids
                         </span>
                       </div>
@@ -871,7 +871,7 @@ export default function AuctionPage() {
                           );
                         })}
                       </div>
-                      <div className="mt-1 flex justify-between font-mono text-[9px] text-muted-foreground">
+                      <div className="mt-1 flex justify-between text-[9px] tabular-nums text-muted-foreground">
                         <span>{formatETB(heatmap.buckets[0]?.fromSantims ?? 0)}</span>
                         <span className="hidden sm:inline">low ← crowded → high</span>
                         <span>{formatETB(heatmap.buckets[heatmap.buckets.length - 1]?.toSantims ?? 0)}</span>
@@ -970,7 +970,7 @@ export default function AuctionPage() {
                     <span
                       key={b._id}
                       className={cn(
-                        "rounded-md px-2 py-1 font-mono text-xs",
+                        "rounded-md px-2 py-1 text-xs tabular-nums",
                         b.status === "ACCEPTED"
                           ? (uniqueMap.get(b.bidValueSantims) ?? 0) === 1
                             ? "bg-emerald-500/10 text-emerald-300 ring-1 ring-inset ring-emerald-500/25"
@@ -1016,7 +1016,7 @@ export default function AuctionPage() {
                 events; color teaches that instantly. */}
             <div className="flex justify-between">
               <span className="text-muted-foreground">Bid value</span>
-              <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">
                 {bidValueSantims !== null ? formatETB(bidValueSantims) : "—"}
               </span>
             </div>
@@ -1025,7 +1025,7 @@ export default function AuctionPage() {
                 Service fee (charged now)
               </span>
               <span className="flex shrink-0 items-center gap-2">
-                <span className="font-mono font-semibold text-rose-600 dark:text-rose-400">
+                <span className="font-semibold text-rose-600 tabular-nums dark:text-rose-400">
                   {formatETB(fee)}
                 </span>
                 <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
@@ -1099,7 +1099,7 @@ export default function AuctionPage() {
               <span className="text-muted-foreground">
                 {t("auction.insufficientAvailable")}
               </span>
-              <span className="font-mono font-semibold">
+              <span className="font-semibold tabular-nums">
                 {formatETB(availableSantims)}
               </span>
             </div>
@@ -1107,7 +1107,7 @@ export default function AuctionPage() {
               <span className="text-muted-foreground">
                 {t("auction.insufficientNeeded")}
               </span>
-              <span className="font-mono font-semibold">{formatETB(fee)}</span>
+              <span className="font-semibold tabular-nums">{formatETB(fee)}</span>
             </div>
             {bidValueSantims !== null && (
               <p className="mt-3 text-xs leading-5 text-muted-foreground">

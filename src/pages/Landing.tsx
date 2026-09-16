@@ -76,7 +76,7 @@ export default function Landing() {
           >
             <Badge
               variant="outline"
-              className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 font-mono text-xs text-primary md:mb-5"
+              className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-xs tabular-nums text-primary md:mb-5"
             >
               <TrendingDown className="size-3.5" />
               Lowest unique bid wins
@@ -158,7 +158,7 @@ export default function Landing() {
                         ? "flex items-center justify-between rounded-lg bg-primary px-3 py-2 text-xs font-semibold tabular-nums text-primary-foreground"
                         : b.state === "uniq"
                           ? "flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium tabular-nums text-primary ring-1 ring-inset ring-primary/25"
-                          : "flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2 font-mono text-xs text-muted-foreground"
+                          : "flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2 text-xs tabular-nums text-muted-foreground"
                     }
                   >
                     <span>{b.v} ETB</span>
@@ -506,7 +506,7 @@ function RecentWinners() {
               </p>
             </div>
           </div>
-          <p className="mt-3 font-mono text-sm text-primary">
+          <p className="mt-3 text-sm font-semibold tabular-nums text-primary">
             Winning bid {formatSantims(w.winningBidValueSantims ?? 0)} ETB
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">

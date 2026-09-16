@@ -76,6 +76,33 @@ export const listOpenAuctions = query({
   },
 });
 
+/**
+ * Compact summaries for specific auctions by ID — lets the Dashboard render
+ * correct titles for bids on CLOSED auctions (listOpenAuctions only covers
+ * live ones). Public-safe: title, code, status, close time only.
+ */
+export const getAuctionSummaries = query({
+  args: { ids: v.array(v.id("auctions")) },
+  handler: async (ctx, args) => {
+    const unique = [...new Set(args.ids)].slice(0, 100);
+    return Promise.all(
+      unique.map(async (id) => {
+        const a = await ctx.db.get(id);
+        if (!a) return null;
+        const prize = await ctx.db.get(a.prizeId);
+        return {
+          _id: a._id,
+          auctionCode: a.auctionCode,
+          title: a.title,
+          prizeTitle: prize?.title ?? null,
+          status: a.status,
+          closesAt: a.closesAt,
+        };
+      }),
+    );
+  },
+});
+
 /** Public detail for an auction by code, joined with prize + recent bid stats. */
 /**
  * Record a detail-page view (P3.8). Throttled per user+auction via
