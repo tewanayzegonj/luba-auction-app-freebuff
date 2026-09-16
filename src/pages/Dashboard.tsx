@@ -1293,6 +1293,16 @@ const PREF_LABELS: Record<string, string> = {
   WATCHLIST_ALERT: "Watchlist alerts",
 };
 
+const PREF_DESCRIPTIONS: Record<string, string> = {
+  BID_ACCEPTED: "Confirmation each time one of your bids is accepted",
+  AUCTION_ENDING: "Alert before an auction you entered is about to close",
+  WINNER_ANNOUNCED: "Results when an auction you bid in is settled",
+  PAYMENT_REMINDER: "Nudges when a winning-bid payment is due",
+  PAYMENT_SUCCESS: "Receipts for deposits and wallet credits",
+  PRIZE_STATUS: "Claim, verification and delivery milestones",
+  WATCHLIST_ALERT: "Ending-soon alerts for auctions you're watching",
+};
+
 function NotificationPrefsCard() {
   const prefs = useQuery(api.engagement.getMyNotificationPrefs, {});
   const setPref = useMutation(api.engagement.setNotificationPref);
@@ -1304,23 +1314,33 @@ function NotificationPrefsCard() {
     <div className="space-y-2">
       {Object.entries(PREF_LABELS).map(([key, label]) => {
         const value = (prefs as Record<string, unknown>)[key] !== false;
+        // The whole row is the control (role="switch", aria-checked) — one
+        // generous tap target with the title, the description, and the
+        // visual toggle. The inner Switch is decorative (aria-hidden,
+        // pointer-events-none) so a single tap can never double-fire.
         return (
-          <div
+          <button
             key={key}
-            className="flex items-center justify-between rounded-xl bg-secondary/40 px-4 py-2.5"
+            type="button"
+            role="switch"
+            aria-checked={value}
+            disabled={pending === key}
+            onClick={() => {
+              setPending(key);
+              setPref({ key, value: !value })
+                .then(() => toast.success(`"${label}" ${!value ? "on" : "off"}`))
+                .finally(() => setPending(null));
+            }}
+            className="flex w-full items-center justify-between gap-3 rounded-xl bg-secondary/40 px-4 py-3 text-left transition-colors hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60"
           >
-            <span className="text-sm">{label}</span>
-            <Switch
-              checked={value}
-              disabled={pending === key}
-              onCheckedChange={(v) => {
-                setPending(key);
-                setPref({ key, value: v })
-                  .then(() => toast.success(`"${label}" ${v ? "on" : "off"}`))
-                  .finally(() => setPending(null));
-              }}
-            />
-          </div>
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">{label}</span>
+              <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                {PREF_DESCRIPTIONS[key]}
+              </span>
+            </span>
+            <Switch checked={value} aria-hidden tabIndex={-1} className="pointer-events-none" />
+          </button>
         );
       })}
       <p className="text-xs leading-5 text-muted-foreground">

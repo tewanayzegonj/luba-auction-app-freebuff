@@ -169,10 +169,13 @@
     font-size: max(16px, 1em);
   }
 
-  /* Comfortable touch targets on coarse pointers — 44px Apple HIG floor. */
+  /* Comfortable touch targets on coarse pointers — 44px Apple HIG floor.
+     Switches are exempt: their own component provides a 44px hit area via
+     an invisible halo, and inflating the 24px visual track to 44px would
+     deform it (the 32×44 pill bug). */
   @media (pointer: coarse) {
-    button:not([disabled]),
-    [role="button"]:not([disabled]),
+    button:not([disabled]):not([data-slot="switch"]),
+    [role="button"]:not([disabled]):not([data-slot="switch"]),
     a[href] {
       min-height: 44px;
     }
