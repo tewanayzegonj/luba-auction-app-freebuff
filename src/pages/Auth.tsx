@@ -148,6 +148,22 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     return fallback;
   };
 
+  /** Human error copy for the verify step (master skill: errors explain what
+      happened and how to fix it — never leak provider internals like Convex
+      Auth's raw "Could not verify code"). A wrong/expired code is by far the
+      most common cause, so it's the default; rate limiting and connection
+      failures get their own copy because the remedy differs. */
+  const friendlyVerifyError = (err: unknown) => {
+    const msg = (err instanceof Error ? err.message : "").toLowerCase();
+    if (/rate|too many|flood|throttl/.test(msg)) {
+      return "Too many attempts — wait a minute, then try your code again.";
+    }
+    if (/network|failed to fetch|offline|load failed/.test(msg)) {
+      return "Connection trouble — check your internet and try again.";
+    }
+    return "That code didn't match, or it has expired. Double-check the 6 digits — or send a fresh code below.";
+  };
+
   const selectMethod = (p: Provider) => {
     setProvider(p);
     setIdentifier("");
@@ -188,7 +204,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       await signIn(provider, { email: identifier, code: otp });
       navigate(redirect);
     } catch (err) {
-      setError(cleanError(err, "The verification code is incorrect or expired."));
+      // Never surface the raw provider error here — a rejected code should
+      // read as a normal, recoverable step, not a system failure.
+      setError(friendlyVerifyError(err));
       setOtp("");
     } finally {
       setIsLoading(false);
@@ -203,7 +221,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       await signIn(provider, { email: identifier });
       setOtp("");
     } catch (err) {
-      setError(cleanError(err, "Couldn't resend the code. Please try again."));
+      const msg = (err instanceof Error ? err.message : "").toLowerCase();
+      if (/rate|too many|flood|throttl/.test(msg)) {
+        setError("Too many code requests — wait a minute before asking for another.");
+      } else if (/network|failed to fetch|offline|load failed/.test(msg)) {
+        setError("Connection trouble — check your internet and try again.");
+      } else {
+        setError("Couldn't send a new code just now. Wait a moment and try again.");
+      }
     } finally {
       setIsLoading(false);
     }
