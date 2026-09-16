@@ -329,15 +329,21 @@
   }
 
   /* ─── Light-theme premium refinements ────────────────────────────────
-     Fintech-grade depth: hairline borders, layered elevation, tinted
-     accents, and quieter secondary text. Scope: html.light only. */
+     The Stripe/Linear/Linear-grade palette: slightly cool grays (a 250–260
+     hue, never pure neutral — pure gray reads dull on LCDs), stronger
+     contrast for primary text, a quieter secondary tier, and hairline
+     borders that stay visible on cheap phones' low-gamut screens.
+     Scope: html.light only. */
   html.light {
-    --border: oklch(0.9 0.006 250);
+    --background: oklch(0.975 0.002 250); /* page: faint cool gray   */
+    --card: #ffffff;                      /* cards: pure white pop   */
+    --foreground: oklch(0.21 0.02 255);   /* near-black, cool        */
+    --border: oklch(0.915 0.006 250);     /* hairline, still visible */
     --input: oklch(0.9 0.006 250);
-    --muted-foreground: oklch(0.48 0.014 250);
-    --secondary: oklch(0.965 0.005 250);
-    --muted: oklch(0.965 0.005 250);
-    --accent: oklch(0.965 0.005 250);
+    --muted-foreground: oklch(0.5 0.015 250); /* secondary text tier */
+    --secondary: oklch(0.968 0.003 250);
+    --muted: oklch(0.965 0.003 250);
+    --accent: oklch(0.96 0.004 250);
   }
 
   /* Cards read as elevated surfaces, not outlined boxes. */
@@ -347,29 +353,25 @@
       0 0 0 1px oklch(0 0 0 / 0.035) inset;
   }
 
-  /* Primary buttons get a subtle top-light gradient + pressed depth. */
-  html.light [data-slot="button"]
-    :where([data-slot="button"]) {
-  }
+  /* Primary buttons: ONE solid brand color — identical in both themes.
+     Deliberately no gradient: a previous relative-color (oklch(from …))
+     gradient rendered as garbled pink on browsers without full relative-
+     color support, and gradient buttons read promotional, not premium
+     (Stripe/Linear use solid buttons). Shadow gives the depth instead. */
   html.light button.bg-primary,
   html.light button[data-variant="default"] {
-    background-image: linear-gradient(
-      to bottom,
-      oklch(from var(--primary) 1.06 l c),
-      var(--primary)
-    );
     box-shadow:
-      0 1px 2px oklch(from var(--primary) 0.35 l c / 0.35),
-      inset 0 1px 0 oklch(1 0 0 / 0.18);
+      0 1px 2px oklch(0 0 0 / 0.12),
+      inset 0 1px 0 oklch(1 0 0 / 0.12);
   }
   html.light button.bg-primary:active,
   html.light button[data-variant="default"]:active {
     transform: translateY(0.5px);
   }
 
-  /* Focus rings are the accent at lower opacity — calmer than raw ring. */
+  /* Focus rings — color-mix (universally supported), not relative color. */
   html.light :focus-visible {
-    outline: 2px solid oklch(from var(--primary) l c h / 0.45);
+    outline: 2px solid color-mix(in oklab, var(--primary) 45%, transparent);
     outline-offset: 2px;
   }
 

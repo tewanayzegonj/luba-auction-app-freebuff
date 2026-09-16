@@ -106,7 +106,7 @@ export const claimDailyBonus = mutation({
     await postTransaction(ctx, {
       txType: "PROMO_CREDIT",
       reference: `daily_bonus:${userId}:${today}`,
-      description: `Daily check-in bonus (day ${streak})`,
+      description: "Daily check-in bonus",
       idempotencyKey: `daily_bonus:${userId}:${today}`,
       now,
       lines: [

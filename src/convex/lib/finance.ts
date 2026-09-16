@@ -59,7 +59,7 @@ export async function deposit(
 
   await postTransaction(ctx, {
     txType: args.idempotencyKey ? "ADMIN_ADJUSTMENT" : "DEPOSIT",
-    description: args.description ?? `Wallet deposit (${referenceId})`,
+    description: args.description ?? "Wallet top-up",
     reference: referenceId,
     idempotencyKey: args.idempotencyKey ?? `DEPOSIT:${referenceId}`,
     now,
@@ -147,7 +147,7 @@ export async function chargeBidFee(
 
   await postTransaction(ctx, {
     txType: "BID_FEE",
-    description: `Bid service fee (bid ${bidId})`,
+    description: "Bid service fee",
     reference: bidId,
     idempotencyKey: `BID_FEE:${bidId}`,
     now,
@@ -179,7 +179,7 @@ export async function chargeWinnerPayment(
 
   await postTransaction(ctx, {
     txType: "WINNER_PAYMENT",
-    description: `Winning bid payment (settlement ${settlementId})`,
+    description: "Winning bid payment",
     reference: settlementId,
     idempotencyKey: `WINNER_PAYMENT:${settlementId}`,
     now,

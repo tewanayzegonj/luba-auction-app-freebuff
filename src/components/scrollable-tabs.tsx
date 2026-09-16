@@ -57,26 +57,23 @@ export function ScrollableTabs({
 
   return (
     <div className={cn("relative", className)}>
-      {/* Left affordance — only when content is hidden to the left. */}
+      {/* Left affordance — only when content is hidden to the left. The
+          WHOLE fade strip is the tap target (Material/iOS pattern); no
+          floating circle, which read as a broken blob over the tabs. */}
       <AnimatePresence>
         {canLeft && (
-          <motion.div
+          <motion.button
+            type="button"
+            aria-label="Scroll tabs left"
+            onClick={() => nudge(-1)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-start bg-gradient-to-r from-background via-background/85 to-transparent md:hidden"
+            className="absolute inset-y-0 left-0 z-10 flex w-11 items-center justify-start bg-gradient-to-r from-background via-background/80 to-transparent pl-0.5 text-muted-foreground active:text-foreground md:hidden"
           >
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label="Scroll tabs left"
-              onClick={() => nudge(-1)}
-              className="pointer-events-auto ml-0.5 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm active:scale-90"
-            >
-              <ChevronLeft className="size-3.5" />
-            </button>
-          </motion.div>
+            <ChevronLeft className="size-4" />
+          </motion.button>
         )}
       </AnimatePresence>
 
@@ -90,23 +87,18 @@ export function ScrollableTabs({
       {/* Right affordance — disappears once the last tab is fully visible. */}
       <AnimatePresence>
         {canRight && (
-          <motion.div
+          <motion.button
+            type="button"
+            aria-label="Scroll tabs right"
+            onClick={() => nudge(1)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-10 items-center justify-end bg-gradient-to-l from-background via-background/85 to-transparent md:hidden"
+            className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-end bg-gradient-to-l from-background via-background/80 to-transparent pr-0.5 text-muted-foreground active:text-foreground md:hidden"
           >
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label="Scroll tabs right"
-              onClick={() => nudge(1)}
-              className="pointer-events-auto mr-0.5 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm active:scale-90"
-            >
-              <ChevronRight className="size-3.5" />
-            </button>
-          </motion.div>
+            <ChevronRight className="size-4" />
+          </motion.button>
         )}
       </AnimatePresence>
     </div>

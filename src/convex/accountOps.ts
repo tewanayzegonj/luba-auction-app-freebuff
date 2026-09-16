@@ -102,7 +102,7 @@ export const requestWithdrawal = mutation({
     // admin review settles against — no automation, fraud-safe.
     await postTransaction(ctx, {
       txType: "WITHDRAWAL_HOLD",
-      description: `Withdrawal request (${args.method}) — pending review`,
+      description: `Withdrawal request — pending review`,
       reference: userId,
       idempotencyKey: `WITHDRAWAL_HOLD:${userId}:${now}`,
       now,
