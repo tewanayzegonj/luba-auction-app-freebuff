@@ -71,7 +71,7 @@ function usePrefetchRoutes() {
 // every navigation. Only a genuinely slow load reveals the brand mark.
 function RouteLoading() {
   return (
-    <div className="flex min-h-dvh items-center justify-center">
+    <div className="flex min-h-svh items-center justify-center">
       <img src="/logo.svg" alt="" className="route-load-logo size-10" />
     </div>
   );
@@ -114,7 +114,7 @@ class RootErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-dvh flex items-center justify-center bg-background text-foreground p-6">
+        <div className="min-h-svh flex items-center justify-center bg-background text-foreground p-6">
           <div className="max-w-lg text-center">
             <p className="text-sm font-semibold">Preview runtime error</p>
             <p className="mt-2 text-xs text-muted-foreground break-words">

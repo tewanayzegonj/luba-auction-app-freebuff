@@ -441,7 +441,7 @@ export default function Dashboard() {
     (auctions ?? []).find((a) => a._id === auctionId);
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-svh flex-col">
       <SiteHeader />
       {/* First-visit guided tour - shown once per device, skippable. */}
       <OnboardingTour />

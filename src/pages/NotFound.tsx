@@ -9,7 +9,7 @@ export default function NotFound() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="flex min-h-dvh flex-col bg-background"
+      className="flex min-h-svh flex-col bg-background"
     >
       <div className="px-4 py-5 sm:px-6">
         <LubaWordmark />

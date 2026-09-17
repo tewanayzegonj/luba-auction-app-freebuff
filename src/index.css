@@ -193,6 +193,22 @@
     -webkit-tap-highlight-color: transparent;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
+    /* Kill the 300ms tap-arbitration delay: without this, the browser
+       waits after each tap to see if a second tap follows (double-tap
+       zoom). Every button, link, and input focus felt laggy because of
+       this. `manipulation` keeps pinch-zoom working, only disables the
+       double-tap-zoom arbitration. */
+    touch-action: manipulation;
+  }
+  /* Belt-and-braces on interactive elements themselves (some browsers
+     arbitrate per-element even when the page allows zoom). */
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"] {
+    touch-action: manipulation;
   }
 
   /* Form controls must never trigger iOS's focus zoom (16px floor). */

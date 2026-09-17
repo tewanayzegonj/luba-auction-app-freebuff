@@ -308,6 +308,21 @@ ui-ux-pro-max, getdesign.md reference systems). Their rules below are project la
 5. Every new animation names its purpose in a comment.
 6. `bun tsc -b --noEmit` passes.
 
+## Viewport & input latency law (learned the hard way, 2026-09-17)
+
+- **`min-h-svh`, NEVER `min-h-dvh` on page roots.** `dvh` (dynamic viewport
+  height) recalculates every time the mobile URL bar collapses or expands,
+  changing the page's height mid-scroll and reflowing everything under the
+  user's finger. That reflow IS the "jerk". `svh` (small viewport height) is
+  the stable variant: sized to the URL-bar-up viewport, it never changes.
+- **Interactive elements get `touch-action: manipulation`** (set globally in
+  index.css on body + button/a/input/select/textarea/[role=button]). Without
+  it, the browser arbitrates every tap for possible double-tap-zoom before
+  acting - a felt delay on every button press and input focus.
+- **Focus rings are instant, never animated.** An animated focus ring delays
+  perceived response by its own duration on the app's highest-frequency
+  interaction. Input/Textarea/InputOTP ship without focus transitions.
+
 ## The Golden Rule
 
 Never ask "what would AI generate here?" — ask "what would an exceptional

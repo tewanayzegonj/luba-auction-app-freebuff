@@ -255,7 +255,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   // never lands (dead network) recover instead of hanging forever.
   if (handoff) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6">
+      <div className="flex min-h-svh flex-col items-center justify-center bg-background px-6">
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,oklch(0.62_0.11_195/0.10),transparent_70%)]"
@@ -267,7 +267,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
+    <div className="flex min-h-svh flex-col bg-background">
       {/* Subtle brand backdrop */}
       <div
         aria-hidden

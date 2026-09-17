@@ -38,7 +38,7 @@ export default function Winners() {
   const winners = (useQuery(api.auctions.recentWinners, {}) ?? []) as WinnerRow[];
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-svh flex-col">
       <SiteHeader />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 md:py-14">

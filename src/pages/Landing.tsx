@@ -55,7 +55,7 @@ export default function Landing() {
     .slice(0, 3);
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-svh flex-col">
       <SiteHeader />
 
       {/* ─── Hero ─────────────────────────────────────────────────────────── */}

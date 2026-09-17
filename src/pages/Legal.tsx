@@ -19,7 +19,7 @@ export default function Legal({ doc }: { doc: Doc }) {
   const meta = META[doc];
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-svh flex-col">
       <SiteHeader />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 pb-24 sm:px-6 md:pb-10">
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
