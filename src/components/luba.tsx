@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { smoothScrollTo } from "@/lib/scroll";
+import { navigateTo, smoothScrollTo } from "@/lib/scroll";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/lib/i18n";
@@ -201,7 +201,12 @@ export function SiteHeader() {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-md">
+    /* Solid background, not backdrop-blur: blur forces every device to
+       re-composite the whole page under the bar on every scroll frame —
+       the #1 scroll-jank source on mid-range Android. In this design the
+       bar sits on the page background anyway; opacity tricks buy nothing
+       and cost frames. */
+    <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
         <LubaWordmark />
 
@@ -530,11 +535,14 @@ export function MobileTabBar() {
       active, then smooth-scroll to its panel. */
   const goToDashSection = (tab: string) => {
     if (!authed) {
-      navigate(`/auth?returnTo=${encodeURIComponent(`/dashboard?tab=${tab}`)}`);
+      navigateTo(
+        navigate,
+        `/auth?returnTo=${encodeURIComponent(`/dashboard?tab=${tab}`)}`,
+      );
       return;
     }
     if (window.location.pathname !== "/dashboard") {
-      navigate(`/dashboard?tab=${tab}&scroll=1`);
+      navigateTo(navigate, `/dashboard?tab=${tab}&scroll=1`);
       return;
     }
     // Already on the dashboard — switch tab if needed, then scroll.
@@ -560,7 +568,7 @@ export function MobileTabBar() {
           const el = document.querySelector<HTMLElement>("#auctions");
           if (el) smoothScrollTo(el);
         } else {
-          navigate("/#auctions");
+          navigateTo(navigate, "/#auctions");
         }
       },
     },
@@ -597,7 +605,7 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/92 backdrop-blur-lg lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background lg:hidden"
       style={{ paddingBottom: "var(--safe-bottom)" }}
     >
       <div className="mx-auto grid max-w-lg grid-cols-5">

@@ -15,6 +15,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/use-auth";
+import { smoothScrollTo } from "@/lib/scroll";
 import { formatETB, formatSantims } from "@/lib/money";
 import { useLang } from "@/lib/i18n";
 import { api } from "@/convex/_generated/api";
@@ -67,10 +68,13 @@ export default function Landing() {
           className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,oklch(0.62_0.11_195/0.12),transparent_70%)]"
         />
         <div className="mx-auto grid w-full max-w-6xl items-center gap-8 px-4 pb-14 pt-10 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:gap-10 md:pb-24 md:pt-20">
+          {/* Opacity-only hero entrance: route changes must not re-stage a
+              vertical move (the crossfade owns route motion; a rising hero
+              is what read as the page "shaking" open on tab presses). */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.35, ease: "linear" }}
           >
             <Badge
               variant="outline"
@@ -104,7 +108,20 @@ export default function Landing() {
                 className="h-12 px-6 sm:h-11 sm:flex-1 sm:px-6"
                 asChild
               >
-                <a href="#how-it-works">{t("hero.ctaSecondary")}</a>
+                {/* App scroll engine, not a raw anchor: native jumps are
+                    instant and jar; the glide lands with the header offset. */}
+                <a
+                  href="#how-it-works"
+                  onClick={(e) => {
+                    const el = document.querySelector<HTMLElement>("#how-it-works");
+                    if (el) {
+                      e.preventDefault();
+                      smoothScrollTo(el);
+                    }
+                  }}
+                >
+                  {t("hero.ctaSecondary")}
+                </a>
               </Button>
             </div>
             <div className="mt-6 flex flex-col gap-2 text-xs uppercase tracking-wider text-muted-foreground sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
@@ -128,9 +145,9 @@ export default function Landing() {
               be mistaken for a live listing by a new visitor (trust rule).
               Real listings appear in the Open auctions section below. */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.12 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: "linear", delay: 0.08 }}
             className="relative mx-auto w-full max-w-sm"
           >
             <BidFrequencyDemo />

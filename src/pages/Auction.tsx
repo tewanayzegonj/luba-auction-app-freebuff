@@ -6,6 +6,7 @@ import {
   StatusBadge,
 } from "@/components/luba";
 import { Badge } from "@/components/ui/badge";
+import { smoothScrollTo } from "@/lib/scroll";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -1136,7 +1137,10 @@ export default function AuctionPage() {
           Hidden on lg where the sticky side panel owns the CTA. */}
       {isOpen && (
         <div
-          className="fixed inset-x-0 z-30 border-t border-border/70 bg-background/92 px-4 py-3 backdrop-blur-lg lg:hidden"
+          // Solid bar, no backdrop-blur — same scroll-jank rationale as the
+          // header/tab bar: blur re-composites the page under it every
+          // frame. Consistency across all fixed surfaces.
+          className="fixed inset-x-0 z-30 border-t border-border/70 bg-background px-4 py-3 lg:hidden"
           style={{
             // Sit flush above the mobile tab bar, which itself grows by the
             // home-indicator safe area — so our offset must include it too.
@@ -1176,9 +1180,10 @@ export default function AuctionPage() {
                   if (!termsAccepted) {
                     // Scroll the full form into view so the user checks the
                     // fee box — keeps consent explicit on small screens.
-                    document
-                      .querySelector("#terms")
-                      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    const terms = document.querySelector<HTMLElement>("#terms");
+                    if (terms) {
+                      smoothScrollTo(terms, { offset: -window.innerHeight * 0.3 });
+                    }
                     return;
                   }
                   setFeeAcknowledged(false);

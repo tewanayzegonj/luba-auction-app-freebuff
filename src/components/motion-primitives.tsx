@@ -2,12 +2,18 @@ import { motion, useReducedMotion } from "framer-motion";
 
 /**
  * Shared, restrained motion primitives so every page animates with the same
- * voice: small rises, short durations, no bounce. Consistency is what makes
- * motion feel premium rather than playful.
+ * voice: short durations, no bounce. Consistency is what makes motion feel
+ * premium rather than playful.
  *
- * All primitives respect `prefers-reduced-motion` (WCAG 2.2 / master design
- * doc): users with the OS preference get a short opacity-only fade — no
- * vertical movement, no staggered reveals.
+ * Motion law (from the ui-skills canon + master design doc):
+ *  - NAVIGATION NEVER MOVES THE PAGE. PageFade is opacity-only — a rising
+ *    page re-stages a vertical move on every navigation, which reads as a
+ *    jerk right as the user lands (the "shaky page open" bug). Opacity
+ *    crossfades are the two cheapest properties a GPU can animate.
+ *  - Small rises (≤12px) belong to CONTENT arriving in view (StaggerItem,
+ *    scroll-triggered reveals) — not to route changes.
+ *  - Entrances ease-out, ≤350ms; everything respects prefers-reduced-motion
+ *    (WCAG 2.2): reduced users get short opacity-only fades.
  */
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -23,9 +29,9 @@ export function PageFade({
   const reduce = useReducedMotion();
   return (
     <motion.div
-      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduce ? 0.15 : 0.35, ease: EASE }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: reduce ? 0.15 : 0.25, ease: "linear" }}
       className={className}
     >
       {children}

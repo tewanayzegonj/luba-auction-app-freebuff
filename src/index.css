@@ -495,6 +495,17 @@
     color: var(--chart-4);
   }
 
+  /* ── Route-chunk loading splash ──────────────────────────────────
+     Hidden for the first 250ms: warm/cached chunk loads (the norm after
+     idle prefetch) suspend for a frame or two, and an instantly-rendered
+     splash flashed blank between every navigation. Only a genuinely slow
+     load reveals the mark, which then breathes. Reduced-motion users get
+     the static logo (base rule below; the animation rule is inside the
+     motion media query and never applies to them). */
+  .route-load-logo {
+    opacity: 0.7;
+  }
+
   /* ── Subtle motion layer ─────────────────────────────────────────────
      Content that swaps IN PLACE (tab panels) crossfades — opacity only,
      no y-shift: the page-level entrance already owns the vertical motion,
@@ -503,6 +514,30 @@
      Driven by data-state so Radix components pick it up automatically.
      Disabled for users who prefer reduced motion. */
   @media (prefers-reduced-motion: no-preference) {
+    .route-load-logo {
+      opacity: 0;
+      animation:
+        luba-route-load 0.3s ease-out 0.25s both,
+        luba-breathe 1.6s ease-in-out 0.55s infinite;
+    }
+    @keyframes luba-route-load {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+    @keyframes luba-breathe {
+      0%,
+      100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.55;
+      }
+    }
+
     [data-slot="tabs-content"][data-state="active"] {
       animation: luba-crossfade 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
     }

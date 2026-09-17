@@ -15,8 +15,12 @@ import React, {
   Suspense,
 } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router";
-import { smoothScrollTo } from "@/lib/scroll";
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router";
+import {
+  fadeNavigate,
+  isNavLocked,
+  smoothScrollTo,
+} from "@/lib/scroll";
 import "./index.css";
 
 // Lazy load route components for better code splitting
@@ -61,17 +65,14 @@ function usePrefetchRoutes() {
   }, []);
 }
 
-// Loading fallback for route transitions — the brand mark with a soft
-// breathing pulse (keeps the app's voice during chunk loads, no "Loading..."
-// text flash that reads as broken).
+// Loading fallback for route transitions. It renders NOTHING for the first
+// 250ms: warm/cached chunk loads (the norm after idle prefetch) suspend for
+// a frame or two, and an instantly-rendered splash flashed blank between
+// every navigation. Only a genuinely slow load reveals the brand mark.
 function RouteLoading() {
   return (
     <div className="flex min-h-dvh items-center justify-center">
-      <img
-        src="/logo.svg"
-        alt=""
-        className="size-10 animate-pulse opacity-70"
-      />
+      <img src="/logo.svg" alt="" className="route-load-logo size-10" />
     </div>
   );
 }
@@ -167,14 +168,17 @@ function RouteSyncer() {
 
   return null;
 }
-
 /** Scrolls to `#anchor` after navigating to /#anchor from another page (and
     resets to top on plain navigation, which react-router never does).
 
     useLayoutEffect, not useEffect: this must run BEFORE the browser paints
     the new route. In a useEffect it fires after paint, so every navigation
     rendered the new page at the previous scroll offset for a frame and then
-    snapped to top — a visible vertical jerk on each tab press. */
+    snapped to top — a visible vertical jerk on each tab press.
+
+    The plain-navigation reset is skipped while a route crossfade holds the
+    viewport (fadeNavigate resets scroll itself, mid-fade, where it can't
+    be seen). */
 function HashScroll() {
   const location = useLocation();
   useLayoutEffect(() => {
@@ -191,13 +195,56 @@ function HashScroll() {
         }
       };
       requestAnimationFrame(tryScroll);
-    } else {
+    } else if (!isNavLocked()) {
       window.scrollTo(0, 0);
     }
   }, [location.pathname, location.hash]);
   return null;
 }
 
+
+/** App-wide crossfade for Link navigations. Capture-phase intercept: every
+ *  internal <a> click routes through fadeNavigate, so header links, footer
+ *  links, cards and CTAs share the exact same transition as the tab bar —
+ *  one motion voice everywhere. React-router's Link checks
+ *  defaultPrevented before navigating, so there's no double navigation.
+ *  Bypassed (kept native): modified/new-tab clicks, downloads, external
+ *  URLs, same-page anchors (the scroll engine handles those), and
+ *  reduced-motion users (fadeNavigate falls back internally). */
+function CrossfadeLinks() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      )
+        return;
+      const a = (e.target as HTMLElement | null)?.closest?.("a");
+      if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+      const raw = a.getAttribute("href");
+      if (!raw || raw.startsWith("#")) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      // Same page + same params: nothing to navigate to (hash anchors fall
+      // through to the app's smooth-scroll handling instead).
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search
+      )
+        return;
+      e.preventDefault();
+      fadeNavigate(navigate, url.pathname + url.search + url.hash);
+    };
+    document.addEventListener("click", onClick, { capture: true });
+    return () => document.removeEventListener("click", onClick, { capture: true });
+  }, [navigate]);
+  return null;
+}
 
 /** Silent client that just runs the idle-time route prefetch. */
 function Prefetcher() {
@@ -215,6 +262,7 @@ createRoot(document.getElementById("root")!).render(
           <LanguageProvider>
           <BrowserRouter>
           <Prefetcher />
+            <CrossfadeLinks />
             <RouteSyncer />
             <HashScroll />
             <Suspense fallback={<RouteLoading />}>
