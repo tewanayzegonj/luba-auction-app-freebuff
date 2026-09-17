@@ -400,16 +400,22 @@ export default function Landing() {
 
       {/* ─── CTA ──────────────────────────────────────────────────────────── */}
       <section className="px-4 pb-16 sm:px-6 md:pb-24">
-        {/* The page's one loud moment: a solid primary band, split left/right —
-            no centered-everything glow panel. Hierarchy by size and weight,
-            not by decoration. */}
-        <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-2xl bg-primary text-primary-foreground">
+        {/* The page's one loud moment. Why NOT a full primary (cyan) fill: the
+            light-mode primary-foreground pairing fails AA for body copy and
+            reads washed-out — the "junk box" report. A deep charcoal band with
+            a hairline cyan edge and one cyan signal (the arrow) is both
+            accessible in both themes and matches the instrument-panel identity. */}
+        <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-primary/25 bg-foreground text-background">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-primary"
+          />
           <div className="flex flex-col gap-6 px-6 py-10 sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-10 sm:py-12">
             <div className="max-w-lg">
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
                 Place your first unique bid
               </h2>
-              <p className="mt-2 text-sm leading-6 sm:text-base">
+              <p className="mt-2 text-sm leading-6 opacity-80 sm:text-base">
                 Create an account, top up your wallet, and pick an amount nobody
                 else will think of. It takes about two minutes.
               </p>
@@ -417,7 +423,7 @@ export default function Landing() {
             <div className="shrink-0">
               <Button
                 size="lg"
-                className="h-12 w-full bg-foreground px-7 text-background hover:bg-foreground/90 sm:h-11 sm:w-auto"
+                className="h-12 w-full bg-primary px-7 text-primary-foreground hover:bg-primary/90 sm:h-11 sm:w-auto"
                 asChild
               >
                 <Link to={isAuthenticated ? "/dashboard" : "/auth"}>

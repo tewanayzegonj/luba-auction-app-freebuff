@@ -189,6 +189,12 @@
     -webkit-tap-highlight-color: transparent;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
+    /* Route-change stability: pages alternate between short (auth, 404) and
+       long (dashboard, landing). Without reserving the scrollbar's column,
+       every toggle reflows the whole viewport — the horizontal "shake" on
+       bottom-bar navigation. `stable` keeps a permanent gutter so page
+       content never shifts left/right between routes. */
+    scrollbar-gutter: stable;
   }
 
   /* Form controls must never trigger iOS's focus zoom (16px floor). */

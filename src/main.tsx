@@ -14,14 +14,46 @@ import { smoothScrollTo } from "@/lib/scroll";
 import "./index.css";
 
 // Lazy load route components for better code splitting
-const Landing = lazy(() => import("./pages/Landing.tsx"));
-const AuthPage = lazy(() => import("./pages/Auth.tsx"));
-const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
-const AuctionPage = lazy(() => import("./pages/Auction.tsx"));
-const AdminPage = lazy(() => import("./pages/Admin.tsx"));
-const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-const Legal = lazy(() => import("./pages/Legal.tsx"));
-const Winners = lazy(() => import("./pages/Winners.tsx"));
+/** Route chunks live in one map so lazy() and the idle preloader share the
+    exact same import paths — prefetching can never drift from the routes. */
+const routeImports = {
+  Landing: () => import("./pages/Landing.tsx"),
+  Auth: () => import("./pages/Auth.tsx"),
+  Dashboard: () => import("./pages/Dashboard.tsx"),
+  Auction: () => import("./pages/Auction.tsx"),
+  Admin: () => import("./pages/Admin.tsx"),
+  NotFound: () => import("./pages/NotFound.tsx"),
+  Legal: () => import("./pages/Legal.tsx"),
+  Winners: () => import("./pages/Winners.tsx"),
+} as const;
+
+const Landing = lazy(routeImports.Landing);
+const AuthPage = lazy(routeImports.Auth);
+const Dashboard = lazy(routeImports.Dashboard);
+const AuctionPage = lazy(routeImports.Auction);
+const AdminPage = lazy(routeImports.Admin);
+const NotFound = lazy(routeImports.NotFound);
+const Legal = lazy(routeImports.Legal);
+const Winners = lazy(routeImports.Winners);
+
+/** Kill first-tap lag: after the initial paint, warm every consumer route
+    chunk in the idle window. First navigation then renders instantly instead
+    of suspending on a network fetch (the "slow navigation" feel). Admin is
+    excluded — it's the heaviest chunk, staff-only, and not worth the mobile
+    bandwidth for users who never open it. */
+function usePrefetchRoutes() {
+  useEffect(() => {
+    const idle =
+      window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500));
+    const id = idle(() => {
+      const { Admin: _admin, ...consumer } = routeImports;
+      for (const load of Object.values(consumer)) void load();
+    });
+    return () => {
+      window.cancelIdleCallback?.(id as number);
+    };
+  }, []);
+}
 
 // Loading fallback for route transitions — the brand mark with a soft
 // breathing pulse (keeps the app's voice during chunk loads, no "Loading..."
@@ -156,6 +188,12 @@ function HashScroll() {
 }
 
 
+/** Silent client that just runs the idle-time route prefetch. */
+function Prefetcher() {
+  usePrefetchRoutes();
+  return null;
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <RootErrorBoundary>
@@ -165,6 +203,7 @@ createRoot(document.getElementById("root")!).render(
         <ThemeProvider>
           <LanguageProvider>
           <BrowserRouter>
+          <Prefetcher />
             <RouteSyncer />
             <HashScroll />
             <Suspense fallback={<RouteLoading />}>
