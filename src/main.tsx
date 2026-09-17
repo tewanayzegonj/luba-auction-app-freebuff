@@ -18,7 +18,6 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router";
 import {
   fadeNavigate,
-  isNavLocked,
   smoothScrollTo,
 } from "@/lib/scroll";
 import "./index.css";
@@ -171,14 +170,11 @@ function RouteSyncer() {
 /** Scrolls to `#anchor` after navigating to /#anchor from another page (and
     resets to top on plain navigation, which react-router never does).
 
-    useLayoutEffect, not useEffect: this must run BEFORE the browser paints
-    the new route. In a useEffect it fires after paint, so every navigation
-    rendered the new page at the previous scroll offset for a frame and then
-    snapped to top - a visible vertical jerk on each tab press.
-
-    The plain-navigation reset is skipped while a route crossfade holds the
-    viewport (fadeNavigate resets scroll itself, mid-fade, where it can't
-    be seen). */
+    useLayoutEffect, not useEffect: inside a view transition this runs in the
+    transition's update callback - while the OLD page snapshot is still on
+    screen - so the reset is structurally invisible. Without a transition it
+    runs before paint, same guarantee. Either way the new page is born at
+    the top; no frame is ever painted at the previous scroll offset. */
 function HashScroll() {
   const location = useLocation();
   useLayoutEffect(() => {
@@ -195,7 +191,7 @@ function HashScroll() {
         }
       };
       requestAnimationFrame(tryScroll);
-    } else if (!isNavLocked()) {
+    } else {
       window.scrollTo(0, 0);
     }
   }, [location.pathname, location.hash]);

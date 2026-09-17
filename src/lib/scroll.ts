@@ -27,9 +27,7 @@
  * Route transitions (fadeNavigate): the other half of "smooth". Pages used to
  * RISE on entrance (y: 10-24px) - every navigation re-staged a vertical move
  * right as you landed, which reads as a jerk, not polish. The canon fix:
- * navigation never moves the page. The old view fades out (130ms), the router
- * swaps underneath while scrolled to top, the new view fades in (140ms).
- * Opacity only - the two cheapest properties a GPU can animate.
+ * navigation never moves the page.
  */
 
 let activeToken = 0;
@@ -126,92 +124,55 @@ export function smoothScrollTo(
   requestAnimationFrame(step);
 }
 
-// ─── Route crossfade ─────────────────────────────────────────────────────────
-
-/** Milliseconds for the out/in halves of the route crossfade. Kept just under
- *  the 150ms "instant" ceiling so navigation never feels gated behind motion. */
-const FADE_OUT_MS = 130;
-const FADE_IN_MS = 140;
-
-/** The root element the router renders into (index.html `<div id="root">`). */
-function routeRoot(): HTMLElement | null {
-  return typeof document === "undefined" ? null : document.getElementById("root");
-}
-
-/** True while a navigation crossfade is holding the scroll position. */
-let navLock = false;
+// ─── Route transitions: native View Transitions ──────────────────────────────
 
 /**
- * Navigate with a crossfade instead of an instant swap (and instead of the
- * old page-rise entrance). Locks the viewport during the swap so the new
- * page can never paint at the previous scroll offset.
+ * Navigate through the browser's own crossfade (View Transitions API) instead
+ * of an instant swap. Why this replaced the hand-rolled root-opacity fade:
  *
- * Falls back to a plain `navigate(to)` when motion is reduced or the root
- * element isn't mounted yet - correctness never depends on the effect.
+ *  - The old fade went content → BLANK → content: root opacity hit 0 between
+ *    the halves, a visible flash on every navigation.
+ *  - It relied on timers + double-rAF to swap, reset scroll, and release - on
+ *    a slow frame the sequencing drifted and the new page painted at the old
+ *    scroll offset for a frame: the persistent navigation jerk.
+ *
+ * startViewTransition has none of those seams. The browser snapshots the old
+ * page, runs the router update INSIDE the transition callback (layout
+ * effects - including the scroll-to-top reset - execute while the old
+ * snapshot is still on screen, so the reset is structurally invisible),
+ * snapshots the new page, and crossfades. The intermediate state that caused
+ * the jerk can never be painted, by construction. Browsers without the API
+ * fall back to an instant navigation; reduced-motion users get instant too.
+ *
+ * The animation itself is defined in CSS (`::view-transition-old(root)` /
+ * `::view-transition-new(root)` in index.css) - declarative, and it composes
+ * with the reduced-motion media query in one place.
  */
 export function fadeNavigate(
-  navigate: (to: string, opts?: { replace?: boolean }) => void,
+  navigate: (
+    to: string,
+    opts?: { replace?: boolean; viewTransition?: boolean },
+  ) => void,
   to: string,
   opts?: { replace?: boolean },
 ): void {
-  const root = routeRoot();
-
-  if (
-    typeof window === "undefined" ||
-    prefersReducedMotion() ||
-    !root
-  ) {
+  if (typeof window === "undefined" || prefersReducedMotion()) {
     navigate(to, opts);
     return;
   }
-
-  navLock = true;
-  root.style.transition = `opacity ${FADE_OUT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-  root.style.opacity = "0";
-
-  // Hash targets (/#auctions) position via HashScroll's section glide after
-  // the swap - resetting to top here would fight it mid-flight.
-  const hasHash = to.includes("#") && !to.endsWith("#");
-
-  window.setTimeout(() => {
-    navigate(to, opts);
-    // The router swaps synchronously with navigate(); one double-rAF lands
-    // us after the new page's first paint, then we release the lock and
-    // fade the new view in from a clean, top-anchored state.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!hasHash) window.scrollTo(0, 0);
-        root.style.transition = `opacity ${FADE_IN_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-        root.style.opacity = "1";
-        navLock = false;
-        // Drop the inline transition once done so theme switches and other
-        // opacity work aren't haunted by a lingering transition rule.
-        window.setTimeout(() => {
-          if (root.style.opacity === "1") {
-            root.style.transition = "";
-          }
-        }, FADE_IN_MS + 60);
-      });
-    });
-  }, FADE_OUT_MS);
+  navigate(to, { ...opts, viewTransition: true });
 }
 
-/** Called by the router-sync component: while a crossfade holds the viewport,
- *  external scroll resets (react-router hashes, browser restore) must not
- *  yank the page mid-fade. */
+/** Semantic alias used by the tab bar / header call sites - same transition,
+ *  one name at call sites that mean "go to this route". */
+export const navigateTo = fadeNavigate;
+
+/** Obsolete since the View Transitions migration, kept for the HashScroll
+ *  call site. The old root-opacity fade needed a lock because its reset ran
+ *  AFTER the new page painted. With view transitions, HashScroll's
+ *  useLayoutEffect reset executes INSIDE startViewTransition's update
+ *  callback - before the new snapshot is taken - so the reset is invisible
+ *  by construction and no lock is needed. Always false. */
 export function isNavLocked(): boolean {
-  return navLock;
-}
-
-/** App-wide crossfade navigation - the single entry point every internal
- *  navigation that isn't a `<Link>` goes through, so route changes share
- *  one motion voice: fade out 130ms → swap at top → fade in 140ms.
- *  Browser back/forward keeps instant native behavior (the expected
- *  mental model for history motion). */
-export function navigateTo(
-  navigate: (to: string, opts?: { replace?: boolean }) => void,
-  to: string,
-  opts?: { replace?: boolean },
-): void {
-  fadeNavigate(navigate, to, opts);
+  return false;
 }

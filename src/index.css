@@ -522,6 +522,28 @@
     opacity: 0.7;
   }
 
+  /* ── Route transitions (View Transitions API) ──────────────────────────
+     Navigation runs through react-router's viewTransition option: the
+     browser snapshots the old page, swaps the DOM while the snapshot is
+     still on screen, then crossfades to the new snapshot. No blank window,
+     no scroll offset ever painted mid-swap - the jerk source is gone by
+     construction, not by timing. Only duration/curve are set here; the
+     browser's own opacity keyframes do the crossfade. */
+  @media (prefers-reduced-motion: no-preference) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation-duration: 180ms;
+      animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-group(root),
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+      animation: none !important;
+    }
+  }
+
   /* ── Subtle motion layer ─────────────────────────────────────────────
      Content that swaps IN PLACE (tab panels) crossfades — opacity only,
      no y-shift: the page-level entrance already owns the vertical motion,
