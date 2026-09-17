@@ -24,18 +24,15 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   BadgeCheck,
-  Gavel,
-  HandCoins,
   Lock,
-  MousePointerClick,
   Search,
   ShieldCheck,
   Smartphone,
   Trophy,
   TrendingDown,
-  Wallet,
 } from "lucide-react";
 import { Link } from "react-router";
+import { cn } from "@/lib/utils";
 
 export default function Landing() {
   const { isAuthenticated } = useAuth();
@@ -264,25 +261,21 @@ export default function Landing() {
               rules — just game theory.
             </p>
           </div>
-          <div className="mt-10 grid gap-5 md:grid-cols-4">
+          <div className="mt-10 flex flex-col divide-y divide-border md:grid md:grid-cols-4 md:gap-0 md:divide-x md:divide-y-0">
             {[
               {
-                icon: Wallet,
                 title: "Top up",
                 body: "Add funds to your wallet once — then bid without friction.",
               },
               {
-                icon: MousePointerClick,
                 title: "Choose an amount",
                 body: "Pick any value in the auction's range — say, 2.00 ETB — and keep it to yourself.",
               },
               {
-                icon: Gavel,
                 title: "Pay the service fee",
                 body: "Each bid costs a small fixed fee. The bid value itself is charged only if you win.",
               },
               {
-                icon: Trophy,
                 title: "Lowest unique wins",
                 body: "When the clock expires, the lowest amount submitted exactly once takes the prize.",
               },
@@ -293,18 +286,24 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
                 transition={{ duration: 0.4, delay: i * 0.07 }}
-                className="relative rounded-xl border border-border bg-card p-5 shadow-layered"
+                className="flex gap-5 py-6 md:block md:px-6 md:py-2 md:first:pl-0 md:last:pr-0"
               >
-                <span className="absolute right-4 top-4 font-mono text-xs text-muted-foreground/60">
+                {/* Spec-sheet figures, not icon tiles: the numbers carry the
+                    hierarchy; the winning step is the single accent moment. */}
+                <span
+                  className={cn(
+                    "font-display w-12 shrink-0 text-2xl font-semibold tabular-nums md:w-auto",
+                    i === 3 ? "text-primary" : "text-foreground/25",
+                  )}
+                >
                   0{i + 1}
                 </span>
-                <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <s.icon className="size-5" />
+                <div>
+                  <h3 className="font-semibold">{s.title}</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                    {s.body}
+                  </p>
                 </div>
-                <h3 className="mt-3.5 font-semibold">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-                  {s.body}
-                </p>
               </motion.div>
             ))}
           </div>
@@ -401,22 +400,32 @@ export default function Landing() {
 
       {/* ─── CTA ──────────────────────────────────────────────────────────── */}
       <section className="px-4 pb-16 sm:px-6 md:pb-24">
-        <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-card shadow-layered-lg">
-          <div className="relative bg-[radial-gradient(80%_120%_at_50%_-10%,oklch(0.62_0.11_195/0.18),transparent_60%)] px-6 py-14 text-center">
-            <HandCoins className="mx-auto size-10 text-primary" />
-            <h2 className="mt-4 text-2xl font-bold tracking-tight md:text-3xl">
-              Place your first unique bid
-            </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground md:text-base">
-              Create an account, top up your wallet, and pick an amount nobody
-              else will think of. It takes about two minutes.
-            </p>
-            <Button size="lg" className="mt-6 h-11 px-7" asChild>
-              <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
-                {isAuthenticated ? "Browse open auctions" : "Create your account"}
-                <ArrowRight className="ml-1.5 size-4" />
-              </Link>
-            </Button>
+        {/* The page's one loud moment: a solid primary band, split left/right —
+            no centered-everything glow panel. Hierarchy by size and weight,
+            not by decoration. */}
+        <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-2xl bg-primary text-primary-foreground">
+          <div className="flex flex-col gap-6 px-6 py-10 sm:flex-row sm:items-center sm:justify-between sm:gap-10 sm:px-10 sm:py-12">
+            <div className="max-w-lg">
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                Place your first unique bid
+              </h2>
+              <p className="mt-2 text-sm leading-6 sm:text-base">
+                Create an account, top up your wallet, and pick an amount nobody
+                else will think of. It takes about two minutes.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <Button
+                size="lg"
+                className="h-12 w-full bg-foreground px-7 text-background hover:bg-foreground/90 sm:h-11 sm:w-auto"
+                asChild
+              >
+                <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
+                  {isAuthenticated ? "Browse open auctions" : "Create your account"}
+                  <ArrowRight className="ml-1.5 size-4" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
