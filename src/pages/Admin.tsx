@@ -54,6 +54,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollableTabs, ActiveTabScroll } from "@/components/scrollable-tabs";
 import { cn } from "@/lib/utils";
+import { cleanConvexError } from "@/lib/errors";
 
 /**
  * Admin console — spec §41–43.
@@ -155,7 +156,7 @@ function AdminConsole() {
       if (okMsg) toast.success(okMsg);
       return true;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message.replace(/^Uncaught Error: /, "") : "Action failed");
+      toast.error(cleanConvexError(err) || "Action failed");
       return false;
     } finally {
       setBusy(null);
@@ -719,9 +720,9 @@ function AdminConsole() {
                     toast.success(`Campaign ${res.auctionCode} created`);
                     setShowCampaignForm(false);
                   } catch (err) {
-                    toast.error(
-                      err instanceof Error ? err.message : "Failed to create campaign",
-                    );
+                    toast.error("Failed to create campaign", {
+                      description: cleanConvexError(err),
+                    });
                   } finally {
                     setBusy(null);
                   }
@@ -1004,9 +1005,9 @@ function AdminConsole() {
                                   await attachImageToPrize({ prizeId: p._id, storageId });
                                   toast.success("Image attached");
                                 } catch (err) {
-                                  toast.error(
-                                    err instanceof Error ? err.message : "Upload failed",
-                                  );
+                                  toast.error("Upload failed", {
+                                    description: cleanConvexError(err),
+                                  });
                                 } finally {
                                   setBusy(null);
                                 }
@@ -2019,7 +2020,7 @@ function AdminConsole() {
         setTitle("");
         setBody("");
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to send");
+        toast.error("Failed to send", { description: cleanConvexError(err) });
       } finally {
         setSending(false);
       }
@@ -2645,7 +2646,7 @@ function KycReviewPanel() {
       await fn();
       toast.success(okMsg);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message.replace(/^Uncaught Error: /, "") : "Action failed");
+      toast.error(cleanConvexError(err) || "Action failed");
     } finally {
       setBusy(null);
     }

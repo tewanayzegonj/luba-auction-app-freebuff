@@ -35,6 +35,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useNavigate, useSearchParams } from "react-router";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { useLang } from "@/lib/i18n";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
@@ -95,12 +96,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setLinkState({
-            error:
-              err instanceof Error
-                ? err.message.replace(/^Uncaught Error: /, "")
-                : "This link could not be confirmed.",
-          });
+          setLinkState({ error: friendlyError(err) });
         }
       });
     return () => {

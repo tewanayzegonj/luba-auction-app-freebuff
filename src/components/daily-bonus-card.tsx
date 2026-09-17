@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { formatETB } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 
 /**
  * Daily check-in bonus card — one promo-credit claim per Addis day with a
@@ -30,11 +31,7 @@ export function DailyBonusCard() {
       }
       // ALREADY_CLAIMED_TODAY: state will reflect it via the live query.
     } catch (err) {
-      toast.error(
-        err instanceof Error
-          ? err.message.replace(/^Uncaught Error: /, "")
-          : "Could not claim the bonus.",
-      );
+      toast.error("Couldn't claim the bonus", { description: friendlyError(err) });
     }
   };
 

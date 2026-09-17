@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { formatETB } from "@/lib/money";
 
 type Settlement = Doc<"winnerSettlements">;
@@ -69,11 +70,7 @@ export function WinnerJourneyCard({ settlement }: { settlement: Settlement }) {
             : "Show your claim code and ID at pickup.",
       });
     } catch (err) {
-      toast.error(
-        err instanceof Error
-          ? err.message.replace(/^Uncaught Error: /, "")
-          : "Claim failed",
-      );
+      toast.error("Claim failed", { description: friendlyError(err) });
     } finally {
       setBusy(false);
     }

@@ -38,6 +38,7 @@ import { ScrollableTabs, ActiveTabScroll } from "@/components/scrollable-tabs";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { PageFade } from "@/components/motion-primitives";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   ArrowUpRight,
@@ -302,14 +303,8 @@ export default function Dashboard() {
       );
       window.location.href = result.checkoutUrl;
     } catch (err) {
-      const raw = err instanceof Error ? err.message : "UNKNOWN";
       toast.error("Top-up failed", {
-        description:
-          raw === "INVALID_AMOUNT"
-            ? "Enter a valid amount."
-            : raw === "UNAUTHENTICATED"
-              ? "Your session expired — sign in and try again."
-              : raw,
+        description: friendlyError(err),
       });
     } finally {
       setBusy(null);
@@ -352,13 +347,8 @@ export default function Dashboard() {
       });
       setReceiptInput("");
     } catch (err) {
-      const raw = err instanceof Error ? err.message : "UNKNOWN";
       toast.error("Could not start verification", {
-        description: raw.startsWith("PASTE")
-          ? "Paste your receipt link or telebirr reference first."
-          : raw === "RECEIPT_URL_MUST_BE_HTTPS"
-            ? "Paste the full https:// link from your bank app or SMS."
-            : raw,
+        description: friendlyError(err),
       });
     } finally {
       setBusy(null);
@@ -373,13 +363,9 @@ export default function Dashboard() {
         description: "Your prize will be fulfilled shortly.",
       });
     } catch (err) {
-      const raw = err instanceof Error ? err.message : "";
-      toast.error(
-        raw.includes("INSUFFICIENT") || raw.includes("insufficient")
-          ? "Not enough balance"
-          : "Payment failed",
-        { description: "Top up your wallet and try again." },
-      );
+      toast.error("Payment failed", {
+        description: friendlyError(err),
+      });
     } finally {
       setBusy(null);
     }
@@ -402,9 +388,9 @@ export default function Dashboard() {
         description: "You can change it any time in Profile.",
       });
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Could not save your name.",
-      );
+      toast.error("Could not save your name", {
+        description: friendlyError(err),
+      });
     }
   };
 
@@ -1665,7 +1651,7 @@ function ResponsiblePlayCard() {
               toast.success("Deposit cap saved");
               setCapInput("");
             } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Failed");
+              toast.error("Couldn't save your cap", { description: friendlyError(err) });
             } finally {
               setBusy(false);
             }
@@ -1686,7 +1672,7 @@ function ResponsiblePlayCard() {
               description: "Bidding and deposits are disabled until it lifts.",
             });
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed");
+            toast.error("Couldn't start your break", { description: friendlyError(err) });
           } finally {
             setBusy(false);
           }
@@ -1790,7 +1776,7 @@ function TelegramLinkRow({
                 await onUnlink({ method: "telegram" });
                 toast.success("Telegram unlinked");
               } catch (err) {
-                toast.error(err instanceof Error ? err.message : "Failed");
+                toast.error("Couldn't unlink Telegram", { description: friendlyError(err) });
               } finally {
                 setBusy(null);
               }
@@ -1829,9 +1815,7 @@ function TelegramLinkRow({
                 });
                 setChatId("");
               } catch (err) {
-                toast.error(
-                  err instanceof Error ? err.message : "Couldn't start linking",
-                );
+                toast.error("Couldn't start linking", { description: friendlyError(err) });
               } finally {
                 setBusy(null);
               }
@@ -1909,7 +1893,7 @@ function PhoneLinkRow({
                 await onUnlink({ method: "phone" });
                 toast.success("Phone unlinked");
               } catch (err) {
-                toast.error(err instanceof Error ? err.message : "Failed");
+                toast.error("Couldn't unlink your phone", { description: friendlyError(err) });
               } finally {
                 setBusy(null);
               }
@@ -1948,9 +1932,7 @@ function PhoneLinkRow({
                 });
                 setPhone("");
               } catch (err) {
-                toast.error(
-                  err instanceof Error ? err.message : "Couldn't start linking",
-                );
+                toast.error("Couldn't start linking", { description: friendlyError(err) });
               } finally {
                 setBusy(null);
               }
@@ -2140,7 +2122,7 @@ function KycVerificationCard() {
       await submitDoc({ storageId, fileName: file.name });
       toast.success("Document submitted for review.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed.");
+      toast.error("Upload failed", { description: friendlyError(err) });
     } finally {
       setUploading(false);
     }

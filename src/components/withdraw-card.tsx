@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { formatETB, parseETBToSantims } from "@/lib/money";
 
 const WITHDRAW_PRESETS = [25_00, 50_00, 100_00, 250_00];
@@ -63,11 +64,7 @@ export function WithdrawCard({ balanceSantims }: { balanceSantims: number }) {
       setAmount("");
       setDestination("");
     } catch (err) {
-      toast.error(
-        err instanceof Error
-          ? err.message.replace(/^Uncaught Error: /, "")
-          : "Request failed",
-      );
+      toast.error("Withdrawal request failed", { description: friendlyError(err) });
     } finally {
       setBusy(false);
     }

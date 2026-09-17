@@ -25,6 +25,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { formatETB, parseETBToSantims } from "@/lib/money";
 import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { friendlyError } from "@/lib/errors";
 import { useMutation, useQuery } from "convex/react";
 import {
   ArrowLeft,
@@ -58,20 +59,7 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-const FRIENDLY_ERRORS: Record<string, string> = {
-  UNAUTHENTICATED: "Please sign in to place a bid.",
-  USER_NOT_ELIGIBLE: "Your account is not eligible to bid. Contact support.",
-  TERMS_NOT_ACCEPTED: "Please accept the auction terms first.",
-  AUCTION_NOT_OPEN: "This auction is not open for bidding.",
-  AUCTION_CLOSED: "This auction has closed.",
-  BID_OUT_OF_RANGE: "Your bid is outside the allowed range.",
-  BID_NOT_ON_INCREMENT: "Your bid must follow the allowed increments.",
-  BID_LIMIT_REACHED: "You've used all your bids for this auction.",
-  CONSECUTIVE_BID_BLOCKED:
-    "That would create a run longer than allowed. Pick a different amount.",
-  INSUFFICIENT_BALANCE:
-    "Not enough wallet balance for the bid fee. Top up and try again.",
-};
+
 
 interface AuctionDetail {
   _id: Id<"auctions">;
@@ -333,11 +321,8 @@ export default function AuctionPage() {
       setAmountInput("");
       setTermsAccepted(false);
     } catch (err) {
-      const raw = err instanceof Error ? err.message : "UNKNOWN";
-      const base = raw.split(":")[0].trim();
-      toast.error(t("auction.notUnique"), {
-        description:
-          FRIENDLY_ERRORS[base] ?? "Something went wrong. Please try again.",
+      toast.error("Bid not placed", {
+        description: friendlyError(err),
       });
     } finally {
       setSubmitting(false);
@@ -475,7 +460,7 @@ export default function AuctionPage() {
                         : "Removed from your watchlist.",
                     );
                   } catch (err) {
-                    toast.error(err instanceof Error ? err.message : "Failed");
+                    toast.error("Watchlist", { description: friendlyError(err) });
                   } finally {
                     setTogglePending(false);
                   }
