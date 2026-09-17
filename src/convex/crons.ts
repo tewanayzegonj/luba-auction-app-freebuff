@@ -53,6 +53,15 @@ crons.interval(
   internal.payments.sweepStalePendingPayments,
 );
 
+// Self-heal loop: stale PENDING Chapa payments are re-verified against the
+// provider and completed — a missed webhook (secret unset, network blip, user
+// closed the tab) can never strand a funded payment in PENDING for 24h.
+crons.interval(
+  "chapa reconciliation",
+  { minutes: 10 },
+  internal.payments.reconcilePendingChapaPayments,
+);
+
 crons.interval(
   "ledger reconciliation",
   { minutes: 15 },

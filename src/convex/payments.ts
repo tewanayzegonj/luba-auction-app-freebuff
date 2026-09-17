@@ -1,9 +1,10 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { getChapaSecretKey, hmacSha256Hex } from "./chapa";
 import { normalizePhone } from "./auth/senders";
 import {
+  internalAction,
   internalMutation,
   internalQuery,
   mutation,
@@ -445,6 +446,20 @@ export const getPaymentByReferenceInternal = internalQuery({
   },
 });
 
+/** Internal: fetch a payment row by id (reverify/reconcile actions). */
+export const getPaymentByIdInternal = internalQuery({
+  args: { paymentId: v.id("payments") },
+  handler: async (ctx, args) => {
+    const p = await ctx.db.get(args.paymentId);
+    if (!p) return null;
+    return {
+      status: p.status,
+      provider: p.provider,
+      merchantReference: p.merchantReference,
+    };
+  },
+});
+
 /**
  * The exact hook every PSP adapter calls after authenticating + verifying a
  * webhook. Internal visibility: no public mutation can credit a wallet.
@@ -508,5 +523,110 @@ export const sweepStalePendingPayments = internalMutation({
       expired++;
     }
     return { expired };
+  },
+});
+
+/**
+ * User-initiated re-verification of a PENDING Chapa payment (Wallet →
+ * Payment history → "Verify again"). Mutations cannot run actions, so this
+ * validates + schedules the verification action; the reactive payment query
+ * flips the row to COMPLETED when the action lands.
+ */
+export const startChapaReverify = mutation({
+  args: { paymentId: v.id("payments") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("UNAUTHENTICATED");
+    const payment = await ctx.db.get(args.paymentId);
+    if (!payment) throw new Error("PAYMENT_NOT_FOUND");
+    if (payment.userId !== userId) throw new Error("PAYMENT_NOT_YOURS");
+    if (payment.provider !== PROVIDER_CHAPA) {
+      throw new Error("NOT_A_CHAPA_PAYMENT");
+    }
+    if (payment.status === "COMPLETED") return { scheduled: false };
+    await ctx.scheduler.runAfter(
+      0,
+      internal.payments.reverifyChapaPaymentInternal,
+      { paymentId: args.paymentId },
+    );
+    return { scheduled: true };
+  },
+});
+
+/** Internal: the stale-PENDING-Chapa work list for the reconciliation cron. */
+export const listStalePendingChapaInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 5 * 60_000; // newer: client verify still in flight
+    const pending = await ctx.db
+      .query("payments")
+      .withIndex("by_status", (q) => q.eq("status", "PENDING"))
+      .collect();
+    return pending
+      .filter((p) => p.provider === PROVIDER_CHAPA && p.createdAt < cutoff)
+      .slice(0, 20)
+      .map((p) => ({ paymentId: p._id, merchantReference: p.merchantReference }));
+  },
+});
+
+/**
+ * Verify one PENDING Chapa payment against the provider API and complete it
+ * if funded. Runs as an action (network call); crediting goes through the
+ * idempotent confirmProviderPaymentInternal (replay-safe, amount-checked).
+ */
+export const reverifyChapaPaymentInternal = internalAction({
+  args: { paymentId: v.id("payments") },
+  handler: async (ctx, args): Promise<{ status: string }> => {
+    const payment = await ctx.runQuery(internal.payments.getPaymentByIdInternal, {
+      paymentId: args.paymentId,
+    });
+    if (!payment) return { status: "NOT_FOUND" as const };
+    if (payment.status !== "PENDING") return { status: payment.status };
+
+    const verified = await ctx.runAction(api.chapa.verifyTransaction, {
+      merchantReference: payment.merchantReference,
+    });
+    if (!verified.ok || !verified.succeeded) {
+      // Not confirmed yet (or Chapa unreachable): leave PENDING for the next
+      // reconciliation pass / user retry.
+      return { status: "STILL_PENDING" as const };
+    }
+    await ctx.runMutation(internal.payments.confirmProviderPaymentInternal, {
+      providerEventId: `chapa:reverify:${payment.merchantReference}`,
+      merchantReference: payment.merchantReference,
+      providerReference: verified.providerReference ?? undefined,
+      succeeded: true,
+      expectedAmountSantims: verified.amountSantims ?? undefined,
+    });
+    return { status: "COMPLETED" as const };
+  },
+});
+
+/**
+ * Webhook/return-flow reconciliation: every 10 minutes, stale PENDING Chapa
+ * payments are re-verified against the provider and completed — a missed
+ * webhook (secret unset, network blip, user closed the tab) can never strand
+ * a funded payment in PENDING for 24h. Wired in crons.ts.
+ */
+export const reconcilePendingChapaPayments = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ checked: number; credited: number }> => {
+    const candidates = await ctx.runQuery(
+      internal.payments.listStalePendingChapaInternal,
+      {},
+    );
+    let credited = 0;
+    for (const c of candidates) {
+      try {
+        const res = await ctx.runAction(
+          internal.payments.reverifyChapaPaymentInternal,
+          { paymentId: c.paymentId },
+        );
+        if (res.status === "COMPLETED") credited++;
+      } catch (err) {
+        console.warn("[payments] reconcile failed", c.merchantReference, err);
+      }
+    }
+    return { checked: candidates.length, credited };
   },
 });

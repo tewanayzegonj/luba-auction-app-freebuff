@@ -46,6 +46,7 @@ import {
   Bell,
   CheckCircle2,
   Clock,
+  Copy,
   CreditCard,
   Eye,
   FlaskConical,
@@ -194,43 +195,83 @@ export default function Dashboard() {
     setBusy("topup");
     // The verify endpoint lives on the Convex site deployment (web actions),
     // NOT on this app's origin — in dev/preview the two domains differ, so an
-    // app-relative path would 404 and the catch below would fire.
-    const convexSiteUrl = (
-      import.meta.env.VITE_CONVEX_SITE_URL as string | undefined
-    )?.replace(/\/$/, "");
-    const verifyBase =
-      convexSiteUrl ?? "https://giant-bat-855.convex.site";
-    fetch(`${verifyBase}/payments/chapa/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        merchantReference: parsed.merchantReference,
-        token: parsed.token,
-      }),
-    })
-      .then((r) => r.json())
-      .then((res: { ok?: boolean; status?: string; error?: string }) => {
-        if (res.ok && res.status === "COMPLETED") {
-          toast.success("Top-up complete", {
-            description: `${formatETB(parsed.amountSantims)} added to your wallet.`,
-          });
-        } else if (res.ok) {
-          toast.info("Payment still processing", {
-            description:
-              "Your wallet will be credited automatically once the provider confirms the payment.",
-          });
-        } else {
-          toast.error("We could not confirm your payment", {
-            description: res.error ?? "Please try again or contact support.",
-          });
-        }
-      })
-      .catch(() =>
-        toast.error("We could not confirm your payment", {
-          description: "Check your payment history in a moment.",
+    // app-relative path would 404. Derive it from VITE_CONVEX_URL (always
+    // present — the app boots from it): the cloud↔site swap is Convex's
+    // documented convention. The old hardcoded fallback pointed at a STALE
+    // deployment, so every verify failed when the env var was unset.
+    const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+    const verifyBase = (
+      (import.meta.env.VITE_CONVEX_SITE_URL as string | undefined) ??
+      convexUrl?.replace(".convex.cloud", ".convex.site") ??
+      ""
+    ).replace(/\/$/, "");
+    if (!verifyBase) {
+      toast.error("We could not confirm your payment", {
+        description: "Open Wallet → Payment history and tap Verify again.",
+      });
+      setBusy(null);
+      return;
+    }
+
+    /** Ask the server whether the provider has confirmed yet. Chapa's own
+        ledger can lag the hosted-checkout redirect by a few seconds, so a
+        short poll closes the gap instead of showing "still processing"
+        immediately (that message made every successful payment look hung). */
+    const verifyOnce = (): Promise<{
+      ok?: boolean;
+      status?: string;
+      error?: string;
+    }> =>
+      fetch(`${verifyBase}/payments/chapa/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          merchantReference: parsed.merchantReference,
+          token: parsed.token,
         }),
-      )
-      .finally(() => setBusy(null));
+      }).then((r) => r.json());
+
+    const confirm = (res: { ok?: boolean; status?: string; error?: string }) => {
+      if (res.ok && res.status === "COMPLETED") {
+        toast.success("Top-up complete", {
+          description: `${formatETB(parsed.amountSantims)} added to your wallet.`,
+        });
+      } else if (res.ok) {
+        toast.info("Payment still processing", {
+          description:
+            "Your wallet will be credited automatically — or tap Verify again in Payment history.",
+        });
+      } else {
+        toast.error("We could not confirm your payment", {
+          description:
+            res.error === "CHAPA_NOT_CONFIGURED"
+              ? "Online payments are not configured yet."
+              : "Open Payment history and tap Verify again, or contact support.",
+        });
+      }
+    };
+
+    (async () => {
+      // Up to 5 checks over ~15s before reporting PENDING — most Chapa
+      // transactions confirm on the first or second poll.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const res = await verifyOnce();
+          if (res.ok && res.status === "COMPLETED") {
+            confirm(res);
+            return;
+          }
+          if (!res.ok) {
+            confirm(res);
+            return;
+          }
+        } catch {
+          // Network blip — keep polling; final failure handled below.
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      confirm({ ok: true, status: "PENDING" });
+    })().finally(() => setBusy(null));
   }, []);
 
   const handleTopUp = async (santims: number) => {
@@ -247,9 +288,8 @@ export default function Dashboard() {
           "luba_linkset_payment",
           JSON.stringify({ paymentId, amountSantims: santims }),
         );
-        toast.info("Transfer first, then verify", {
-          description:
-            "Send the money to our account (details below), then paste your receipt link or telebirr reference.",
+        toast.info("Step 1: send the money", {
+          description: `Transfer exactly ${formatETB(santims)} to the account shown below, then paste your receipt.`,
         });
         setTopUpInput("");
         return;
@@ -866,8 +906,8 @@ export default function Dashboard() {
                             Bank transfer — verified by the bank
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            Transfer to our account, paste your receipt link —
-                            credited in under a minute.
+                            Send the money yourself, then paste your receipt
+                            link — the bank confirms it, credited in ~1 min.
                           </span>
                         </span>
                       </button>
@@ -1333,6 +1373,15 @@ function WatchlistPanel() {
  * scheduled action verifies at the bank — linksetStatus flows back through
  * the reactive payment query.
  */
+/** Where customers send money for bank-transfer top-ups. Set these in the
+    project's env/Keys UI — they are public-facing details, safe as VITE_ vars. */
+const BANK_DETAILS = {
+  telebirr: import.meta.env.VITE_LUBA_TELEBIRR as string | undefined,
+  bankName: import.meta.env.VITE_LUBA_BANK_NAME as string | undefined,
+  accountNumber: import.meta.env.VITE_LUBA_BANK_ACCOUNT as string | undefined,
+  accountName: import.meta.env.VITE_LUBA_ACCOUNT_NAME as string | undefined,
+};
+
 function ReceiptVerifyPanel({
   receiptInput,
   onInputChange,
@@ -1358,14 +1407,94 @@ function ReceiptVerifyPanel({
     }
   }, []);
 
+  const hasDetails = Boolean(BANK_DETAILS.telebirr || BANK_DETAILS.accountNumber);
+
   return (
-    <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
-      <p className="text-xs font-semibold">Bank transfer — how it works</p>
-      <ol className="mt-1.5 list-decimal space-y-0.5 pl-4 text-xs leading-5 text-muted-foreground">
-        <li>Transfer the exact amount to our telebirr (see below).</li>
-        <li>Copy the receipt link from your bank app or SMS confirmation.</li>
-        <li>Paste it here — the bank itself confirms it, usually under a minute.</li>
-      </ol>
+    <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+      <p className="text-sm font-semibold">Bank transfer — 3 steps</p>
+
+      {/* Step 1: where to send the money. The previous version said "details
+          below" but never showed them — the #1 source of confusion. */}
+      <div className="mt-3 rounded-lg border border-border bg-card p-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Step 1 — Send exactly{" "}
+          <span className="text-foreground">
+            {pending ? formatETB(pending.amountSantims) + " ETB" : "your amount"}
+          </span>
+        </p>
+        {hasDetails ? (
+          <dl className="mt-2 space-y-1.5 text-sm">
+            {BANK_DETAILS.telebirr && (
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-xs text-muted-foreground">telebirr</dt>
+                <dd className="flex items-center gap-1.5 font-mono font-semibold">
+                  {BANK_DETAILS.telebirr}
+                  <button
+                    type="button"
+                    aria-label="Copy telebirr number"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(BANK_DETAILS.telebirr!);
+                      toast.success("telebirr number copied");
+                    }}
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                </dd>
+              </div>
+            )}
+            {BANK_DETAILS.accountNumber && (
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-xs text-muted-foreground">
+                  {BANK_DETAILS.bankName ?? "Bank"}
+                </dt>
+                <dd className="flex items-center gap-1.5 font-mono font-semibold">
+                  {BANK_DETAILS.accountNumber}
+                  <button
+                    type="button"
+                    aria-label="Copy account number"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(
+                        BANK_DETAILS.accountNumber!,
+                      );
+                      toast.success("Account number copied");
+                    }}
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                </dd>
+              </div>
+            )}
+            {BANK_DETAILS.accountName && (
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-xs text-muted-foreground">Account name</dt>
+                <dd className="text-sm font-medium">{BANK_DETAILS.accountName}</dd>
+              </div>
+            )}
+          </dl>
+        ) : (
+          <p className="mt-2 text-xs text-amber-700 dark:text-amber-500">
+            Account details are not configured yet — add VITE_LUBA_TELEBIRR (and
+            optionally VITE_LUBA_BANK_NAME / VITE_LUBA_BANK_ACCOUNT /
+            VITE_LUBA_ACCOUNT_NAME) in the project's Keys tab.
+          </p>
+        )}
+      </div>
+
+      {/* Step 2: get the receipt */}
+      <p className="mt-3 text-xs leading-5 text-muted-foreground">
+        <span className="font-semibold text-foreground">Step 2 — </span>
+        After paying, copy the receipt link from your bank app / telebirr SMS
+        confirmation (or note the transaction reference).
+      </p>
+
+      {/* Step 3: verify */}
+      <p className="mt-2.5 text-xs leading-5 text-muted-foreground">
+        <span className="font-semibold text-foreground">Step 3 — </span>
+        Paste it below. Our system fetches the receipt from the bank itself and
+        credits your wallet — usually under a minute.
+      </p>
       <div className="mt-2.5 space-y-2">
         <Label htmlFor="receipt-value" className="text-xs">
           Receipt link or reference
@@ -1394,8 +1523,8 @@ function ReceiptVerifyPanel({
       </div>
       {!pending && (
         <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-500">
-          Start a top-up first (enter an amount above), then transfer and
-          verify.
+          Start the top-up first (enter an amount above and tap Add funds) —
+          that registers the exact amount we'll verify against.
         </p>
       )}
     </div>
@@ -1996,6 +2125,29 @@ function StatCard({
 
 function PaymentsList() {
   const payments = useQuery(api.payments.getMyPayments, {});
+  const reverify = useMutation(api.payments.startChapaReverify);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const handleReverify = async (paymentId: string) => {
+    setVerifyingId(paymentId);
+    try {
+      const res = await reverify({ paymentId: paymentId as never });
+      if (res.scheduled) {
+        toast.info("Checking with Chapa…", {
+          description:
+            "This takes a few seconds — the payment updates automatically when confirmed.",
+        });
+      }
+      // When !scheduled the row was already COMPLETED; the live query reflects it.
+    } catch (err) {
+      toast.error("Could not check that payment", {
+        description: friendlyError(err),
+      });
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
   if (payments === undefined) return <LoadingRows />;
   if (payments.length === 0) {
     return (
@@ -2046,6 +2198,26 @@ function PaymentsList() {
                 ? "VERIFYING"
                 : p.status}
             </Badge>
+            {/* Recovery path: a Chapa payment can sit in PENDING when the
+                webhook was missed and the user closed the tab mid-verify.
+                Give the user a direct way to re-check with the provider —
+                the reconciler cron also self-heals these every 10 minutes. */}
+            {p.status === "PENDING" && p.provider === "chapa" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-1 h-7 px-2 text-xs"
+                disabled={verifyingId !== null}
+                onClick={() => handleReverify(p._id)}
+              >
+                {verifyingId === p._id ? (
+                  <Loader2 className="mr-1 size-3 animate-spin" />
+                ) : (
+                  <Clock className="mr-1 size-3" />
+                )}
+                Verify again
+              </Button>
+            )}
           </div>
         </div>
       ))}
