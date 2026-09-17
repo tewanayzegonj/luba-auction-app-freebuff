@@ -112,6 +112,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [handoff, setHandoff] = useState(false);
 
   const applyReferral = useMutation(api.growth.applyReferralCode);
 
@@ -125,7 +126,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           // Invalid/self/expired codes are silently ignored — never block login.
         });
       }
-      navigate(redirect);
+      navigate(redirect, { replace: true });
     }
   }, [authLoading, isAuthenticated, navigate, redirect, searchParams, referralBound, applyReferral]);
 
@@ -198,7 +199,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       await signIn(provider, { email: identifier, code: otp });
-      navigate(redirect);
+      // Hand-off screen — do NOT navigate here: ConvexAuth's isAuthenticated
+      // flips a round-trip after signIn resolves. Navigating now makes
+      // RequireAuth bounce the user back to /auth, which remounts this page
+      // at the method step (reads as "sign-in did nothing"). The
+      // isAuthenticated effect performs the redirect the moment the session
+      // is real; the timer below recovers the form if it never lands.
+      setHandoff(true);
+      setTimeout(() => setHandoff(false), 8000);
     } catch (err) {
       // Never surface the raw provider error here — a rejected code should
       // read as a normal, recoverable step, not a system failure.
@@ -240,6 +248,23 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const smsEnabled = authMethods?.smsOtp === true;
   const anyMethodEnabled =
     !authMethods || authMethods.emailOtp || telegramEnabled || smsEnabled;
+
+  // Between "code accepted" and "session is live" there's a short window
+  // (ConvexAuth still needs a round-trip). Show a quiet hand-off screen so
+  // the user never sees the sign-in form flash back, and if the session
+  // never lands (dead network) recover instead of hanging forever.
+  if (handoff) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6">
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,oklch(0.62_0.11_195/0.10),transparent_70%)]"
+        />
+        <Loader2 className="size-6 animate-spin text-primary" />
+        <p className="mt-4 text-sm text-muted-foreground">Signing you in…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

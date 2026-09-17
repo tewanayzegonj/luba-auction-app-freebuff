@@ -226,6 +226,28 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* ─── Data tables: no clipped letters ─────────────────────────────────
+     Money tables must never truncate values. min-width per column keeps
+     content from being squeezed; long strings (descriptions, receipt
+     references, admin notes) wrap instead of overflowing under the card's
+     overflow-hidden; tabular figures stay column-aligned. */
+  .data-table th,
+  .data-table td {
+    min-width: 88px;
+    max-width: 320px;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+  }
+  .data-table td {
+    /* Comfortable, consistent row rhythm; top-aligned so multi-line cells
+       read as one record instead of floating mid-height. */
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .data-table th {
+    white-space: nowrap;
+  }
+
   /* ─── Horizontal-overflow guards (last-resort net) ──────────────────
      The layout should never overflow by construction; these catch stray
      content (long codes, unbroken URLs, wide tables outside .table-scroll,

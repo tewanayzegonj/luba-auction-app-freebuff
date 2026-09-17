@@ -315,7 +315,7 @@ function AdminConsole() {
             ) : (
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
                 <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
+                <table className="data-table w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">User</th>
@@ -582,7 +582,7 @@ function AdminConsole() {
             ) : (
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
                 <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
+                <table className="data-table w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">User</th>
@@ -1047,7 +1047,7 @@ function AdminConsole() {
             ) : (
               <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
                 <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
+                <table className="data-table w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">Auction</th>
@@ -1261,7 +1261,7 @@ function AdminConsole() {
                   ) : (
                     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
                       <div className="overflow-x-auto">
-                      <table className="w-full min-w-[640px] text-sm">
+                      <table className="data-table w-full min-w-[640px] text-sm">
                         <thead>
                           <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                             <th className="px-4 py-3 font-medium">When</th>

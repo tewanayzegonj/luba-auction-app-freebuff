@@ -119,12 +119,27 @@ export function ScrollableTabs({
  */
 export function ActiveTabScroll() {
   useEffect(() => {
-    const adjust = () => {
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    let animFrame = 0;
+    // While a smooth scroll is in flight, ignore scroll-position noise so
+    // attribute/child mutations don't fight the animation (the "snap back
+    // to tab 1" bug when the user picks a trailing tab).
+    let until = 0;
+    const busy = () => performance.now() < until;
+
+    // Reads current geometry and, if the active trigger sits outside the
+    // viewport, scrolls it into view. Returns true when an adjustment fired.
+    const sync = (): boolean => {
       const trigger = document.querySelector<HTMLElement>(
         '[data-slot="tabs-trigger"][data-state="active"]',
       );
-      const strip = trigger?.closest('[data-slot="tabs-list"]')?.parentElement;
-      if (!trigger || !strip || strip.scrollWidth <= strip.clientWidth) return;
+      // The scroll strip is TabsList's wrapper (ScrollableTabs' inner div);
+      // TabsList itself is the pill and has no overflow of its own.
+      const strip = trigger?.closest('[data-slot="tabs-list"]')
+        ?.parentElement as HTMLElement | null;
+      if (!trigger || !strip || strip.scrollWidth <= strip.clientWidth) {
+        return false;
+      }
 
       const tLeft = trigger.offsetLeft;
       const tRight = tLeft + trigger.offsetWidth;
@@ -133,23 +148,56 @@ export function ActiveTabScroll() {
 
       if (tLeft < viewLeft) {
         strip.scrollTo({ left: tLeft, behavior: "smooth" });
-      } else if (tRight > viewRight) {
+        return true;
+      }
+      if (tRight > viewRight) {
         strip.scrollTo({ left: tRight - strip.clientWidth, behavior: "smooth" });
+        return true;
+      }
+      return false;
+    };
+
+    const adjust = () => {
+      if (busy()) return;
+      if (sync()) {
+        // Suppress our own listeners while the smooth scroll runs; a final
+        // sync after settle catches subpixel rounding left by the animation.
+        until = performance.now() + 500;
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(() => {
+          until = 0;
+          sync();
+        }, 520);
       }
     };
 
-    // Measure after layout settles (fonts/labels can shift the strip).
-    const raf = requestAnimationFrame(adjust);
-    // Watch future tab activations (clicks, ?tab= navigation) — Radix flips
-    // data-state on triggers. Scroll position changes don't fire this.
+    // Mount-time sync: the Tabs tree may have mounted ALREADY scrolled past
+    // (Dashboard remounts via key={initialTab} when ?tab= changes — new nodes
+    // are born active, so no data-state *change* ever fires). Call once
+    // immediately, then again after layout/fonts settle.
+    if (sync()) {
+      until = performance.now() + 500;
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        until = 0;
+        sync();
+      }, 520);
+    }
+    animFrame = requestAnimationFrame(adjust);
+
+    // Future activations (clicks, ?tab= on the same mount): Radix flips
+    // data-state on triggers. Scoped to the strip — NOT document.body-wide,
+    // which made every unrelated attribute mutation re-run the measurement.
+    const stripEl = document
+      .querySelector('[data-slot="tabs-trigger"][data-state="active"]')
+      ?.closest('[data-slot="tabs-list"]')?.parentElement;
     const mo = new MutationObserver(adjust);
-    mo.observe(document.body, {
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-state"],
-    });
+    if (stripEl) {
+      mo.observe(stripEl, { subtree: true, attributes: true, attributeFilter: ["data-state"] });
+    }
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(animFrame);
+      clearTimeout(settleTimer);
       mo.disconnect();
     };
   }, []);

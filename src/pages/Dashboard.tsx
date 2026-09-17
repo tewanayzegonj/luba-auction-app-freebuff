@@ -518,10 +518,13 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Tabs */}
+        {/* Tabs — controlled by ?tab=. NOT keyed by the tab: keying remounted
+            the entire tab tree on every tap, which (a) threw away tab-panel
+            scroll state and (b) reset the tab strip's horizontal scroll to 0
+            while the last tab stayed selected — the "jumps back to the first
+            tab" bug on phones. */}
         <Tabs
-          defaultValue={initialTab}
-          key={initialTab}
+          value={initialTab}
           onValueChange={(v) => {
             if (v === "bids") setSearchParams({}, { replace: true });
             else setSearchParams({ tab: v }, { replace: true });
@@ -587,7 +590,7 @@ export default function Dashboard() {
                  so the scrolled table still clips cleanly. */
               <div className="table-scroll">
                 <div className="min-w-[620px] overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-                  <table className="w-full text-sm">
+                  <table className="data-table w-full text-sm">
                   <thead>
                     <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
                       <th className="px-4 py-3 font-medium">Auction</th>
@@ -1412,7 +1415,7 @@ function ReceiptsPanel() {
        the scroll or the card's overflow-hidden clips it (prior bug). */
     <div className="table-scroll">
       <div className="min-w-[560px] overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
-        <table className="w-full text-sm">
+        <table className="data-table w-full text-sm">
         <thead>
           <tr className="border-b border-border bg-secondary/50 text-left text-xs uppercase tracking-wider text-muted-foreground">
             <th className="px-4 py-3 font-medium">Event</th>
