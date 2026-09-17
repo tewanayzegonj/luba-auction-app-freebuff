@@ -8,7 +8,7 @@ import {
 } from "./ledger";
 
 /**
- * Financial service — wallet operations as double-entry ledger postings.
+ * Financial service - wallet operations as double-entry ledger postings.
  * Every function is idempotent and must be called inside the same
  * transaction as the business event it funds (spec §15).
  */
@@ -108,7 +108,7 @@ export async function chargeBidFee(
     throw new Error("FEE_MUST_BE_POSITIVE");
   }
 
-  // Promo balance is consumed first, then paid. Single balanced posting —
+  // Promo balance is consumed first, then paid. Single balanced posting -
   // the ledger remains the truth and the wallet is the projection.
   const wallet = await ensureWallet(ctx, userId);
   const fromPromo = Math.min(wallet.promoBalanceSantims, feeSantims);
@@ -214,7 +214,7 @@ export async function chargeWinnerPayment(
  * correcting an erroneous credit, chargeback). Mirrors a refund:
  *   DEBIT  USER_PAID:userId
  *   CREDIT PLATFORM_REVENUE
- * The ledger guard refuses postings that would take the balance negative —
+ * The ledger guard refuses postings that would take the balance negative -
  * you cannot deduct more than the user holds (Invariant 2).
  */
 export async function deductUser(

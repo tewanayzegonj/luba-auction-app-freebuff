@@ -22,7 +22,7 @@ import { insertAuditLog } from "./lib/notifications";
 /**
  * True when the string looks like a numeric Telegram chat ID rather than an
  * email. Telegram sign-in flows through an Email-type provider, so the chat
- * ID gets stored in the user's `email` field — this helper distinguishes the
+ * ID gets stored in the user's `email` field - this helper distinguishes the
  * two so the UI labels identities correctly.
  */
 function looksLikeTelegramChatId(value: string): boolean {
@@ -30,19 +30,19 @@ function looksLikeTelegramChatId(value: string): boolean {
 }
 
 /**
- * Account linking — email ↔ Telegram ↔ phone (SMS), spec §8.
+ * Account linking - email ↔ Telegram ↔ phone (SMS), spec §8.
  *
  * Flow (Telegram / phone):
- *  1. `startLink` — signed-in user requests to link a channel; we generate a
+ *  1. `startLink` - signed-in user requests to link a channel; we generate a
  *     random token, store only its sha256, and hand the token to an internal
  *     sender action that delivers a deep link via Telegram/SMS.
  *  2. The user opens the link (`/auth?link=<token>`); the confirm mutation
- *     resolves the token server-side — the browser only ever holds a random
+ *     resolves the token server-side - the browser only ever holds a random
  *     capability token, never the account identity.
  *  3. `confirmLink` binds the verified destination to the user record:
  *     telegramChatId (Telegram) or phone + phoneVerificationTime (SMS).
  *
- * Uniqueness: a chat ID / phone number can be linked to at most one account —
+ * Uniqueness: a chat ID / phone number can be linked to at most one account -
  * conflicts are rejected instead of silently hijacking the other account.
  * Security: tokens are 20 chars of crypto-random (~95 bits), expire in 15
  * minutes, are single-use, and are hashed at rest (spec §54).
@@ -102,7 +102,7 @@ export const startLink = mutation({
   args: {
     method: v.union(v.literal("telegram"), v.literal("phone")),
     destination: v.string(),
-    // The browser's own origin — the ONLY reliable base for the confirmation
+    // The browser's own origin - the ONLY reliable base for the confirmation
     // link, since env fallbacks resolve to the Convex deployment domain where
     // the SPA (and its /auth route) does not exist → "No matching routes".
     appOrigin: v.optional(v.string()),
@@ -122,7 +122,7 @@ export const startLink = mutation({
     if (args.method === "telegram") {
       if (!/^\d{5,}$/.test(destination)) {
         throw new Error(
-          "Enter your numeric Telegram ID — open our bot and press Start to receive it.",
+          "Enter your numeric Telegram ID - open our bot and press Start to receive it.",
         );
       }
       if (!process.env.TELEGRAM_BOT_TOKEN) {
@@ -191,7 +191,7 @@ export const startLink = mutation({
   },
 });
 
-/** Internal sender — runs outside the client's transaction. */
+/** Internal sender - runs outside the client's transaction. */
 export const deliverLink = internalAction({
   args: {
     token: v.string(),
@@ -220,7 +220,7 @@ export const deliverLink = internalAction({
     if (args.method === "telegram") {
       await sendTelegramMessage(
         args.destination,
-        `🔗 ይህን ቴሌግራም መለያ ከሉባ መገለጫዎ ጋር ማጣመር ይፈልጋሉ? · Link this Telegram account to your Luba profile?\n\nከታች ይንኩ ላይ ለማረጋገጥ — አገናኙ ለ 15 ደቂቃ ብቻ ይሰራል፦\n${link}\n\nይህን ጥያቄ ካላደረጉ እርስ ይበሉ · If you didn't request this, ignore this message.`,
+        `🔗 ይህን ቴሌግራም መለያ ከሉባ መገለጫዎ ጋር ማጣመር ይፈልጋሉ? · Link this Telegram account to your Luba profile?\n\nከታች ይንኩ ላይ ለማረጋገጥ - አገናኙ ለ 15 ደቂቃ ብቻ ይሰራል፦\n${link}\n\nይህን ጥያቄ ካላደረጉ እርስ ይበሉ · If you didn't request this, ignore this message.`,
       );
     } else {
       await sendSms(

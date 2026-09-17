@@ -13,14 +13,14 @@ import { ROLES } from "./schema";
  *
  * 1. Settlement creation mints a claim code and delivers it via the
  *    notification outbox (Telegram/SMS).
- * 2. Winner verifies identity (KYC VERIFIED — existing upload/review flow).
+ * 2. Winner verifies identity (KYC VERIFIED - existing upload/review flow).
  * 3. Winner pays the winning bid value from wallet balance (existing
  *    payWinningBid) and submits pickup/delivery details.
- * 4. Admin marks the prize handed over (FULFILLED) — social-proof photo.
+ * 4. Admin marks the prize handed over (FULFILLED) - social-proof photo.
  *
  * Also publishes the provably-fair per-bid breakdown once an auction
  * completes: every accepted bid, anonymized, sorted lowest-first with
- * duplicate flags — anyone can verify the lowest unique bid wins.
+ * duplicate flags - anyone can verify the lowest unique bid wins.
  */
 
 // ─── Provably-fair public results ───────────────────────────────────────────
@@ -75,7 +75,7 @@ export const provablyFairResults = query({
       rows.push({
         position: i + 1,
         valueSantims: b.bidValueSantims,
-        // Anonymized identity: last 2 chars of the bid id — unique per bid,
+        // Anonymized identity: last 2 chars of the bid id - unique per bid,
         // stable, and cannot be linked to a user without DB access.
         maskedBidder: `Bidder #***${b._id.slice(-2)}`,
         unique: count === 1,
@@ -126,8 +126,8 @@ export const mintClaimCodeInternal = internalMutation({
         await insertNotification(ctx, {
           userId: settlement.winnerUserId,
           type: "PRIZE_STATUS",
-          title: "🎉 You won — your claim code",
-          body: `Claim code: ${code}. Keep it — show it (with your ID) at pickup/delivery. Pay the winning amount from your wallet to finalize.`,
+          title: "🎉 You won - your claim code",
+          body: `Claim code: ${code}. Keep it - show it (with your ID) at pickup/delivery. Pay the winning amount from your wallet to finalize.`,
           auctionId: settlement.auctionId,
           now: Date.now(),
         });
@@ -169,7 +169,7 @@ export const claimAndPay = mutation({
       .first();
     if (user?.kycStatus !== "VERIFIED" && !approvedDoc) {
       throw new Error(
-        "Verify your identity first — upload your ID in Profile → Verification.",
+        "Verify your identity first - upload your ID in Profile → Verification.",
       );
     }
 
@@ -232,7 +232,7 @@ export const verifyClaimCode = query({
   },
 });
 
-/** Admin: mark the prize handed over (FULFILLED) — final step. */
+/** Admin: mark the prize handed over (FULFILLED) - final step. */
 export const markFulfilled = mutation({
   args: { settlementId: v.id("winnerSettlements") },
   handler: async (ctx, args) => {

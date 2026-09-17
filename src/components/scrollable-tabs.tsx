@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * Scroll-aware wrapper for a Radix TabsList that overflows on phones.
  *
  * Why not the old always-on gradient: a permanent right-edge fade paints over
- * the LAST TAB even when fully scrolled — it reads as a cut-off, broken tab.
+ * the LAST TAB even when fully scrolled - it reads as a cut-off, broken tab.
  * The premium pattern (iOS segmented controls, Material tabs): each edge gets
  * a fade + chevron ONLY while that direction actually has hidden content,
  * driven by the strip's real scroll position.
@@ -40,7 +40,7 @@ export function ScrollableTabs({
     if (!el) return;
     update();
     el.addEventListener("scroll", update, { passive: true });
-    // Tabs can mount late / re-render with different labels (i18n) — re-measure.
+    // Tabs can mount late / re-render with different labels (i18n) - re-measure.
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => {
@@ -57,7 +57,7 @@ export function ScrollableTabs({
 
   return (
     <div className={cn("relative", className)}>
-      {/* Left affordance — only when content is hidden to the left. The
+      {/* Left affordance - only when content is hidden to the left. The
           WHOLE fade strip is the tap target (Material/iOS pattern); no
           floating circle, which read as a broken blob over the tabs. */}
       <AnimatePresence>
@@ -84,7 +84,7 @@ export function ScrollableTabs({
         {children}
       </div>
 
-      {/* Right affordance — disappears once the last tab is fully visible. */}
+      {/* Right affordance - disappears once the last tab is fully visible. */}
       <AnimatePresence>
         {canRight && (
           <motion.button
@@ -111,7 +111,7 @@ export function ScrollableTabs({
  * can't currently see; without this, a phone user lands on a hidden tab.
  *
  * Self-contained: renders nothing, watches Radix's own data-state flips, and
- * adjusts with manual `scrollLeft` math — `scrollIntoView` would also scroll
+ * adjusts with manual `scrollLeft` math - `scrollIntoView` would also scroll
  * the WINDOW (every scrollable ancestor), yanking the page vertically.
  *
  * Usage: `<ActiveTabScroll />` right after `</TabsList>` inside
@@ -172,7 +172,7 @@ export function ActiveTabScroll() {
     };
 
     // Mount-time sync: the Tabs tree may have mounted ALREADY scrolled past
-    // (Dashboard remounts via key={initialTab} when ?tab= changes — new nodes
+    // (Dashboard remounts via key={initialTab} when ?tab= changes - new nodes
     // are born active, so no data-state *change* ever fires). Call once
     // immediately, then again after layout/fonts settle.
     if (sync()) {
@@ -186,7 +186,7 @@ export function ActiveTabScroll() {
     animFrame = requestAnimationFrame(adjust);
 
     // Future activations (clicks, ?tab= on the same mount): Radix flips
-    // data-state on triggers. Scoped to the strip — NOT document.body-wide,
+    // data-state on triggers. Scoped to the strip - NOT document.body-wide,
     // which made every unrelated attribute mutation re-run the measurement.
     const stripEl = document
       .querySelector('[data-slot="tabs-trigger"][data-state="active"]')

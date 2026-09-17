@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
  * iOS-proportioned switch: 44×24 track, 18px thumb, 20px travel.
  *
  * The base mobile rule in index.css inflates bare buttons to 44px
- * min-height on touch devices — applied to this component's original
+ * min-height on touch devices - applied to this component's original
  * 32×18 track it produced a deformed 32×44 pill. This component is
  * deliberately exempt from that inflation: the visual track stays a
  * true switch, and the 44px touch floor is honored via an invisible

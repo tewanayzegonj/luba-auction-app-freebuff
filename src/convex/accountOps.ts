@@ -18,7 +18,7 @@ import { attemptBid } from "./lib/bidCore";
  * Account operations (Phase 2 + Phase 6):
  *  - Wallet withdrawals: user requests a payout, admins review it. The
  *    request moves funds OUT of the user's paid balance into a platform
- *    withdrawal liability atomically — the user cannot spend or double
+ *    withdrawal liability atomically - the user cannot spend or double
  *    request money that is awaiting review. Rejection refunds via a
  *    compensating ledger posting (append-only pattern, spec §20).
  *  - Super admin: the platform owner role. Regular admins cannot grant,
@@ -85,7 +85,7 @@ export const requestWithdrawal = mutation({
     if (pending.length > 0) {
       throw new Error("WITHDRAWAL_ALREADY_PENDING");
     }
-    // Minimum payout: 25 ETB — keeps manual review economically sane.
+    // Minimum payout: 25 ETB - keeps manual review economically sane.
     if (args.amountSantims < 2_500) {
       throw new Error("MIN_WITHDRAWAL_25_ETB");
     }
@@ -99,10 +99,10 @@ export const requestWithdrawal = mutation({
     // Move funds out of the spendable balance into the withdrawal liability
     // atomically with the request row. The ledger refuses negative user
     // balances (Invariant 2), and the withdraw-liability row is what the
-    // admin review settles against — no automation, fraud-safe.
+    // admin review settles against - no automation, fraud-safe.
     await postTransaction(ctx, {
       txType: "WITHDRAWAL_HOLD",
-      description: `Withdrawal request — pending review`,
+      description: `Withdrawal request - pending review`,
       reference: userId,
       idempotencyKey: `WITHDRAWAL_HOLD:${userId}:${now}`,
       now,
@@ -250,7 +250,7 @@ export const listWithdrawalsAdmin = query({
       .map((w) => ({
         id: w._id,
         userId: w.userId,
-        userEmail: byId.get(w.userId)?.email ?? "—",
+        userEmail: byId.get(w.userId)?.email ?? "-",
         userName: byId.get(w.userId)?.name ?? null,
         amountSantims: w.amountSantims,
         method: w.method,
@@ -297,7 +297,7 @@ export const reviewWithdrawal = mutation({
       // manual payout (telebirr/bank transfer executed outside the app).
       await postTransaction(ctx, {
         txType: "WITHDRAWAL_PAID",
-        description: `Withdrawal paid out (${w.method}) — ${args.note ?? "manual payout"}`,
+        description: `Withdrawal paid out (${w.method}) - ${args.note ?? "manual payout"}`,
         reference: w._id,
         idempotencyKey: `WITHDRAWAL_PAID:${w._id}`,
         now,
@@ -363,8 +363,8 @@ export const reviewWithdrawal = mutation({
 /**
  * Grant a role. Regular admins can only grant USER (i.e. nothing above
  * themselves); only the SUPER_ADMIN can create admins or transfer ownership.
- * The super admin can demote other admins (Revoke Admin) but nobody —
- * including themselves — can downgrade the super admin account.
+ * The super admin can demote other admins (Revoke Admin) but nobody -
+ * including themselves - can downgrade the super admin account.
  */
 export const grantRole = mutation({
   args: {
@@ -408,7 +408,7 @@ export const grantRole = mutation({
   },
 });
 
-/** Revoke admin (back to user) — super admin only. */
+/** Revoke admin (back to user) - super admin only. */
 export const revokeAdmin = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -430,7 +430,7 @@ export const revokeAdmin = mutation({
 });
 
 /**
- * Owner recovery — CLI/Dashboard only (internal, never callable from the
+ * Owner recovery - CLI/Dashboard only (internal, never callable from the
  * frontend). Run with:
  *   npx convex run internal/accountOps:recoverSuperAdmin '{"newOwnerId":"...", "recoveryKey":"..."}'
  * The key comes from SUPER_ADMIN_RECOVERY_KEY in the environment. Every
@@ -481,7 +481,7 @@ export const deleteMyAccount = mutation({
     if (!user) throw new Error("USER_NOT_FOUND");
     if (user.role === ROLES.SUPER_ADMIN) {
       throw new Error(
-        "OWNER_ACCOUNT_CANNOT_BE_DELETED — use owner recovery instead.",
+        "OWNER_ACCOUNT_CANNOT_BE_DELETED - use owner recovery instead.",
       );
     }
 
@@ -596,7 +596,7 @@ export const createAutoBidPlan = mutation({
         args.bidCount * auction.bidServiceFeeSantims
     ) {
       throw new Error(
-        `BUDGET_TOO_SMALL — needs at least ${args.bidCount * auction.bidServiceFeeSantims} santims (${(args.bidCount * auction.bidServiceFeeSantims / 100).toFixed(2)} ETB)`,
+        `BUDGET_TOO_SMALL - needs at least ${args.bidCount * auction.bidServiceFeeSantims} santims (${(args.bidCount * auction.bidServiceFeeSantims / 100).toFixed(2)} ETB)`,
       );
     }
     if (
@@ -691,7 +691,7 @@ export const listMyAutoBidPlans = query({
  * Cron worker: executes due auto-bid plans. Each tick picks a few ACTIVE
  * plans whose auction is open, waits for a randomized delay spread across
  * the remaining auction time, and places ONE bid per activation through
- * attemptBid — the same engine as manual bids (same validation, same fee).
+ * attemptBid - the same engine as manual bids (same validation, same fee).
  * Randomized values keep plans from telegraphing a pattern; the budget and
  * per-auction bid caps are enforced inside attemptBid.
  */
@@ -787,9 +787,9 @@ export const processAutoBids = internalMutation({
         attempt.code === "BID_LIMIT_REACHED" ||
         attempt.code === "CONSECUTIVE_BID_BLOCKED"
       ) {
-        // Retry next tick with a different random value — temporary blocks.
+        // Retry next tick with a different random value - temporary blocks.
       } else {
-        // Range/validation errors would repeat forever — end the plan.
+        // Range/validation errors would repeat forever - end the plan.
         ctx.db.patch(plan._id, {
           status: "DONE",
         });

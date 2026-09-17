@@ -19,7 +19,7 @@ crons.interval(
 );
 
 // Phase 6: refresh stale display counters (bidCount / uniqueBidCount /
-// participantCount) for live auctions. Presentation-only — the reconciler
+// participantCount) for live auctions. Presentation-only - the reconciler
 // never touches financial state.
 crons.interval(
   "display counters sweeper",
@@ -54,7 +54,7 @@ crons.interval(
 );
 
 // Self-heal loop: stale PENDING Chapa payments are re-verified against the
-// provider and completed — a missed webhook (secret unset, network blip, user
+// provider and completed - a missed webhook (secret unset, network blip, user
 // closed the tab) can never strand a funded payment in PENDING for 24h.
 crons.interval(
   "chapa reconciliation",
@@ -68,7 +68,7 @@ crons.interval(
   internal.engagement.reconcileInternal,
 );
 
-// Phase 6 §6.4: auto-bidder plans — randomized bid execution through the
+// Phase 6 §6.4: auto-bidder plans - randomized bid execution through the
 // shared attemptBid engine. Short interval keeps plan latency low while
 // per-tick randomized values avoid telegraphing a pattern.
 crons.interval(

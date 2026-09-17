@@ -2,7 +2,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
 /**
- * Double-entry ledger engine — spec §19–21.
+ * Double-entry ledger engine - spec §19-21.
  *
  * Sign conventions (debit-normal vs credit-normal accounts):
  *  - ASSET / EXPENSE  → debit-normal:  debits increase the balance
@@ -11,7 +11,7 @@ import type { MutationCtx } from "../_generated/server";
  * holds a positive number when the user has funds).
  *
  * Invariants:
- *  1. Every transaction balances (Σ debits = Σ credits) — posting rejects
+ *  1. Every transaction balances (Σ debits = Σ credits) - posting rejects
  *     unbalanced input.
  *  2. No user PAID/PROMO balance goes negative (checked before debiting).
  *  3. Transactions are idempotent via a unique idempotency key (Invariant 4).
@@ -26,7 +26,7 @@ export type LedgerLine = {
   amountSantims: number;
 };
 
-/** Chart of accounts — spec §21. Account codes embed the owner for user accounts. */
+/** Chart of accounts - spec §21. Account codes embed the owner for user accounts. */
 export const ACCOUNT_CODES = {
   userPaid: (userId: Id<"users">) => `USER_PAID:${userId}`,
   userPromo: (userId: Id<"users">) => `USER_PROMO:${userId}`,
@@ -86,7 +86,7 @@ export class LedgerError extends Error {}
 /**
  * Post a balanced, idempotent double-entry transaction.
  * Returns the transaction id, or the existing transaction id if this
- * idempotency key was already posted (original effect returned unchanged —
+ * idempotency key was already posted (original effect returned unchanged -
  * Invariant 4).
  */
 export async function postTransaction(
@@ -122,7 +122,7 @@ export async function postTransaction(
     );
   }
 
-  // Invariant 3/4: idempotency — unique key per transaction.
+  // Invariant 3/4: idempotency - unique key per transaction.
   const existing = await ctx.db
     .query("ledgerTransactions")
     .withIndex("by_idempotency", (q) => q.eq("idempotencyKey", idempotencyKey))
@@ -163,7 +163,7 @@ export async function postTransaction(
       createdAt: now,
     });
 
-    // Balance projection (rebuildable from entries — never the truth itself).
+    // Balance projection (rebuildable from entries - never the truth itself).
     // Phase 6: only PER-USER accounts are patched. Platform accounts
     // (revenue, clearing, settlement…) would be a single hot row contended
     // by every concurrent bidder; their totals are aggregated from entries

@@ -2,7 +2,7 @@ import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
 /**
- * Notification helper — spec §38.
+ * Notification helper - spec §38.
  * In-app notification is inserted transactionally with the business event.
  * An outbox event is written for SMS/realtime consumers; delivery is
  * at-least-once, so consumers must dedupe by the outbox event id.
@@ -50,7 +50,7 @@ export async function insertNotification(
   });
 }
 
-/** Audit log helper — spec §43 (append-only). */
+/** Audit log helper - spec §43 (append-only). */
 export async function insertAuditLog(
   ctx: MutationCtx,
   args: {

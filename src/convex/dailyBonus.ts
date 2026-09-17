@@ -6,19 +6,19 @@ import { ensureWallet } from "./lib/finance";
 import { insertNotification } from "./lib/notifications";
 
 /**
- * Daily check-in bonus — a retention loop fully backed by the ledger.
+ * Daily check-in bonus - a retention loop fully backed by the ledger.
  *
  * Rules:
  *  - One claim per Addis Ababa calendar day (Africa/Addis_Ababa, UTC+3, no DST),
  *    matching the lifecycle worker's day boundary.
  *  - Consecutive Addis days grow the streak; missing a day resets to day 1.
  *  - Reward is a promo-credit posting (DEBIT revenue / CREDIT user promo), the
- *    same instrument as referral rewards — it can only ever pay bid fees.
+ *    same instrument as referral rewards - it can only ever pay bid fees.
  *  - Idempotent: the claim key is derived from the calendar day, so a retry or
  *    race can never double-credit (ledger Invariant 4).
  */
 
-// Fixed UTC+3 (no DST) — the Addis Ababa day window.
+// Fixed UTC+3 (no DST) - the Addis Ababa day window.
 const ADDIS_OFFSET_MS = 3 * 3_600_000;
 
 const BASE_REWARD_SANTIMS = 500; // 5 ETB on day 1
@@ -48,7 +48,7 @@ export const getDailyBonusStatus = query({
     const claimedToday = last === today;
     const streak = user.dailyBonusStreak ?? 0;
 
-    // If the last claim wasn't yesterday, an existing streak is stale — the
+    // If the last claim wasn't yesterday, an existing streak is stale - the
     // next claim restarts at day 1. Display the "live" streak accordingly.
     const streakAlive = last !== null && last === dayBefore(today);
 
@@ -81,7 +81,7 @@ export const claimDailyBonus = mutation({
     if (userId === null) throw new Error("UNAUTHENTICATED");
 
     // No extra rate limiting needed: the (user, Addis-day) idempotency key is
-    // the gate — spamming this mutation returns ALREADY_CLAIMED_TODAY.
+    // the gate - spamming this mutation returns ALREADY_CLAIMED_TODAY.
 
     const now = Date.now();
     const today = addisDayString(now);

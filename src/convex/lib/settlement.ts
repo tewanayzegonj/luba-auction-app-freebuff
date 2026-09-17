@@ -8,7 +8,7 @@ import { insertAuditLog, insertNotification } from "./notifications";
 import { resolveLowestUniqueBid } from "./winner";
 
 /**
- * Auction settlement — spec §27–32.
+ * Auction settlement - spec §27-32.
  * Deterministic winner resolution from ACCEPTED bids only.
  * Guarded by a uniqueness fence: one result per auction (Invariant 6),
  * so two concurrent workers cannot both settle the same auction (spec §31).

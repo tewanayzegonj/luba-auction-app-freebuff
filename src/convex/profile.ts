@@ -24,7 +24,7 @@ export const setMyName = mutation({
       actor: userId,
       action: "PROFILE_RENAME",
       resource: `users:${userId}`,
-      details: `${before?.name ?? "—"} → ${name}`,
+      details: `${before?.name ?? "-"} → ${name}`,
       now: Date.now(),
     });
     return { ok: true as const, name };

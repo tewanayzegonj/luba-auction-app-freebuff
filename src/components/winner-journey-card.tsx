@@ -63,7 +63,7 @@ export function WinnerJourneyCard({ settlement }: { settlement: Settlement }) {
         deliveryPhone: method === "DELIVERY" ? phone.trim() : undefined,
         deliveryAddress: method === "DELIVERY" ? address.trim() : undefined,
       });
-      toast.success("Claim submitted — you're all set!", {
+      toast.success("Claim submitted - you're all set!", {
         description:
           method === "DELIVERY"
             ? "We'll deliver to your address shortly."
@@ -219,7 +219,7 @@ export function WinnerJourneyCard({ settlement }: { settlement: Settlement }) {
               Verify identity &amp; pay {formatETB(settlement.winningBidValueSantims)}
             </Button>
             <p className="text-[11px] leading-4 text-muted-foreground">
-              Identity verification (KYC) is required before payment — upload
+              Identity verification (KYC) is required before payment - upload
               your ID in Profile → Verification if you haven't yet.
             </p>
           </>
@@ -227,10 +227,10 @@ export function WinnerJourneyCard({ settlement }: { settlement: Settlement }) {
           <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-3 py-2.5">
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
               {settlement.status === "FULFILLED"
-                ? "Prize handed over — enjoy! 🎉"
+                ? "Prize handed over - enjoy! 🎉"
                 : settlement.deliveryMethod === "DELIVERY"
-                  ? "Paid — on the way to your address"
-                  : "Paid — show your claim code + ID at pickup"}
+                  ? "Paid - on the way to your address"
+                  : "Paid - show your claim code + ID at pickup"}
             </p>
             <Badge
               variant="outline"

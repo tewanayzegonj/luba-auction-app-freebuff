@@ -5,7 +5,7 @@ import { internalMutation, mutation } from "./_generated/server";
 import { settleAuctionInternal } from "./lib/settlement";
 
 /**
- * Auction lifecycle worker — spec §9, §30.
+ * Auction lifecycle worker - spec §9, §30.
  * Server-authoritative transitions driven by server time:
  *   SCHEDULED → OPEN → CLOSING → CLOSED → SETTLING → COMPLETED
  * Closure stops bid acceptance (placeBid re-checks status atomically).
@@ -26,7 +26,7 @@ export const tickLifecycle = internalMutation({
       if (a.opensAt <= now && a.closesAt > now) {
         ctx.db.patch(a._id, { status: "OPEN", updatedAt: now });
       } else if (a.closesAt <= now) {
-        // Never opened long enough — close it directly.
+        // Never opened long enough - close it directly.
         ctx.db.patch(a._id, { status: "CLOSED", updatedAt: now });
       }
     }
@@ -67,7 +67,7 @@ export const tickLifecycle = internalMutation({
 });
 
 /**
- * Process pending outbox events (spec §18). At-least-once delivery —
+ * Process pending outbox events (spec §18). At-least-once delivery -
  * marking processed is the dedupe boundary for consumers.
  *
  * NOTIFICATION events are fanned out to the delivery worker (Telegram for
@@ -204,7 +204,7 @@ export const seedIfEmpty = mutation({
       await ctx.db.insert("auctions", {
         auctionCode: `LUBA-2026-${idx}`,
         title: prize.title,
-        description: `Lowest unique bid takes home the ${prize.title}. Bid smart — the lowest amount nobody else picked wins.`,
+        description: `Lowest unique bid takes home the ${prize.title}. Bid smart - the lowest amount nobody else picked wins.`,
         prizeId,
         opensAt: now + cfg.opensOffset,
         closesAt: now + cfg.closesOffset,

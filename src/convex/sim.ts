@@ -8,7 +8,7 @@ import { resolveLowestUniqueBid } from "./lib/winner";
  *
  * SAFETY (fail-closed, two conditions):
  *  1. The operator must explicitly set ENABLE_SIM_ENDPOINTS=1 in the
- *     environment/Keys UI — the endpoints are inert without it.
+ *     environment/Keys UI - the endpoints are inert without it.
  *  2. Production deployments are refused unconditionally by name.
  * They create ONLY sandbox data ([SIM]-marked prize/auction) and never
  * touch real campaigns, wallets, or settlements.
@@ -87,7 +87,7 @@ export const simVerify = mutation({
     const { auctionId, feeSantims } = args;
 
     // V1: revenue from the ledger truth (txType index), scoped to THIS
-    // auction's accepted bids — each accepted bid must map to exactly one
+    // auction's accepted bids - each accepted bid must map to exactly one
     // BID_FEE posting and vice versa.
     const bids = await ctx.db
       .query("auctionBids")
@@ -99,7 +99,7 @@ export const simVerify = mutation({
     const feeTxs = await ctx.db
       .query("ledgerTransactions")
       .withIndex("by_type", (q) => q.eq("txType", "BID_FEE"))
-      .order("desc") // newest first — this run's postings are the most recent
+      .order("desc") // newest first - this run's postings are the most recent
       .take(2_000);
     const scopedFeeTxs = feeTxs.filter((tx) => acceptedBidIds.has(tx.reference));
     const feeRevenue = scopedFeeTxs.length * feeSantims;
@@ -135,7 +135,7 @@ export const simVerify = mutation({
       if (debits !== credits) unbalancedTxs++;
     }
 
-    // V4: deterministic resolution — compute twice, must agree (Invariant 7).
+    // V4: deterministic resolution - compute twice, must agree (Invariant 7).
     const asBidLike = bids.map((b) => ({
       bidValueSantims: b.bidValueSantims,
       status: b.status,
@@ -164,7 +164,7 @@ export const simVerify = mutation({
 /**
  * Optional helper: place a bid through the shared core directly (used to
  * compare behavior when the HTTP mutation layer is bypassed). Same rules,
- * same atomic fee — proves the core is caller-agnostic.
+ * same atomic fee - proves the core is caller-agnostic.
  */
 export const simPlaceBidCore = mutation({
   args: {

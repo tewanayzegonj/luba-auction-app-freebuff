@@ -46,7 +46,7 @@ export const recentWinners = query({
             prizeImage: prize?.imageUrl ?? null,
             prizeEmoji: prize?.emoji ?? null,
             winningBidValueSantims: r.winningBidValueSantims ?? null,
-            // First name + last initial only — never full identities.
+            // First name + last initial only - never full identities.
             winnerFirstName: winner?.name
               ? maskName(winner.name)
               : maskName(winner?.email?.split("@")[0] ?? "Winner"),
@@ -74,7 +74,7 @@ function maskBidder(userId: Id<"users">): string {
 }
 
 /**
- * Full public frequency map for a CLOSED/COMPLETED auction — only when the
+ * Full public frequency map for a CLOSED/COMPLETED auction - only when the
  * admin enabled publishBidHistory. Values ascending; reveals exactly how
  * the winner was determined.
  */
@@ -188,7 +188,7 @@ export const auctionActivity = query({
       .order("desc")
       .take(8);
 
-    // Aggregate uniqueness info only — individual values stay hidden while
+    // Aggregate uniqueness info only - individual values stay hidden while
     // the auction is live (spec §33: limited public information during run).
     const allAccepted = await ctx.db
       .query("auctionBids")
@@ -205,7 +205,7 @@ export const auctionActivity = query({
       uniqueValues: counts.size,
       uniqueBids: [...counts.values()].filter((c) => c === 1).length,
       recent: bids.map((b) => ({
-        // Anonymized ticker (§4.16): "User ***89" premium masking — last two
+        // Anonymized ticker (§4.16): "User ***89" premium masking - last two
         // characters of the user id, never a name, never the bid value.
         who: maskBidder(b.userId),
         feeSantims: b.bidServiceFeeSantims,
@@ -215,7 +215,7 @@ export const auctionActivity = query({
   },
 });
 
-/** One user's receipt feed — their own ledger transactions with entries. */
+/** One user's receipt feed - their own ledger transactions with entries. */
 export const myReceipts = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {

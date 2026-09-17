@@ -129,7 +129,7 @@ export default function Dashboard() {
   // Cross-page section landing: /dashboard?tab=X&scroll=1 scrolls to the
   // panel once it's mounted (retry ~1s for lazy content), then cleans the
   // URL so back-navigation doesn't re-scroll. Uses the shared scroll engine
-  // (moving-target anchoring — skeletons loading mid-glide don't break the
+  // (moving-target anchoring - skeletons loading mid-glide don't break the
   // landing) instead of browser smooth scroll.
   useEffect(() => {
     if (searchParams.get("scroll") !== "1" || !requestedTab) return;
@@ -155,7 +155,7 @@ export default function Dashboard() {
     }
   }, [user, onboardingDismissed]);
 
-  // P2.6: alert opt-in — visible when the user has no alert channel linked.
+  // P2.6: alert opt-in - visible when the user has no alert channel linked.
   const showAlertsBanner =
     Boolean(user) &&
     !alertsBannerDismissed &&
@@ -194,9 +194,9 @@ export default function Dashboard() {
     }
     setBusy("topup");
     // The verify endpoint lives on the Convex site deployment (web actions),
-    // NOT on this app's origin — in dev/preview the two domains differ, so an
+    // NOT on this app's origin - in dev/preview the two domains differ, so an
     // app-relative path would 404. Derive it from VITE_CONVEX_URL (always
-    // present — the app boots from it): the cloud↔site swap is Convex's
+    // present - the app boots from it): the cloud↔site swap is Convex's
     // documented convention. The old hardcoded fallback pointed at a STALE
     // deployment, so every verify failed when the env var was unset.
     const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
@@ -239,7 +239,7 @@ export default function Dashboard() {
       } else if (res.ok) {
         toast.info("Payment still processing", {
           description:
-            "Your wallet will be credited automatically — or tap Verify again in Payment history.",
+            "Your wallet will be credited automatically - or tap Verify again in Payment history.",
         });
       } else {
         toast.error("We could not confirm your payment", {
@@ -252,7 +252,7 @@ export default function Dashboard() {
     };
 
     (async () => {
-      // Up to 5 checks over ~15s before reporting PENDING — most Chapa
+      // Up to 5 checks over ~15s before reporting PENDING - most Chapa
       // transactions confirm on the first or second poll.
       for (let attempt = 0; attempt < 5; attempt++) {
         try {
@@ -266,7 +266,7 @@ export default function Dashboard() {
             return;
           }
         } catch {
-          // Network blip — keep polling; final failure handled below.
+          // Network blip - keep polling; final failure handled below.
         }
         await new Promise((r) => setTimeout(r, 3000));
       }
@@ -329,7 +329,7 @@ export default function Dashboard() {
         toast.error("Could not start the payment", {
           description:
             result.error === "CHAPA_NOT_CONFIGURED"
-              ? "Online payments are not configured yet — use the sandbox option below."
+              ? "Online payments are not configured yet - use the sandbox option below."
               : result.detail
                 ? `Chapa: ${result.detail}`
                 : `Provider error: ${result.error}`,
@@ -355,7 +355,7 @@ export default function Dashboard() {
   };
 
   /** links.et: submit the pasted receipt for bank-side verification. The
-      scheduled action writes linksetStatus back onto the payment row — the
+      scheduled action writes linksetStatus back onto the payment row - the
       reactive query below picks up the result (verifying → verified/failed). */
   const handleVerifyReceipt = async () => {
     const stored = sessionStorage.getItem("luba_linkset_payment");
@@ -386,7 +386,7 @@ export default function Dashboard() {
         telebirrReference: isUrl ? undefined : value,
       });
       toast.info("Verifying with your bank…", {
-        description: `Checking ${formatETB(amountSantims)} — this usually takes under a minute.`,
+        description: `Checking ${formatETB(amountSantims)} - this usually takes under a minute.`,
       });
       setReceiptInput("");
     } catch (err) {
@@ -443,12 +443,12 @@ export default function Dashboard() {
   return (
     <div className="flex min-h-dvh flex-col">
       <SiteHeader />
-      {/* First-visit guided tour — shown once per device, skippable. */}
+      {/* First-visit guided tour - shown once per device, skippable. */}
       <OnboardingTour />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 pb-24 sm:px-6 md:pb-8">
         <PageFade>
-        {/* Header row — sign-out lives in the avatar menu on phones (the
+        {/* Header row - sign-out lives in the avatar menu on phones (the
             bottom tab bar owns nav); visible from sm up. */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -467,12 +467,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Daily check-in bonus — one claim per Addis day, growing streak. */}
+        {/* Daily check-in bonus - one claim per Addis day, growing streak. */}
         <div className="mt-5">
           <DailyBonusCard />
         </div>
 
-        {/* Stat cards — 2×2 on phones (4-across stamps get illegible),
+        {/* Stat cards - 2×2 on phones (4-across stamps get illegible),
             4-across from lg. */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-6 sm:gap-4 lg:grid-cols-4">
           <StatCard
@@ -506,7 +506,7 @@ export default function Dashboard() {
           <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
             <h2 className="flex items-center gap-2 font-semibold text-amber-700 dark:text-amber-300">
               <Trophy className="size-5" />
-              {t("dashboard.wins")} — {t("dashboard.payToWin")}
+              {t("dashboard.wins")} - {t("dashboard.payToWin")}
             </h2>
             <div className="mt-4 space-y-3">
               {pendingSettlements.map((s) => (
@@ -561,10 +561,10 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Tabs — controlled by ?tab=. NOT keyed by the tab: keying remounted
+        {/* Tabs - controlled by ?tab=. NOT keyed by the tab: keying remounted
             the entire tab tree on every tap, which (a) threw away tab-panel
             scroll state and (b) reset the tab strip's horizontal scroll to 0
-            while the last tab stayed selected — the "jumps back to the first
+            while the last tab stayed selected - the "jumps back to the first
             tab" bug on phones. */}
         <Tabs
           value={initialTab}
@@ -574,11 +574,11 @@ export default function Dashboard() {
           }}
           className="mt-8"
         >
-          {/* Scrollable tab strip on small screens — scroll-aware fades +
+          {/* Scrollable tab strip on small screens - scroll-aware fades +
               chevrons (see ScrollableTabs). */}
           <ScrollableTabs>
             {/* min-w-max: when the labels can't fit the viewport the pill grows
-                to its content and scrolls inside ScrollableTabs — without it
+                to its content and scrolls inside ScrollableTabs - without it
                 the trailing triggers spill OUTSIDE the rounded background
                 (the "junky" cut-off look on phones). */}
             <TabsList className="h-11 w-full min-w-max justify-start gap-1 rounded-xl bg-secondary/70 p-1">
@@ -628,7 +628,7 @@ export default function Dashboard() {
                 }
               />
             ) : (
-              /* Scroll container: overflow-x lives here (NOT on the card —
+              /* Scroll container: overflow-x lives here (NOT on the card -
                  overflow-hidden would kill it). The inner div rounds corners
                  so the scrolled table still clips cleanly. */
               <div className="table-scroll">
@@ -797,7 +797,7 @@ export default function Dashboard() {
                       )}
                     </Button>
                   </div>
-                  {/* Presets: 2-up grid on phones — four tiny buttons in a
+                  {/* Presets: 2-up grid on phones - four tiny buttons in a
                       row mis-tap constantly on narrow screens. */}
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                     {TOPUP_PRESETS.map((p) => (
@@ -874,7 +874,7 @@ export default function Dashboard() {
                         </span>
                         <span className="min-w-0">
                           <span className="block text-sm font-medium">
-                            Chapa — telebirr, CBE Birr, M-Pesa, cards
+                            Chapa - telebirr, CBE Birr, M-Pesa, cards
                           </span>
                           <span className="block text-xs text-muted-foreground">
                             Pay on the provider's secure checkout page.
@@ -903,11 +903,11 @@ export default function Dashboard() {
                         </span>
                         <span className="min-w-0">
                           <span className="block text-sm font-medium">
-                            Bank transfer — verified by the bank
+                            Bank transfer - verified by the bank
                           </span>
                           <span className="block text-xs text-muted-foreground">
                             Send the money yourself, then paste your receipt
-                            link — the bank confirms it, credited in ~1 min.
+                            link - the bank confirms it, credited in ~1 min.
                           </span>
                         </span>
                       </button>
@@ -936,14 +936,14 @@ export default function Dashboard() {
                             Sandbox deposit
                           </span>
                           <span className="block text-xs text-muted-foreground">
-                            Simulated funds for testing — removed at launch.
+                            Simulated funds for testing - removed at launch.
                           </span>
                         </span>
                       </button>
                     </div>
                   </div>
 
-                  {/* links.et bank-receipt verification — appears after the
+                  {/* links.et bank-receipt verification - appears after the
                       user starts a bank-transfer top-up. */}
                   {topUpProvider === "linkset" && (
                     <ReceiptVerifyPanel
@@ -967,7 +967,7 @@ export default function Dashboard() {
                   <CardHeader>
                     <CardTitle className="text-base">Withdraw funds</CardTitle>
                     <CardDescription>
-                      Payouts go to telebirr/CBE/bank via manual review — funds
+                      Payouts go to telebirr/CBE/bank via manual review - funds
                       leave your spendable balance immediately and are refunded
                       automatically if the request is rejected.
                     </CardDescription>
@@ -1132,7 +1132,7 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
                     <span className="text-muted-foreground">Name</span>
                     <span className="flex items-center gap-2 font-medium">
-                      {user?.name ?? user?.email ?? "—"}
+                      {user?.name ?? user?.email ?? "-"}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1149,7 +1149,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
                     <span className="text-muted-foreground">Email</span>
-                    <span className="font-medium">{user?.email ?? "—"}</span>
+                    <span className="font-medium">{user?.email ?? "-"}</span>
                   </div>
                   <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
                     <span className="text-muted-foreground">
@@ -1370,11 +1370,11 @@ function WatchlistPanel() {
 /**
  * links.et bank-receipt verification panel: shows the transfer instructions
  * and takes the receipt link / telebirr reference. After submit, the
- * scheduled action verifies at the bank — linksetStatus flows back through
+ * scheduled action verifies at the bank - linksetStatus flows back through
  * the reactive payment query.
  */
 /** Where customers send money for bank-transfer top-ups. Set these in the
-    project's env/Keys UI — they are public-facing details, safe as VITE_ vars. */
+    project's env/Keys UI - they are public-facing details, safe as VITE_ vars. */
 const BANK_DETAILS = {
   telebirr: import.meta.env.VITE_LUBA_TELEBIRR as string | undefined,
   bankName: import.meta.env.VITE_LUBA_BANK_NAME as string | undefined,
@@ -1411,13 +1411,13 @@ function ReceiptVerifyPanel({
 
   return (
     <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
-      <p className="text-sm font-semibold">Bank transfer — 3 steps</p>
+      <p className="text-sm font-semibold">Bank transfer - 3 steps</p>
 
       {/* Step 1: where to send the money. The previous version said "details
-          below" but never showed them — the #1 source of confusion. */}
+          below" but never showed them - the #1 source of confusion. */}
       <div className="mt-3 rounded-lg border border-border bg-card p-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Step 1 — Send exactly{" "}
+          Step 1 - Send exactly{" "}
           <span className="text-foreground">
             {pending ? formatETB(pending.amountSantims) + " ETB" : "your amount"}
           </span>
@@ -1475,7 +1475,7 @@ function ReceiptVerifyPanel({
           </dl>
         ) : (
           <p className="mt-2 text-xs text-amber-700 dark:text-amber-500">
-            Account details are not configured yet — add VITE_LUBA_TELEBIRR (and
+            Account details are not configured yet - add VITE_LUBA_TELEBIRR (and
             optionally VITE_LUBA_BANK_NAME / VITE_LUBA_BANK_ACCOUNT /
             VITE_LUBA_ACCOUNT_NAME) in the project's Keys tab.
           </p>
@@ -1484,16 +1484,16 @@ function ReceiptVerifyPanel({
 
       {/* Step 2: get the receipt */}
       <p className="mt-3 text-xs leading-5 text-muted-foreground">
-        <span className="font-semibold text-foreground">Step 2 — </span>
+        <span className="font-semibold text-foreground">Step 2 - </span>
         After paying, copy the receipt link from your bank app / telebirr SMS
         confirmation (or note the transaction reference).
       </p>
 
       {/* Step 3: verify */}
       <p className="mt-2.5 text-xs leading-5 text-muted-foreground">
-        <span className="font-semibold text-foreground">Step 3 — </span>
+        <span className="font-semibold text-foreground">Step 3 - </span>
         Paste it below. Our system fetches the receipt from the bank itself and
-        credits your wallet — usually under a minute.
+        credits your wallet - usually under a minute.
       </p>
       <div className="mt-2.5 space-y-2">
         <Label htmlFor="receipt-value" className="text-xs">
@@ -1523,7 +1523,7 @@ function ReceiptVerifyPanel({
       </div>
       {!pending && (
         <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-500">
-          Start the top-up first (enter an amount above and tap Add funds) —
+          Start the top-up first (enter an amount above and tap Add funds) -
           that registers the exact amount we'll verify against.
         </p>
       )}
@@ -1543,7 +1543,7 @@ function ReceiptsPanel() {
     );
   }
   return (
-    /* Scroll container outside, rounded card inside — overflow-x must own
+    /* Scroll container outside, rounded card inside - overflow-x must own
        the scroll or the card's overflow-hidden clips it (prior bug). */
     <div className="table-scroll">
       <div className="min-w-[560px] overflow-hidden rounded-2xl border border-border bg-card shadow-layered">
@@ -1650,7 +1650,7 @@ function ReferralCard() {
             className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#229ED9]/40 bg-[#229ED9]/10 text-sm font-medium text-[#229ED9] transition-colors hover:bg-[#229ED9]/20"
             target="_blank"
             rel="noreferrer"
-            href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent("🎁 Join me on LUBA — the lowest UNIQUE bid wins the prize. Sign up and we both get bonus credit:")}`}
+            href={`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent("🎁 Join me on LUBA - the lowest UNIQUE bid wins the prize. Sign up and we both get bonus credit:")}`}
           >
             <Send className="size-4" />
             Share invite on Telegram
@@ -1696,7 +1696,7 @@ function NotificationPrefsCard() {
     <div className="space-y-2">
       {Object.entries(PREF_LABELS).map(([key, label]) => {
         const value = (prefs as Record<string, unknown>)[key] !== false;
-        // The whole row is the control (role="switch", aria-checked) — one
+        // The whole row is the control (role="switch", aria-checked) - one
         // generous tap target with the title, the description, and the
         // visual toggle. The inner Switch is decorative (aria-hidden,
         // pointer-events-none) so a single tap can never double-fire.
@@ -1763,7 +1763,7 @@ function ResponsiblePlayCard() {
           </p>
         )}
       </div>
-      {/* Stack on phones — input + button side-by-side overflows at 320px. */}
+      {/* Stack on phones - input + button side-by-side overflows at 320px. */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           aria-label="Daily deposit cap in ETB"
@@ -1897,7 +1897,7 @@ function TelegramLinkRow({
               ? `Linked to chat ID ${methods.telegramChatId}`
               : methods.telegramConfigured
                 ? "Get alerts and sign in with Telegram"
-                : "Unavailable — bot not configured"}
+                : "Unavailable - bot not configured"}
           </p>
         </div>
         {connected ? (
@@ -1930,7 +1930,7 @@ function TelegramLinkRow({
             value={chatId}
             aria-label="Your Telegram chat ID"
             onChange={(e) => setChatId(e.target.value)}
-            placeholder="Your Telegram ID — e.g. 123456789"
+            placeholder="Your Telegram ID - e.g. 123456789"
             inputMode="numeric"
             className="h-10 font-mono"
           />
@@ -1946,7 +1946,7 @@ function TelegramLinkRow({
                   appOrigin: window.location.origin,
                 });
                 toast.success("Check your Telegram", {
-                  description: "We sent a confirmation link — open it to finish linking.",
+                  description: "We sent a confirmation link - open it to finish linking.",
                 });
                 setChatId("");
               } catch (err) {
@@ -2063,7 +2063,7 @@ function PhoneLinkRow({
                   appOrigin: window.location.origin,
                 });
                 toast.success("Check your messages", {
-                  description: "We sent a confirmation link by SMS — open it to finish linking.",
+                  description: "We sent a confirmation link by SMS - open it to finish linking.",
                 });
                 setPhone("");
               } catch (err) {
@@ -2135,7 +2135,7 @@ function PaymentsList() {
       if (res.scheduled) {
         toast.info("Checking with Chapa…", {
           description:
-            "This takes a few seconds — the payment updates automatically when confirmed.",
+            "This takes a few seconds - the payment updates automatically when confirmed.",
         });
       }
       // When !scheduled the row was already COMPLETED; the live query reflects it.
@@ -2200,7 +2200,7 @@ function PaymentsList() {
             </Badge>
             {/* Recovery path: a Chapa payment can sit in PENDING when the
                 webhook was missed and the user closed the tab mid-verify.
-                Give the user a direct way to re-check with the provider —
+                Give the user a direct way to re-check with the provider -
                 the reconciler cron also self-heals these every 10 minutes. */}
             {p.status === "PENDING" && p.provider === "chapa" && (
               <Button
@@ -2274,13 +2274,13 @@ function KycVerificationCard() {
     return <p className="text-sm text-muted-foreground">Sign in to manage verification.</p>;
   }
 
-  /* Dual-tone status map — light theme needs 700-weights on white (master
+  /* Dual-tone status map - light theme needs 700-weights on white (master
      skill contrast rule); 500-weight on a 15% tint is ~2.5:1. */
   const statusBadge = {
     UNVERIFIED: { label: "Not verified", cls: "bg-secondary text-secondary-foreground" },
     PENDING: { label: "Under review", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-500" },
     VERIFIED: { label: "Verified", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-500" },
-    REJECTED: { label: "Rejected — you can resubmit", cls: "bg-rose-500/15 text-rose-700 dark:text-rose-500" },
+    REJECTED: { label: "Rejected - you can resubmit", cls: "bg-rose-500/15 text-rose-700 dark:text-rose-500" },
   }[kyc.kycStatus] ?? { label: kyc.kycStatus, cls: "bg-secondary text-secondary-foreground" };
 
   async function handleFile(file: File) {

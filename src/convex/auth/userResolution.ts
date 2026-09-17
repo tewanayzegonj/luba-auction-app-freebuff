@@ -59,7 +59,7 @@ export async function resolveCreateOrUpdateUser(
       return byPhone[0]._id;
     }
     if (byPhone.length > 1) {
-      // Should not happen (link flow prevents duplicates) — fail safe by
+      // Should not happen (link flow prevents duplicates) - fail safe by
       // refusing to merge: treat as a fresh account instead of guessing.
       return defaultUpsert(ctx, { ...args, profile: { email: identifier } });
     }

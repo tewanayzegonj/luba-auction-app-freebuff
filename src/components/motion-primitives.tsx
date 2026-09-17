@@ -6,19 +6,19 @@ import { motion, useReducedMotion } from "framer-motion";
  * premium rather than playful.
  *
  * Motion law (from the ui-skills canon + master design doc):
- *  - NAVIGATION NEVER MOVES THE PAGE. PageFade is opacity-only — a rising
+ *  - NAVIGATION NEVER MOVES THE PAGE. PageFade is opacity-only - a rising
  *    page re-stages a vertical move on every navigation, which reads as a
  *    jerk right as the user lands (the "shaky page open" bug). Opacity
  *    crossfades are the two cheapest properties a GPU can animate.
  *  - Small rises (≤12px) belong to CONTENT arriving in view (StaggerItem,
- *    scroll-triggered reveals) — not to route changes.
+ *    scroll-triggered reveals) - not to route changes.
  *  - Entrances ease-out, ≤350ms; everything respects prefers-reduced-motion
  *    (WCAG 2.2): reduced users get short opacity-only fades.
  */
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-/** Page-level entrance — wrap a page's outermost content element. */
+/** Page-level entrance - wrap a page's outermost content element. */
 export function PageFade({
   children,
   className,
@@ -39,7 +39,7 @@ export function PageFade({
   );
 }
 
-/** Staggered list/grid entrance — child index drives the delay. */
+/** Staggered list/grid entrance - child index drives the delay. */
 export function Stagger({
   children,
   className,

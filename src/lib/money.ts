@@ -1,5 +1,5 @@
 /**
- * LUBA money library — spec §7.
+ * LUBA money library - spec §7.
  * ALL monetary values are integers in santims (1 ETB = 100 santims).
  * No floats. Ever. (Builder Rule 6)
  */

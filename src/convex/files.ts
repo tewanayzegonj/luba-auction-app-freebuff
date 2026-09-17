@@ -4,7 +4,7 @@ import { mutation, query } from "./_generated/server";
 import { requireAdmin } from "./admin";
 
 /**
- * File storage for prize images (admin uploads) — Convex file storage.
+ * File storage for prize images (admin uploads) - Convex file storage.
  *
  * Upload flow (spec §41 products/prizes):
  *  1. Admin browser asks for an upload URL (generateUploadUrl).

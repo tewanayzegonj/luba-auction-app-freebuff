@@ -132,7 +132,7 @@ export const processEndingSoon = internalMutation({
           title: "Ending soon ⏰",
           body: `${prize?.title ?? auction.title} closes at ${new Date(
             auction.closesAt,
-          ).toLocaleTimeString()} — get your unique bid in.`,
+          ).toLocaleTimeString()} - get your unique bid in.`,
           auctionId: auction._id,
           now,
         });
@@ -250,7 +250,7 @@ export const processScheduledBids = internalMutation({
         }
         if (now >= auction.closesAt) throw new Error("AUCTION_CLOSED");
         // Execute through the shared rules core (Phase 6): one code path for
-        // every bid — same validation, same atomic fee, no auction-row writes.
+        // every bid - same validation, same atomic fee, no auction-row writes.
         const attempt = await attemptBid(ctx, {
           auction,
           userId: s.userId,

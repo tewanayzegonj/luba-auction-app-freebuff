@@ -175,7 +175,7 @@ export function WithdrawCard({ balanceSantims }: { balanceSantims: number }) {
                     try {
                       await cancel({ withdrawalId: w._id as Id<"withdrawals"> });
                       toast.success(
-                        "Withdrawal cancelled — funds returned to wallet",
+                        "Withdrawal cancelled - funds returned to wallet",
                       );
                     } catch {
                       toast.error("Could not cancel");

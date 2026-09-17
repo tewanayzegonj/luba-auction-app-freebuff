@@ -13,7 +13,7 @@ import { hmacSha256Hex, timingSafeEqualHex } from "./chapa";
  * Security: Telegram echoes the `secret_token` we registered with setWebhook
  * back in the `X-Telegram-Bot-Api-Secret-Token` header. Rather than asking
  * for a second env var, we derive the secret from the bot token itself
- * (HMAC-SHA256) — unguessable to outsiders, shared implicitly between the
+ * (HMAC-SHA256) - unguessable to outsiders, shared implicitly between the
  * registrar and the webhook since both read the same token. Requests without
  * a valid header are rejected 401 (fail closed).
  */
@@ -26,7 +26,7 @@ function getBotToken(): string {
   return token;
 }
 
-/** Secret derived from the bot token — see module doc. */
+/** Secret derived from the bot token - see module doc. */
 function webhookSecret(botToken: string): Promise<string> {
   return hmacSha256Hex(botToken, "luba-telegram-webhook-v1");
 }
@@ -45,7 +45,7 @@ function siteUrl(): string {
 
 /**
  * One-shot (idempotent) registrar: points the bot at this deployment's
- * webhook. Safe to call publicly — the only effect is re-registering our own
+ * webhook. Safe to call publicly - the only effect is re-registering our own
  * URL using our own token.
  */
 export const registerWebhook = action({
@@ -108,7 +108,7 @@ export const handleTelegramUpdate = httpAction(async (ctx, request) => {
     return new Response("Invalid JSON", { status: 400 });
   }
 
-  // Only respond in private chats — never spam group conversations.
+  // Only respond in private chats - never spam group conversations.
   const chatId = update.message?.chat?.id;
   const chatType = update.message?.chat?.type;
   if (typeof chatId === "number" && chatType === "private") {

@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  /* Motion law (design/MASTER.md): named properties only — never
+  /* Motion law (design/MASTER.md): named properties only - never
      `transition-all`. `active:scale-[0.98]` is the tactile pressed state
      every interactive element needs (subtle deformation, 12-principles);
      paired with will-change-transform so the first press never stutters. */

@@ -1,35 +1,35 @@
 /**
- * The app's single scroll animation — one feel, everywhere.
+ * The app's single scroll animation - one feel, everywhere.
  *
  * Why not `scrollIntoView({ behavior: "smooth" })`:
  *  - the browser picks the duration/easing (Chrome ~500ms linear-ish, Safari
  *    instant-ish) so the app feels different per device;
  *  - it scrolls EVERY scrollable ancestor, so nested containers fight it;
- *  - it can't adapt when content above the target loads mid-scroll — with
+ *  - it can't adapt when content above the target loads mid-scroll - with
  *    skeletons swapping to tables, the landing point drifts (the janky stop).
  *
  * This engine:
  *  - animates `window.scrollY` with easeOutQuint (fast departure, long silky
- *    settle — the iOS-feel curve), duration scaled to distance;
+ *    settle - the iOS-feel curve), duration scaled to distance;
  *  - runs frame-ALIGNED (progress counts animation frames, not raw elapsed
  *    ms): on 90/120Hz phones the curve plays at the same speed as 60Hz, and
- *    on a dropped frame the animation slows instead of jumping — perceived
+ *    on a dropped frame the animation slows instead of jumping - perceived
  *    smoothness over stopwatch accuracy;
  *  - re-reads the target's position EVERY frame (moving-target anchoring), so
  *    lazy content that changes layout while scrolling can't break the landing;
  *  - respects `scroll-margin-top` already set via Tailwind `scroll-mt-*`
- *    classes — one source of truth for header offsets;
+ *    classes - one source of truth for header offsets;
  *  - cancels instantly on wheel/touch/keyboard input: motion must never fight
  *    the user's finger (master doc §24);
  *  - collapses under `prefers-reduced-motion` to an instant, respectful jump;
  *  - a new call cancels the previous animation (rapid tab taps never fight).
  *
  * Route transitions (fadeNavigate): the other half of "smooth". Pages used to
- * RISE on entrance (y: 10–24px) — every navigation re-staged a vertical move
+ * RISE on entrance (y: 10-24px) - every navigation re-staged a vertical move
  * right as you landed, which reads as a jerk, not polish. The canon fix:
  * navigation never moves the page. The old view fades out (130ms), the router
  * swaps underneath while scrolled to top, the new view fades in (140ms).
- * Opacity only — the two cheapest properties a GPU can animate.
+ * Opacity only - the two cheapest properties a GPU can animate.
  */
 
 let activeToken = 0;
@@ -57,7 +57,7 @@ export function smoothScrollTo(
 ): void {
   if (typeof window === "undefined") return;
 
-  // Reduced motion: honor the OS preference — land immediately, no glide.
+  // Reduced motion: honor the OS preference - land immediately, no glide.
   if (prefersReducedMotion()) {
     window.scrollTo(
       0,
@@ -106,7 +106,7 @@ export function smoothScrollTo(
       stop();
       return;
     }
-    // Element can unmount mid-flight (tab switched away) — end gracefully.
+    // Element can unmount mid-flight (tab switched away) - end gracefully.
     if (!target.isConnected) {
       stop();
       return;
@@ -147,7 +147,7 @@ let navLock = false;
  * page can never paint at the previous scroll offset.
  *
  * Falls back to a plain `navigate(to)` when motion is reduced or the root
- * element isn't mounted yet — correctness never depends on the effect.
+ * element isn't mounted yet - correctness never depends on the effect.
  */
 export function fadeNavigate(
   navigate: (to: string, opts?: { replace?: boolean }) => void,
@@ -170,7 +170,7 @@ export function fadeNavigate(
   root.style.opacity = "0";
 
   // Hash targets (/#auctions) position via HashScroll's section glide after
-  // the swap — resetting to top here would fight it mid-flight.
+  // the swap - resetting to top here would fight it mid-flight.
   const hasHash = to.includes("#") && !to.endsWith("#");
 
   window.setTimeout(() => {
@@ -203,7 +203,7 @@ export function isNavLocked(): boolean {
   return navLock;
 }
 
-/** App-wide crossfade navigation — the single entry point every internal
+/** App-wide crossfade navigation - the single entry point every internal
  *  navigation that isn't a `<Link>` goes through, so route changes share
  *  one motion voice: fade out 130ms → swap at top → fade in 140ms.
  *  Browser back/forward keeps instant native behavior (the expected

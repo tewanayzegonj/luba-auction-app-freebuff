@@ -12,10 +12,10 @@ import {
  * i18n (roadmap: Amharic localization).
  *
  * Language lives in a React Context so toggling re-renders every consumer
- * instantly — no page refresh. The choice persists to localStorage, and
+ * instantly - no page refresh. The choice persists to localStorage, and
  * <html lang> follows so the Ethiopic typography rules in index.css apply.
  * Amharic copy uses standard Ethiopian e-commerce / fintech vocabulary
- * (ጨረታ, ዋሌት, ተጫራቾች) in the style of Telebirr and Howlow — written
+ * (ጨረታ, ዋሌት, ተጫራቾች) in the style of Telebirr and Howlow - written
  * natively, never word-for-word. Untranslated keys fall back to English.
  */
 
@@ -54,7 +54,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, lang);
     } catch {
-      // private mode — language just won't persist
+      // private mode - language just won't persist
     }
     document.documentElement.lang = lang;
   }, [lang]);
@@ -95,7 +95,7 @@ export const STRINGS = {
     "hero.title.line2": "nobody else",
     "hero.title.line3": "submitted.",
     "hero.subtitle":
-      "Luba awards each prize to the lowest amount placed exactly once — so strategy beats spending. Timing is server-authoritative, settlement is deterministic, and every fee is recorded on an append-only ledger.",
+      "Luba awards each prize to the lowest amount placed exactly once - so strategy beats spending. Timing is server-authoritative, settlement is deterministic, and every fee is recorded on an append-only ledger.",
     "hero.cta": "Create an account",
     "hero.ctaSignedIn": "Open dashboard",
     "hero.ctaSecondary": "See the mechanics",
@@ -110,7 +110,7 @@ export const STRINGS = {
     "auction.timeRemaining": "Time remaining",
     "auction.bidders": "Bidders",
     "auction.bidPlaced": "Bid placed!",
-    "auction.notUnique": "That value is already taken — try another.",
+    "auction.notUnique": "That value is already taken - try another.",
     "auction.confirmTitle": "Confirm your bid",
     "auction.confirmSubtitle": "One last check before it's locked in.",
     "auction.placing": "Placing bid",
@@ -127,7 +127,7 @@ export const STRINGS = {
       "I understand the service fee is non-refundable.",
     "auction.winnerPays": "Winner pays only the winning bid amount.",
     "auction.bidsLeft": "bids left for you",
-    "auction.insufficientBalance": "Not enough balance — top up to bid.",
+    "auction.insufficientBalance": "Not enough balance - top up to bid.",
     "auction.views": "views",
     "auction.participants": "participants",
     "auction.insufficientTitle": "Insufficient wallet balance",
@@ -135,7 +135,7 @@ export const STRINGS = {
     "auction.insufficientAvailable": "Available",
     "auction.insufficientNeeded": "Needed",
     "auction.insufficientNote":
-      "Only the service fee is charged now — your bid of {bid} is paid only if you win.",
+      "Only the service fee is charged now - your bid of {bid} is paid only if you win.",
     "auction.topUpCta": "Top Up Wallet",
     "auction.topUpToBid": "Top up to bid",
 
@@ -152,13 +152,13 @@ export const STRINGS = {
     // Onboarding tour (first dashboard visit only)
     "tour.wallet.title": "Your wallet is your bid fuel",
     "tour.wallet.body":
-      "Top up once with Chapa, then place bids instantly — no payment redirects for every bid. Fees come straight from your balance.",
+      "Top up once with Chapa, then place bids instantly - no payment redirects for every bid. Fees come straight from your balance.",
     "tour.bidding.title": "Bid the lowest unique amount",
     "tour.bidding.body":
       "The prize goes to the lowest amount nobody else picked. Use the − / + buttons to fine-tune your amount, then confirm.",
     "tour.alerts.title": "We'll keep you in the loop",
     "tour.alerts.body":
-      "Get alerted on Telegram or email before an auction you entered closes — and the moment results are out.",
+      "Get alerted on Telegram or email before an auction you entered closes - and the moment results are out.",
     "tour.done": "Start bidding",
     "dashboard.watchlist": "Watchlist",
     "dashboard.wins": "Wins",
@@ -193,7 +193,7 @@ export const STRINGS = {
     "auth.resend": "Resend code",
     "auth.openBot": "Get your Telegram ID",
     "auth.openBotHint":
-      "Opens our Telegram bot — press Start and it replies with your numeric ID to sign in with.",
+      "Opens our Telegram bot - press Start and it replies with your numeric ID to sign in with.",
 
     // Common
     "footer.rights": "All rights reserved.",
@@ -224,7 +224,7 @@ export const STRINGS = {
     "hero.title.line2": "ዝቅተኛ",
     "hero.title.line3": "ጨረታ ያሸንፋል።",
     "hero.subtitle":
-      "ሉባ ሽልማቱን አንድ ጊዜ ብቻ የተገባው ዝቅተኛ የጨረታ ዋጋ ይሸልማል — ብዙ መፈፈዝ እንጂ ስትራቴጂዎ ነው የሚያሸንፈው። የጊዜ ቆጣሪው በአገልጋይ ይቆጣጠራል፣ አሸናፊው በአንድ አይነት ስሌት ይወሰናል፣ እያንዳንዱ ክፍያ ማይቀየር መዝገብ ላይ ይቀመጣል።",
+      "ሉባ ሽልማቱን አንድ ጊዜ ብቻ የተገባው ዝቅተኛ የጨረታ ዋጋ ይሸልማል - ብዙ መፈፈዝ እንጂ ስትራቴጂዎ ነው የሚያሸንፈው። የጊዜ ቆጣሪው በአገልጋይ ይቆጣጠራል፣ አሸናፊው በአንድ አይነት ስሌት ይወሰናል፣ እያንዳንዱ ክፍያ ማይቀየር መዝገብ ላይ ይቀመጣል።",
     "hero.cta": "መለያ ይክፈቱ",
     "hero.ctaSignedIn": "ዳሽቦርድ ይክፈቱ",
     "hero.ctaSecondary": "ስራውን ይመልከቱ",
@@ -239,7 +239,7 @@ export const STRINGS = {
     "auction.timeRemaining": "የቀረ ጊዜ",
     "auction.bidders": "ተጫራቾች",
     "auction.bidPlaced": "ጨረታዎ በተሳካ ሁኔታ ገብቷል!",
-    "auction.notUnique": "ያስገቡት ዋጋ ተደግሟል — ሌላ ይምረጡ።",
+    "auction.notUnique": "ያስገቡት ዋጋ ተደግሟል - ሌላ ይምረጡ።",
     "auction.confirmTitle": "ጨረታዎን ያረጋግጡ",
     "auction.confirmSubtitle": "ጨረታው ከመቀመጡ በፊት የመጨረሻ ማረጋገጫ።",
     "auction.placing": "ጨረታ በመላክ ላይ",
@@ -257,7 +257,7 @@ export const STRINGS = {
     "auction.winnerPays": "አሸናፊው የሚከፍለው የሽንፍታ ዋጋውን ብቻ ነው።",
     "auction.bidsLeft": "ለእርስዎ የሚቀሩ ጨረታዎች",
     "auction.insufficientBalance":
-      "የዋሌት ቀሪ ሒሳብዎ አይበቃም — ለመውረስ ዋሌትዎን ይሙሉ።",
+      "የዋሌት ቀሪ ሒሳብዎ አይበቃም - ለመውረስ ዋሌትዎን ይሙሉ።",
     "auction.views": "ተመልክተዋል",
     "auction.participants": "ተጫራቾች",
     "auction.insufficientTitle": "የዋሌት ቀሪ ሒሳብ አልበቃም",
@@ -265,7 +265,7 @@ export const STRINGS = {
     "auction.insufficientAvailable": "ያለዎት",
     "auction.insufficientNeeded": "የሚያስፈልገው",
     "auction.insufficientNote":
-      "አሁን የሚቆጠረው የአገልግሎቱ ክፍያ ብቻ ነው — {bid} የሚከፍሉት አሸንፈው ሲወጡ ብቻ።",
+      "አሁን የሚቆጠረው የአገልግሎቱ ክፍያ ብቻ ነው - {bid} የሚከፍሉት አሸንፈው ሲወጡ ብቻ።",
     "auction.topUpCta": "ዋሌት ይሙሉ",
     "auction.topUpToBid": "ዋሌት ይሙሉ",
 
@@ -283,7 +283,7 @@ export const STRINGS = {
     // Onboarding tour
     "tour.wallet.title": "ዋሌትዎ የጨረታ ነዳጅዎ ነው",
     "tour.wallet.body":
-      "በአንድ ጊዜ ይሙሉ፣ ከዚያ ጨረታዎችዎን ወዲያውኑ ያስገቡ — ለእያንዳንዱ ጨረታ ወደ ክፍያ ገጽ አይዘዋወርም። ክፍያዎች ከቀሪ ሒሳብዎ ይቀንሳሉ።",
+      "በአንድ ጊዜ ይሙሉ፣ ከዚያ ጨረታዎችዎን ወዲያውኑ ያስገቡ - ለእያንዳንዱ ጨረታ ወደ ክፍያ ገጽ አይዘዋወርም። ክፍያዎች ከቀሪ ሒሳብዎ ይቀንሳሉ።",
     "tour.bidding.title": "ብቸኛውን እና ዝቅተኛውን ዋጋ ይምረጡ",
     "tour.bidding.body":
       "ሽልማቱ ማንም ሰው ያልመረጠው ዝቅተኛ ዋጋ ይሸልማል። − / + አዝራሮችን ተጠቅመው ዋጋዎን ያስተካክሉ።",
@@ -296,7 +296,7 @@ export const STRINGS = {
     "dashboard.profile": "መገለጫ",
     "dashboard.wallet": "ዋሌት",
     "dashboard.alerts": "ማሳወቂያዎች",
-    "dashboard.payToWin": "የሽንፍታ ክፍያዎን ይክፈሉ — ሽልማትዎን ለማግኘት",
+    "dashboard.payToWin": "የሽንፍታ ክፍያዎን ይክፈሉ - ሽልማትዎን ለማግኘት",
     "dashboard.name": "የሚታይ ስም",
     "dashboard.namePromptTitle": "የሚታይ ስምዎን ያስገቡ",
     "dashboard.namePromptBody":
@@ -312,7 +312,7 @@ export const STRINGS = {
     // Auth
     "auth.title": "ወደ ሉባ ይግቡ",
     "auth.subtitle":
-      "የመግቢያ ኮድዎ የሚላክበትን መንገድ ይምረጡ። አዲስ ከሆኑ — ይሄ ነው ሙሉ ምዝገባው።",
+      "የመግቢያ ኮድዎ የሚላክበትን መንገድ ይምረጡ። አዲስ ከሆኑ - ይሄ ነው ሙሉ ምዝገባው።",
     "auth.openBotShort": "ቴሌግራም ቦት ይክፈቱ",
     "auth.chooseMethod": "በየትኛው መንገድ ይግቡ?",
     "auth.continueTelegram": "በቴሌግራም ይቀጥሉ",
@@ -323,7 +323,7 @@ export const STRINGS = {
     "auth.resend": "ኮዱን በድጋሚ ላክ",
     "auth.openBot": "የቴሌግራም መለያዎን ያግኙ",
     "auth.openBotHint":
-      "ወደ ቴሌግራም ቦታችን ይወስድዎታል — Start ይጫኑ፣ የእርስዎ ቁጥራዊ መለያ ይላክልዎታል።",
+      "ወደ ቴሌግራም ቦታችን ይወስድዎታል - Start ይጫኑ፣ የእርስዎ ቁጥራዊ መለያ ይላክልዎታል።",
 
     // Common
     "footer.rights": "መብቱ በሕግ የተጠበቀ ነው።",

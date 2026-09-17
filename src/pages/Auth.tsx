@@ -84,7 +84,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     "working" | "success" | { error: string }
   >(linkToken ? "working" : "success");
 
-  // A user arriving from a Telegram/SMS confirmation link confirms it here —
+  // A user arriving from a Telegram/SMS confirmation link confirms it here -
   // the token is a capability, so no sign-in is required to bind the channel.
   useEffect(() => {
     if (!linkToken) return;
@@ -123,7 +123,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       if (ref && !referralBound) {
         setReferralBound(true);
         applyReferral({ code: ref }).catch(() => {
-          // Invalid/self/expired codes are silently ignored — never block login.
+          // Invalid/self/expired codes are silently ignored - never block login.
         });
       }
       navigate(redirect, { replace: true });
@@ -146,19 +146,19 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   };
 
   /** Human error copy for the verify step (master skill: errors explain what
-      happened and how to fix it — never leak provider internals like Convex
+      happened and how to fix it - never leak provider internals like Convex
       Auth's raw "Could not verify code"). A wrong/expired code is by far the
       most common cause, so it's the default; rate limiting and connection
       failures get their own copy because the remedy differs. */
   const friendlyVerifyError = (err: unknown) => {
     const msg = (err instanceof Error ? err.message : "").toLowerCase();
     if (/rate|too many|flood|throttl/.test(msg)) {
-      return "Too many attempts — wait a minute, then try your code again.";
+      return "Too many attempts - wait a minute, then try your code again.";
     }
     if (/network|failed to fetch|offline|load failed/.test(msg)) {
-      return "Connection trouble — check your internet and try again.";
+      return "Connection trouble - check your internet and try again.";
     }
-    return "That code didn't match, or it has expired. Double-check the 6 digits — or send a fresh code below.";
+    return "That code didn't match, or it has expired. Double-check the 6 digits - or send a fresh code below.";
   };
 
   const selectMethod = (p: Provider) => {
@@ -199,7 +199,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       await signIn(provider, { email: identifier, code: otp });
-      // Hand-off screen — do NOT navigate here: ConvexAuth's isAuthenticated
+      // Hand-off screen - do NOT navigate here: ConvexAuth's isAuthenticated
       // flips a round-trip after signIn resolves. Navigating now makes
       // RequireAuth bounce the user back to /auth, which remounts this page
       // at the method step (reads as "sign-in did nothing"). The
@@ -208,7 +208,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setHandoff(true);
       setTimeout(() => setHandoff(false), 8000);
     } catch (err) {
-      // Never surface the raw provider error here — a rejected code should
+      // Never surface the raw provider error here - a rejected code should
       // read as a normal, recoverable step, not a system failure.
       setError(friendlyVerifyError(err));
       setOtp("");
@@ -227,9 +227,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     } catch (err) {
       const msg = (err instanceof Error ? err.message : "").toLowerCase();
       if (/rate|too many|flood|throttl/.test(msg)) {
-        setError("Too many code requests — wait a minute before asking for another.");
+        setError("Too many code requests - wait a minute before asking for another.");
       } else if (/network|failed to fetch|offline|load failed/.test(msg)) {
-        setError("Connection trouble — check your internet and try again.");
+        setError("Connection trouble - check your internet and try again.");
       } else {
         setError("Couldn't send a new code just now. Wait a moment and try again.");
       }
@@ -377,7 +377,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       <span className="text-xs font-normal text-muted-foreground">
                         {telegramEnabled
                           ? "A 6-digit code sent as a Telegram message"
-                          : "Unavailable — not configured"}
+                          : "Unavailable - not configured"}
                       </span>
                     </span>
                     <ArrowRight className="ml-auto size-4 text-muted-foreground" />
@@ -409,7 +409,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       <span className="text-xs font-normal text-muted-foreground">
                         {smsEnabled
                           ? "A 6-digit code sent by text message"
-                          : "Unavailable — not configured"}
+                          : "Unavailable - not configured"}
                       </span>
                     </span>
                     <ArrowRight className="ml-auto size-4 text-muted-foreground" />
@@ -424,7 +424,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   <ul className="mt-4 space-y-2 text-xs leading-5 text-muted-foreground">
                     <li className="flex items-start gap-2">
                       <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                      One-time codes only — there's no password to manage or
+                      One-time codes only - there's no password to manage or
                       leak.
                     </li>
                     <li className="flex items-start gap-2">
@@ -460,7 +460,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                 <form onSubmit={handleIdentifierSubmit}>
                   <CardContent>
                     <div className="space-y-1.5">
-                      {/* Visible label — placeholders are never a substitute
+                      {/* Visible label - placeholders are never a substitute
                           (master skill: placeholders are not labels). The
                           helper text below carries the example so the
                           placeholder stays minimal. */}
@@ -514,7 +514,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                           <span className="font-medium text-foreground">
                             How to get your Telegram ID:
                           </span>{" "}
-                          Open our bot and press <em>Start</em> — it replies with
+                          Open our bot and press <em>Start</em> - it replies with
                           your numeric ID. (Telegram doesn't allow lookup by
                           username or phone, so the ID is the one thing it
                           needs.)

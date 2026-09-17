@@ -19,7 +19,7 @@ import { insertAuditLog, insertNotification } from "./lib/notifications";
 import { settleAuctionInternal } from "./lib/settlement";
 
 /**
- * Admin system — spec §41–43 (RBAC, audit logging).
+ * Admin system - spec §41-43 (RBAC, audit logging).
  *
  * Roles live on the users table. The FIRST user on the platform can claim
  * ADMIN in one bootstrap call (checked against the total user count); after
@@ -39,7 +39,7 @@ export async function requireAdmin(ctx: AdminCheckCtx): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new Error("UNAUTHENTICATED");
   const user = await ctx.db.get(userId);
-  // super_admin is the owner — every admin capability applies to them too.
+  // super_admin is the owner - every admin capability applies to them too.
   // Rejecting them here locked the owner out of the entire console.
   if (!user || (user.role !== ROLES.ADMIN && user.role !== ROLES.SUPER_ADMIN)) {
     throw new Error("FORBIDDEN_ADMIN_ONLY");
@@ -120,7 +120,7 @@ export const grantRole = mutation({
   },
 });
 
-/** Revoke a regular admin (super admin only) — part of the owner toolkit. */
+/** Revoke a regular admin (super admin only) - part of the owner toolkit. */
 export const revokeAdmin = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
@@ -142,7 +142,7 @@ export const revokeAdmin = mutation({
 });
 
 /**
- * Owner recovery — CLI/Dashboard only:
+ * Owner recovery - CLI/Dashboard only:
  *   npx convex run internal/admin:recoverSuperAdmin '{"newOwnerId":"...", "recoveryKey":"..."}'
  * Demotes all current super admins and assigns a new owner. The key comes
  * from SUPER_ADMIN_RECOVERY_KEY; without it the mutation is fail-closed.
@@ -299,13 +299,13 @@ export const listPaymentsAdmin = query({
       ? rows.filter((p) => p.status === args.statusFilter)
       : rows;
     const users = await ctx.db.query("users").collect();
-    const emailById = new Map(users.map((u) => [u._id, u.email ?? "—"]));
+    const emailById = new Map(users.map((u) => [u._id, u.email ?? "-"]));
     return filtered
       .sort((a, b) => b.createdAt - a.createdAt)
       .slice(0, 100)
       .map((p) => ({
         id: p._id,
-        email: emailById.get(p.userId) ?? "—",
+        email: emailById.get(p.userId) ?? "-",
         amountSantims: p.amountSantims,
         kind: p.kind,
         provider: p.provider,
@@ -422,7 +422,7 @@ export const adminCancelAuction = mutation({
   },
 });
 
-/** Force settlement of a closed auction (recovery path — the result-row
+/** Force settlement of a closed auction (recovery path - the result-row
  *  fence makes this idempotent, Invariant 6). */
 export const adminSettleAuction = mutation({
   args: { auctionId: v.id("auctions") },
@@ -453,7 +453,7 @@ export const adminSettleAuction = mutation({
 /**
  * Manually credit a user's wallet (bank-transfer reconciliation, goodwill
  * credit, support adjustments). Goes through the same ledger posting as any
- * deposit — fully audited, never a raw balance edit.
+ * deposit - fully audited, never a raw balance edit.
  */
 export const adminAdjustWallet = mutation({
   args: {
@@ -616,7 +616,7 @@ export const listPrizes = query({
 
 /**
  * Create a campaign (auction) with the full configurable rule set (spec §10).
- * Every value the engine enforces comes from this row — no hard-coded rules.
+ * Every value the engine enforces comes from this row - no hard-coded rules.
  */
 export const createAuction = mutation({
   args: {
@@ -739,7 +739,7 @@ export const listAllAuctions = query({
             id: a._id,
             auctionCode: a.auctionCode,
             title: a.title,
-            prizeTitle: prize?.title ?? "—",
+            prizeTitle: prize?.title ?? "-",
             prizeEmoji: prize?.emoji ?? "🎁",
             prizeImageUrl,
             status: a.status,
@@ -759,7 +759,7 @@ export const listAllAuctions = query({
 });
 
 /**
- * Edit the rule set of a campaign. Only SCHEDULED auctions are editable —
+ * Edit the rule set of a campaign. Only SCHEDULED auctions are editable -
  * once open, rules are frozen so bidders face a moving target (spec §29:
  * policy is frozen when the auction becomes OPEN).
  */
@@ -882,7 +882,7 @@ export const openAuctionNow = mutation({
  * Pause an OPEN or CLOSING auction for technical issues or disputes.
  * Bid acceptance stops immediately (placeBid only accepts OPEN/CLOSING),
  * and the lifecycle worker will not close a PAUSED auction.
- * Bidders already see it as paused — no money moves.
+ * Bidders already see it as paused - no money moves.
  */
 export const pauseAuction = mutation({
   args: { auctionId: v.id("auctions"), reason: v.string() },
@@ -938,7 +938,7 @@ export const resumeAuction = mutation({
 
 /**
  * Extend a live auction's closing time. Allowed while OPEN / CLOSING / PAUSED.
- * Rules stay frozen — only the clock moves (spec §29).
+ * Rules stay frozen - only the clock moves (spec §29).
  */
 export const extendAuction = mutation({
   args: { auctionId: v.id("auctions"), additionalMs: v.number() },
@@ -992,7 +992,7 @@ export const listSettlementsAdmin = query({
       ctx.db.query("users").collect(),
     ]);
     const auctionById = new Map(auctions.map((a) => [a._id, a]));
-    const emailById = new Map(users.map((u) => [u._id, u.email ?? "—"]));
+    const emailById = new Map(users.map((u) => [u._id, u.email ?? "-"]));
     return filtered
       .sort((a, b) => b.paymentDeadline - a.paymentDeadline)
       .slice(0, 100)
@@ -1002,9 +1002,9 @@ export const listSettlementsAdmin = query({
           s.status === "PENDING_PAYMENT" && s.paymentDeadline < Date.now();
         return {
           id: s._id,
-          auctionCode: a?.auctionCode ?? "—",
-          auctionTitle: a?.title ?? "—",
-          winnerEmail: emailById.get(s.winnerUserId) ?? "—",
+          auctionCode: a?.auctionCode ?? "-",
+          auctionTitle: a?.title ?? "-",
+          winnerEmail: emailById.get(s.winnerUserId) ?? "-",
           winningBidValueSantims: s.winningBidValueSantims,
           status: s.status,
           paidAt: s.paidAt ?? null,
@@ -1121,7 +1121,7 @@ export const forfeitAndReopen = mutation({
 
     // Clear the round-1 result row: it is the uniqueness fence that guards
     // settlement, and it must not block resolving round 2. Round-1 history is
-    // preserved by the FORFEITED settlement row above and the audit log —
+    // preserved by the FORFEITED settlement row above and the audit log -
     // bids, ledger entries, and payments are never touched (append-only).
     const oldResult = await ctx.db
       .query("auctionResults")
@@ -1154,7 +1154,7 @@ export const forfeitAndReopen = mutation({
   },
 });
 
-// ─── Financial dashboard (spec §41, §52–53) ─────────────────────────────────
+// ─── Financial dashboard (spec §41, §52-53) ─────────────────────────────────
 
 /**
  * Revenue & finance overview computed from the ledger (the financial truth):
@@ -1305,7 +1305,7 @@ export const setKycStatus = mutation({
  * Remove a rule-breaking or spam bid during an active round.
  * The bid keeps its row (append-only audit trail) but is marked REMOVED so
  * the winner resolver ignores it (it only counts ACCEPTED bids). The bidder
- * receives a notification; the fee is NOT auto-refunded — use adminRefund if
+ * receives a notification; the fee is NOT auto-refunded - use adminRefund if
  * policy says the fee should come back.
  */
 export const removeBid = mutation({
@@ -1454,7 +1454,7 @@ export const broadcastAnnouncement = mutation({
 /**
  * Full bid-frequency map for one auction: every value, how many accepted
  * bids hold it, and who holds them. This is the audit tool for verifying a
- * winning bid was genuinely unique and lowest — and for the post-closure
+ * winning bid was genuinely unique and lowest - and for the post-closure
  * transparency publication decision (spec §33).
  */
 export const getBidFrequencyMap = query({
@@ -1466,7 +1466,7 @@ export const getBidFrequencyMap = query({
       .withIndex("by_auction_value", (q) => q.eq("auctionId", args.auctionId))
       .collect();
     const users = await ctx.db.query("users").collect();
-    const emailById = new Map(users.map((u) => [u._id, u.email ?? "—"]));
+    const emailById = new Map(users.map((u) => [u._id, u.email ?? "-"]));
 
     const byValue = new Map<number, { count: number; holders: string[]; bidIds: Id<"auctionBids">[] }>();
     for (const b of bids) {
@@ -1496,7 +1496,7 @@ export const getBidFrequencyMap = query({
 
 /**
  * List all bids for one auction with moderation controls available
- * (admin view — includes removed/refunded bids for the full audit trail).
+ * (admin view - includes removed/refunded bids for the full audit trail).
  */
 export const listBidsAdmin = query({
   args: { auctionId: v.id("auctions") },
@@ -1507,13 +1507,13 @@ export const listBidsAdmin = query({
       .withIndex("by_auction_accepted", (q) => q.eq("auctionId", args.auctionId))
       .collect();
     const users = await ctx.db.query("users").collect();
-    const emailById = new Map(users.map((u) => [u._id, u.email ?? "—"]));
+    const emailById = new Map(users.map((u) => [u._id, u.email ?? "-"]));
     return bids
       .sort((a, b) => b.acceptedAt - a.acceptedAt)
       .slice(0, 300)
       .map((b) => ({
         id: b._id,
-        email: emailById.get(b.userId) ?? "—",
+        email: emailById.get(b.userId) ?? "-",
         bidValueSantims: b.bidValueSantims,
         feeSantims: b.bidServiceFeeSantims,
         status: b.status,
@@ -1524,7 +1524,7 @@ export const listBidsAdmin = query({
 });
 
 /**
- * Fraud review queue (spec §39) — unseen signals for admin triage, newest
+ * Fraud review queue (spec §39) - unseen signals for admin triage, newest
  * first, with user context joined for display.
  */
 export const listFraudSignalsAdmin = query({
@@ -1545,7 +1545,7 @@ export const listFraudSignalsAdmin = query({
       .map((s) => ({
         id: s._id,
         userId: s.userId ?? null,
-        userEmail: s.userId ? (byId.get(s.userId)?.email ?? "—") : "system",
+        userEmail: s.userId ? (byId.get(s.userId)?.email ?? "-") : "system",
         userName: s.userId ? (byId.get(s.userId)?.name ?? null) : null,
         signal: s.signal,
         severity: s.severity,
@@ -1577,7 +1577,7 @@ export const reviewFraudSignal = mutation({
 
 /**
  * Scan completed DEPOSIT payments for a shared payer phone across different
- * accounts — the multi-account / same-source funding heuristic (spec §39).
+ * accounts - the multi-account / same-source funding heuristic (spec §39).
  * Runs on demand from the fraud tab (cheap: payer_phone index).
  */
 export const scanSharedPayerPhones = mutation({
@@ -1743,8 +1743,8 @@ export const getUserProfileAdmin = query({
           const a = auctionById.get(b.auctionId);
           return {
             id: b._id,
-            auctionCode: a?.auctionCode ?? "—",
-            auctionTitle: a?.title ?? "—",
+            auctionCode: a?.auctionCode ?? "-",
+            auctionTitle: a?.title ?? "-",
             bidValueSantims: b.bidValueSantims,
             feeSantims: b.bidServiceFeeSantims,
             status: b.status,
@@ -1755,7 +1755,7 @@ export const getUserProfileAdmin = query({
         const a = auctionById.get(s.auctionId);
         return {
           settlementId: s._id,
-          auctionCode: a?.auctionCode ?? "—",
+          auctionCode: a?.auctionCode ?? "-",
           winningBidValueSantims: s.winningBidValueSantims,
           status: s.status,
           overdue: s.status === "PENDING_PAYMENT" && s.paymentDeadline < now,
@@ -1779,8 +1779,8 @@ export const getUserProfileAdmin = query({
 
 /**
  * Deduct from a user's paid balance (support corrections, chargebacks,
- * error fixes). A compensating DEBIT posting — the ledger correction
- * pattern (spec §20) — refused if it would drive the balance negative
+ * error fixes). A compensating DEBIT posting - the ledger correction
+ * pattern (spec §20) - refused if it would drive the balance negative
  * (Invariant 2). Audited; the user is notified.
  */
 export const adminDeductWallet = mutation({
@@ -1883,7 +1883,7 @@ export const forceCloseAuction = mutation({
 
 /**
  * Historical ledger of every monetary transaction with its balanced
- * entries — the reconciliation view for spotting internal errors.
+ * entries - the reconciliation view for spotting internal errors.
  */
 export const listLedgerTransactions = query({
   args: { txType: v.optional(v.string()), limit: v.optional(v.number()) },

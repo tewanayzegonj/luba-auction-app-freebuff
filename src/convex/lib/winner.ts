@@ -1,5 +1,5 @@
 /**
- * Winner resolution — spec §27–28.
+ * Winner resolution - spec §27-28.
  * Deterministic: given the same set of accepted bids, the result is always
  * the same. No randomness, no client input, no Redis.
  *
@@ -47,7 +47,7 @@ export function resolveLowestUniqueBid(
 }
 
 /**
- * Consecutive bid policy — spec §13.
+ * Consecutive bid policy - spec §13.
  * THREE_THEN_BLOCK_TWO: a user's bids may not form a run longer than 3
  * consecutive values (1.01, 1.02, 1.03 OK → 1.04, 1.05 blocked → 1.06 OK).
  * Returns true if placing newBidSantims keeps every run ≤ 3.

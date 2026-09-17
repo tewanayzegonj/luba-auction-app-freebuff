@@ -25,7 +25,7 @@ import "./index.css";
 
 // Lazy load route components for better code splitting
 /** Route chunks live in one map so lazy() and the idle preloader share the
-    exact same import paths — prefetching can never drift from the routes. */
+    exact same import paths - prefetching can never drift from the routes. */
 const routeImports = {
   Landing: () => import("./pages/Landing.tsx"),
   Auth: () => import("./pages/Auth.tsx"),
@@ -49,7 +49,7 @@ const Winners = lazy(routeImports.Winners);
 /** Kill first-tap lag: after the initial paint, warm every consumer route
     chunk in the idle window. First navigation then renders instantly instead
     of suspending on a network fetch (the "slow navigation" feel). Admin is
-    excluded — it's the heaviest chunk, staff-only, and not worth the mobile
+    excluded - it's the heaviest chunk, staff-only, and not worth the mobile
     bandwidth for users who never open it. */
 function usePrefetchRoutes() {
   useEffect(() => {
@@ -77,7 +77,7 @@ function RouteLoading() {
   );
 }
 
-/** Silent error boundary — if VlyToolbar crashes it renders nothing instead of
+/** Silent error boundary - if VlyToolbar crashes it renders nothing instead of
  *  crashing the whole app (e.g. hook errors in WebContainer environment). */
 class ToolbarErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -135,7 +135,7 @@ class RootErrorBoundary extends React.Component<
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
-// PWA service worker registration (offline shell only — never caches API traffic).
+// PWA service worker registration (offline shell only - never caches API traffic).
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch((err) => {
@@ -174,7 +174,7 @@ function RouteSyncer() {
     useLayoutEffect, not useEffect: this must run BEFORE the browser paints
     the new route. In a useEffect it fires after paint, so every navigation
     rendered the new page at the previous scroll offset for a frame and then
-    snapped to top — a visible vertical jerk on each tab press.
+    snapped to top - a visible vertical jerk on each tab press.
 
     The plain-navigation reset is skipped while a route crossfade holds the
     viewport (fadeNavigate resets scroll itself, mid-fade, where it can't
@@ -205,7 +205,7 @@ function HashScroll() {
 
 /** App-wide crossfade for Link navigations. Capture-phase intercept: every
  *  internal <a> click routes through fadeNavigate, so header links, footer
- *  links, cards and CTAs share the exact same transition as the tab bar —
+ *  links, cards and CTAs share the exact same transition as the tab bar -
  *  one motion voice everywhere. React-router's Link checks
  *  defaultPrevented before navigating, so there's no double navigation.
  *  Bypassed (kept native): modified/new-tab clicks, downloads, external

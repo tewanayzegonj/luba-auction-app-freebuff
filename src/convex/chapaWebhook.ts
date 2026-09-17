@@ -9,12 +9,12 @@ import {
 import { PROVIDER_CHAPA } from "./payments";
 
 /**
- * Chapa webhook receiver (spec §22–24).
+ * Chapa webhook receiver (spec §22-24).
  *
  * Security model:
  *  1. HMAC-SHA256 of the RAW request body is computed with
  *     CHAPA_WEBHOOK_SECRET and compared (timing-safe) against the
- *     x-chapa-signature / chapa-signature header — per Chapa's docs.
+ *     x-chapa-signature / chapa-signature header - per Chapa's docs.
  *  2. Amount from the webhook is passed as expectedAmountSantims so a
  *     mismatch against the initiated payment is rejected before crediting.
  *  3. Idempotency: providerEventId dedupes replays; the payment state guard
@@ -63,7 +63,7 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
     return new Response("Missing signature", { status: 401 });
   }
 
-  // Chapa sends TWO headers with DIFFERENT semantics (developer.chapa.co —
+  // Chapa sends TWO headers with DIFFERENT semantics (developer.chapa.co -
   // "Verify webhook origin"):
   //   x-chapa-signature: HMAC-SHA256(secret, raw request body)
   //   chapa-signature:   HMAC-SHA256(secret, secret)
@@ -108,7 +108,7 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
   }`;
 
   // Chapa best practice: re-query the API to confirm status/amount/tx_ref
-  // before granting value — the webhook body alone is never sufficient.
+  // before granting value - the webhook body alone is never sufficient.
   let verifiedAmountSantims: number | undefined = event.amount
     ? (chapaAmountToSantims(event.amount) ?? undefined)
     : undefined;
@@ -118,7 +118,7 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
         merchantReference: txRef,
       });
       if (!verified.ok || !verified.succeeded) {
-        // Provider disagrees with the webhook (or is unreachable) — do not
+        // Provider disagrees with the webhook (or is unreachable) - do not
         // credit. The return-flow verify / a replayed webhook can complete it
         // later; log so the reconciliation gap is visible in the dashboard.
         console.warn(
@@ -146,7 +146,7 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
       expectedAmountSantims: verifiedAmountSantims,
     });
   } catch (err) {
-    // PAYMENT_NOT_FOUND / AMOUNT_MISMATCH: acknowledge but do not retry —
+    // PAYMENT_NOT_FOUND / AMOUNT_MISMATCH: acknowledge but do not retry -
     // a webhook that keeps failing would hammer the same condition.
     console.warn("[chapa-webhook] rejected event", txRef, err);
     return jsonResponse({ received: true, processed: false });
@@ -162,7 +162,7 @@ export const chapaWebhook = httpAction(async (ctx, request) => {
  *
  * Runs as a public httpAction (browser has no Convex auth header on plain
  * fetch calls) and authenticates via a per-payment capability token created
- * at initiation — only the initiator of a payment can verify it.
+ * at initiation - only the initiator of a payment can verify it.
  */
 export const verifyChapaReturn = httpAction(async (ctx, request) => {
   let body: { merchantReference?: string; token?: string };
@@ -183,7 +183,7 @@ export const verifyChapaReturn = httpAction(async (ctx, request) => {
   if (!secret) return jsonResponse({ ok: false, error: "CHAPA_NOT_CONFIGURED" }, 500);
 
   // Capability check: the token is an HMAC of the reference with the Chapa
-  // secret — only someone who saw it at initiation (the initiating browser)
+  // secret - only someone who saw it at initiation (the initiating browser)
   // can produce it.
   const expectedToken = await hmacSha256Hex(secret, merchantReference);
   if (!timingSafeEqualHex(expectedToken, token.trim().toLowerCase())) {

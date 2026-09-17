@@ -9,16 +9,16 @@ import { cn } from "@/lib/utils";
 import { friendlyError } from "@/lib/errors";
 
 /**
- * Daily check-in bonus card — one promo-credit claim per Addis day with a
+ * Daily check-in bonus card - one promo-credit claim per Addis day with a
  * growing streak (5 ETB day 1 → +2.5 ETB per consecutive day, 30 ETB cap).
- * Promo credit pays bid fees only — the same instrument as referral rewards.
+ * Promo credit pays bid fees only - the same instrument as referral rewards.
  */
 export function DailyBonusCard() {
   const status = useQuery(api.dailyBonus.getDailyBonusStatus, {});
   const claim = useMutation(api.dailyBonus.claimDailyBonus);
 
   if (status === undefined) return null;
-  // Signed-out users have nothing to claim — the card simply doesn't render.
+  // Signed-out users have nothing to claim - the card simply doesn't render.
   if (status === null) return null;
 
   const doClaim = async () => {
@@ -26,7 +26,7 @@ export function DailyBonusCard() {
       const res = await claim({});
       if (res.claimed) {
         toast.success("Bonus claimed! 🎁", {
-          description: `${formatETB(res.rewardSantims)} promo credit added — day ${res.streak} of your streak.`,
+          description: `${formatETB(res.rewardSantims)} promo credit added - day ${res.streak} of your streak.`,
         });
       }
       // ALREADY_CLAIMED_TODAY: state will reflect it via the live query.
@@ -42,13 +42,13 @@ export function DailyBonusCard() {
           <Gift className="size-5" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Daily bonus — come back every day</p>
+          <p className="text-sm font-semibold">Daily bonus - come back every day</p>
           <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
             {status.claimedToday
               ? `Claimed today. Your streak: ${status.streak} ${status.streak === 1 ? "day" : "days"}. Next reward tomorrow.`
               : status.streak > 0
-                ? `Claim now for ${formatETB(status.nextRewardSantims)} — extends your ${status.streak}-day streak!`
-                : `Claim now for ${formatETB(status.nextRewardSantims)} promo credit. Streaks grow the reward — up to ${formatETB(status.capSantims)}.`}
+                ? `Claim now for ${formatETB(status.nextRewardSantims)} - extends your ${status.streak}-day streak!`
+                : `Claim now for ${formatETB(status.nextRewardSantims)} promo credit. Streaks grow the reward - up to ${formatETB(status.capSantims)}.`}
           </p>
         </div>
       </div>

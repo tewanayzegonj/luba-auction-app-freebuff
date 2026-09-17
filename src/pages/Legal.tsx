@@ -3,7 +3,7 @@ import { Link } from "react-router";
 
 /**
  * Legal pages (spec §54, responsible-play section of the roadmap).
- * One component, three documents — content lives in code because it is
+ * One component, three documents - content lives in code because it is
  * versioned with the product and must never drift from behavior.
  */
 
@@ -63,7 +63,7 @@ function Terms() {
         <p>
           Luba operates lowest-unique-bid auctions. In each auction, the
           participant whose bid amount is the lowest amount submitted exactly
-          once wins. The lowest numerical bid does not necessarily win — the
+          once wins. The lowest numerical bid does not necessarily win - the
           lowest unique bid wins.
         </p>
         <p>
@@ -87,7 +87,7 @@ function Terms() {
         <H>3. Bids and fees</H>
         <p>
           Bid service fees are charged at the moment a bid is accepted and are
-          non-refundable, except when an auction is cancelled by Luba — in that
+          non-refundable, except when an auction is cancelled by Luba - in that
           case all fees for that auction are refunded to participants' wallets.
           Bids are accepted exactly once or not at all; duplicate submissions
           are rejected by idempotency controls.
@@ -137,7 +137,7 @@ function Privacy() {
           methods you link (Telegram chat ID, phone number). Identity
           documents, only if you choose to verify your identity for prize
           claims. Transactional records: every deposit, bid fee, refund, and
-          winner payment — retained as part of an append-only financial ledger.
+          winner payment - retained as part of an append-only financial ledger.
         </p>
       </section>
       <section className="space-y-3">
@@ -181,7 +181,7 @@ function ResponsiblePlay() {
         <H>Bidding should stay fun</H>
         <p>
           A lowest-unique-bid auction is a game of strategy and luck. Bid fees
-          are spent for the chance to win — they are not an investment. Only
+          are spent for the chance to win - they are not an investment. Only
           bid with money you can afford to lose.
         </p>
       </section>
@@ -191,7 +191,7 @@ function ResponsiblePlay() {
           <strong className="text-foreground">Deposit cap.</strong> Set a
           maximum amount you can top up per rolling 24 hours, from your
           dashboard. Raising a cap takes effect after a 24-hour cooling period;
-          lowering it is immediate. This limit cannot be lifted by anyone —
+          lowering it is immediate. This limit cannot be lifted by anyone -
           including support.
         </p>
         <p>

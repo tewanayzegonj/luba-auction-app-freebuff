@@ -64,9 +64,9 @@
   --radius: 0.75rem;
   --background: #f9fafb; /* gray-50 */
   --foreground: #111827; /* gray-900 charcoal */
-  --card: #ffffff;
+  --card: #fdfdfe;
   --card-foreground: #111827;
-  --popover: #ffffff;
+  --popover: #fdfdfe;
   --popover-foreground: #111827;
   --primary: oklch(0.55 0.11 210);
   --primary-foreground: #f8fafc;
@@ -85,7 +85,7 @@
   --chart-3: oklch(0.55 0.1 260);
   --chart-4: oklch(0.68 0.13 84);
   --chart-5: oklch(0.58 0.16 25);
-  --sidebar: #ffffff;
+  --sidebar: #fdfdfe;
   --sidebar-foreground: #111827;
   --sidebar-primary: oklch(0.55 0.11 210);
   --sidebar-primary-foreground: #f8fafc;
@@ -409,7 +409,7 @@
      Scope: html.light only. */
   html.light {
     --background: oklch(0.975 0.002 250); /* page: faint cool gray   */
-    --card: #ffffff;                      /* cards: pure white pop   */
+    --card: #fdfdfe;                      /* cards: pure white pop   */
     --foreground: oklch(0.21 0.02 255);   /* near-black, cool        */
     --border: oklch(0.915 0.006 250);     /* hairline, still visible */
     --input: oklch(0.9 0.006 250);

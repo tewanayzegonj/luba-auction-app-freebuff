@@ -9,7 +9,7 @@ import {
 import { internal } from "./_generated/api";
 
 /**
- * links.et receipt verification — bank-confirmed wallet top-ups.
+ * links.et receipt verification - bank-confirmed wallet top-ups.
  *
  * Flow: user transfers money to LUBA's telebirr/CBE/bank account on their
  * own, then pastes the receipt URL (or telebirr reference). A server action
@@ -26,10 +26,10 @@ import { internal } from "./_generated/api";
  *   settleVerifiedReceipt (mutation) → idempotent credit via confirmCore
  *   myLinksetPayments (query) → UI reactivity picks up the settled state.
  *
- * Docs: https://links.et/agents.md — key rules honored:
+ * Docs: https://links.et/agents.md - key rules honored:
  * - Switch on `receipt.source`, never on host/providerKey.
  * - Amounts: numbers on some providers, strings ("100 Birr"/"100 ETB") on
- *   others — parsed per source, never raw arithmetic.
+ *   others - parsed per source, never raw arithmetic.
  * - Never retry a Siinqee receipt (≈5 total views kills it).
  * - A receipt URL is a credential: never logged, never echoed to users.
  * - quota_exceeded (monthly cap) ≠ rate_limited (Retry-After seconds).
@@ -128,7 +128,7 @@ export const verifyReceiptTopUp = internalAction({
       await ctx.runMutation(internal.linkset.markLinksetFailed, {
         paymentId: args.paymentId,
         error:
-          "Receipt verification is not configured yet — use Chapa or contact support.",
+          "Receipt verification is not configured yet - use Chapa or contact support.",
       });
       return;
     }
@@ -159,13 +159,13 @@ export const verifyReceiptTopUp = internalAction({
     } catch {
       await ctx.runMutation(internal.linkset.markLinksetFailed, {
         paymentId: args.paymentId,
-        error: "Network error reaching the verifier — tap Verify again.",
+        error: "Network error reaching the verifier - tap Verify again.",
       });
       return;
     }
 
     // 202: bank still processing. Poll briefly; otherwise leave the row in
-    // "verifying" — the user can re-submit and the idempotency key replays.
+    // "verifying" - the user can re-submit and the idempotency key replays.
     if (res.status === 202) {
       const queued = (await res.json().catch(() => ({}))) as {
         statusUrl?: string;
@@ -186,7 +186,7 @@ export const verifyReceiptTopUp = internalAction({
       await ctx.runMutation(internal.linkset.markLinksetFailed, {
         paymentId: args.paymentId,
         error:
-          "The bank is still responding — tap Verify again in a minute. Your progress is saved.",
+          "The bank is still responding - tap Verify again in a minute. Your progress is saved.",
       });
       return;
     }
@@ -197,7 +197,7 @@ export const verifyReceiptTopUp = internalAction({
     if (!data) {
       await ctx.runMutation(internal.linkset.markLinksetFailed, {
         paymentId: args.paymentId,
-        error: "The verifier returned an unreadable response — try again.",
+        error: "The verifier returned an unreadable response - try again.",
       });
       return;
     }
@@ -208,8 +208,8 @@ export const verifyReceiptTopUp = internalAction({
         paymentId: args.paymentId,
         error:
           err?.code === "quota_exceeded" || err?.code === "image_cap_reached"
-            ? "Verification quota is exhausted for this period — try again later or contact support."
-            : "Too many verification attempts — wait a moment and retry.",
+            ? "Verification quota is exhausted for this period - try again later or contact support."
+            : "Too many verification attempts - wait a moment and retry.",
       });
       return;
     }
@@ -220,8 +220,8 @@ export const verifyReceiptTopUp = internalAction({
         paymentId: args.paymentId,
         error:
           err?.code === "provider_down"
-            ? "Your bank's receipt service is down right now — try again in a few minutes."
-            : "The verifier is temporarily unavailable — try again shortly.",
+            ? "Your bank's receipt service is down right now - try again in a few minutes."
+            : "The verifier is temporarily unavailable - try again shortly.",
       });
       return;
     }
@@ -235,7 +235,7 @@ export const verifyReceiptTopUp = internalAction({
         paymentId: args.paymentId,
         error: code
           ? friendlyError(code, rawMsg)
-          : "The bank didn't respond in time — check the receipt link and try again.",
+          : "The bank didn't respond in time - check the receipt link and try again.",
       });
       return;
     }
@@ -273,7 +273,7 @@ export const settleVerifiedReceipt = internalMutation({
     if (!payment || payment.provider !== LINKSET_PROVIDER) {
       await ctx.db.patch(args.paymentId, {
         linksetStatus: "failed",
-        linksetError: "Payment request is no longer open — start a new top-up.",
+        linksetError: "Payment request is no longer open - start a new top-up.",
       });
       return;
     }
@@ -287,13 +287,13 @@ export const settleVerifiedReceipt = internalMutation({
     if (payment.status !== "PENDING") {
       await ctx.db.patch(args.paymentId, {
         linksetStatus: "failed",
-        linksetError: "This payment request is no longer open — start a new top-up.",
+        linksetError: "This payment request is no longer open - start a new top-up.",
       });
       return;
     }
 
     // Redemption ledger: has ANY linkset payment already been credited with
-    // this exact receipt reference? One receipt = one redemption EVER — a
+    // this exact receipt reference? One receipt = one redemption EVER - a
     // screenshot of the same receipt can never pay two accounts.
     const prior = await ctx.db
       .query("payments")
@@ -368,7 +368,7 @@ async function interpret(
 ): Promise<void> {
   const receipt = data.receipt as Record<string, unknown> | undefined;
 
-  // 502 shape: parsed but failed validation — partial receipt attached.
+  // 502 shape: parsed but failed validation - partial receipt attached.
   if (data.ok !== true || !receipt) {
     await ctx.runMutation(internal.linkset.markLinksetFailed, {
       paymentId,
@@ -385,7 +385,7 @@ async function interpret(
     await ctx.runMutation(internal.linkset.markLinksetFailed, {
       paymentId,
       error:
-        "We read the receipt but couldn't extract the amount or reference — contact support for a manual review.",
+        "We read the receipt but couldn't extract the amount or reference - contact support for a manual review.",
     });
     return;
   }
@@ -395,7 +395,7 @@ async function interpret(
   if (parsed.completed === false) {
     await ctx.runMutation(internal.linkset.markLinksetFailed, {
       paymentId,
-      error: `The bank shows this transaction as "${parsed.statusRaw ?? "not completed"}" — funds were not transferred.`,
+      error: `The bank shows this transaction as "${parsed.statusRaw ?? "not completed"}" - funds were not transferred.`,
     });
     return;
   }
@@ -515,23 +515,23 @@ function str(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
 
-/** User-safe error text — never echoes the receipt URL (docs rule #4). */
+/** User-safe error text - never echoes the receipt URL (docs rule #4). */
 function friendlyError(code: string, raw?: string): string {
   switch (code) {
     case "invalid_request":
     case "invalid_json":
-      return "That receipt link doesn't look right — paste the full link from your bank app or SMS.";
+      return "That receipt link doesn't look right - paste the full link from your bank app or SMS.";
     case "missing_key":
     case "invalid_key":
     case "revoked_key":
-      return "Receipt verification is misconfigured — contact support.";
+      return "Receipt verification is misconfigured - contact support.";
     case "ocr_daily_cap_reached":
-      return "The verification service is at capacity today — try again later.";
+      return "The verification service is at capacity today - try again later.";
     case "ai_not_configured":
-      return "Screenshot verification isn't available — paste a receipt link instead.";
+      return "Screenshot verification isn't available - paste a receipt link instead.";
     default:
       return raw
-        ? "Verification failed — double-check the receipt and try again."
-        : "Verification failed — double-check the receipt and try again.";
+        ? "Verification failed - double-check the receipt and try again."
+        : "Verification failed - double-check the receipt and try again.";
   }
 }

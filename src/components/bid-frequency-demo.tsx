@@ -4,13 +4,13 @@ import { Trophy } from "lucide-react";
 
 /**
  * The rule, played. Four bids arrive over ~7s; the duplicate on 1.00 kills
- * it, and 2.00 — lowest *unique* — wins. This is LUBA's ownable brand
+ * it, and 2.00 - lowest *unique* - wins. This is LUBA's ownable brand
  * moment: a template has no hero like this because no template has this
  * game rule.
  *
  * Motion rules (skill §24): tiny 150ms transitions, one-shot per event, a
  * calm breathing loop ONLY on the live indicator, and everything gated
- * behind useReducedMotion — reduced-motion users get the completed state
+ * behind useReducedMotion - reduced-motion users get the completed state
  * instantly, no timers run at all.
  */
 
@@ -27,12 +27,12 @@ const SCRIPT: Array<{
   { v: "2.00", state: "arriving", note: "A quiet amount…", at: 1700 },
   { v: "3.00", state: "arriving", note: "Two more join the board", at: 3000 },
   { v: "4.00", state: "arriving", note: "Last call", at: 4300 },
-  { v: "1.00", state: "dup", note: "Someone matched 1.00 — it's dead", at: 5600 },
-  { v: "2.00", state: "winner", note: "Lowest unique bid — won", at: 6900 },
+  { v: "1.00", state: "dup", note: "Someone matched 1.00 - it's dead", at: 5600 },
+  { v: "2.00", state: "winner", note: "Lowest unique bid - won", at: 6900 },
 ];
 
 const FINAL_NOTE =
-  "2.00 wins — lowest and unique. After close, every auction publishes its full bid math so you can verify the result yourself.";
+  "2.00 wins - lowest and unique. After close, every auction publishes its full bid math so you can verify the result yourself.";
 
 const ROWS = ["1.00", "2.00", "3.00", "4.00"] as const;
 
@@ -73,7 +73,7 @@ export function BidFrequencyDemo() {
           How winning works
         </span>
         {/* The only looping motion on the page's hero: the live dot's calm
-            breathe — then it stops when the demo settles. */}
+            breathe - then it stops when the demo settles. */}
         <span
           className={
             "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium " +
@@ -100,7 +100,7 @@ export function BidFrequencyDemo() {
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
         Four bids come in. The lowest amount chosen by{" "}
         <span className="font-medium text-foreground">exactly one person</span>{" "}
-        wins — not simply the lowest number.
+        wins - not simply the lowest number.
       </p>
 
       <div className="mt-4 space-y-1.5" aria-hidden>
@@ -139,14 +139,14 @@ export function BidFrequencyDemo() {
               }
             >
               {r.isWinner
-                ? "★ lowest unique — winner"
+                ? "★ lowest unique - winner"
                 : r.isDup
-                  ? "×2 — not unique"
+                  ? "×2 - not unique"
                   : r.visible
                     ? r.placed > 1
                       ? `×${r.placed} placed`
                       : "placed"
-                    : "—"}
+                    : "-"}
             </span>
           </motion.div>
         ))}

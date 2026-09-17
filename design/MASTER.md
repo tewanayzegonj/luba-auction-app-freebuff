@@ -256,6 +256,58 @@ not ranges — `0.96` is not `0.95`, and `cubic-bezier(0.2,0,0,1)` is not `ease`
   render next to the action that caused them; empty states carry one clear
   next action; one accent per view.
 
+## Taste-skill + motion-principles canon (learned 2026-09-17)
+
+Installed skills live in `.agents/skills/` (design-taste-frontend, design-motion-principles,
+ui-ux-pro-max, getdesign.md reference systems). Their rules below are project law.
+
+### Copy law (from taste-skill §9)
+- **Zero em-dashes (—) and en-dashes (–) in any source file.** The single
+  most-violated AI tell. Use periods, commas, colons, or hyphens. Verified by
+  grep before every delivery; a single hit fails the pass.
+- One copy register per page. No filler verbs (elevate, seamless, unleash),
+  no fake-precise numbers, no micro-meta-sentences under headings.
+- Middle-dot (·) rationed: max 1 per metadata line.
+
+### Hero law (from taste-skill §4.7)
+- Max 4 text elements: eyebrow OR brand strip, headline, subtext, CTAs.
+  Trust micro-strips, feature bullets, and taglines below CTAs are BANNED
+  inside heroes; they get their own section below.
+- Headline ≤ 2 lines desktop; subtext ≤ 20 words; CTA visible without scroll.
+
+### Layout law
+- No three identical feature cards; bento grids carry exactly N cells for N
+  items; one layout family per section, at least 4 families per 8 sections;
+  zigzag image+text splits max 2 in a row.
+- Eyebrows (uppercase tracking labels): max 1 per 3 sections. Zero is better.
+- Page theme lock: one theme per page, sections never invert mid-page.
+
+### Color law (from taste-skill §4.2 + §8)
+- One accent, locked across the whole page (Luba: cyan, oklch 0.78 0.13 195).
+- No pure #000000 / #ffffff anywhere: off-black and off-white tokens only.
+- No neon glows, no AI-purple, no oversized gradient headers.
+
+### Motion law (from design-motion-principles)
+- **Frequency gate decides IF motion exists**: rare (onboarding, win
+  celebrations) may be expressive; daily actions (bids, tab switches) get
+  130-160ms; high-frequency (countdown ticks, wallet reads) get none.
+- Luba weighting: Jakub primary (production polish), Emil secondary
+  (frequency gate), Jhey only for explicit celebration moments.
+- Enter: opacity + small y, ease-out, ≤300ms. Exits subtler than enters.
+- Never scale from 0 (start ≥0.9); springs with bounce:0 on utility UI;
+  transform-origin follows the trigger; custom bezier over built-in ease.
+- Reduced-motion is a hard gate on every animation above the floor, and
+  high-frequency surfaces must degrade to static, not spin slower.
+- One marquee/loop max per page; only the live-dot breathe qualifies.
+
+### Pre-flight gates (mechanical, run before any UI delivery)
+1. `grep -rn "—\|–" src/` returns nothing.
+2. `grep -rn "transition-all" src/pages src/components` returns nothing.
+3. No `window` scroll listeners; rAF loops never write React state.
+4. Hero element count ≤ 4; eyebrow count ≤ ceil(sections/3).
+5. Every new animation names its purpose in a comment.
+6. `bun tsc -b --noEmit` passes.
+
 ## The Golden Rule
 
 Never ask "what would AI generate here?" — ask "what would an exceptional

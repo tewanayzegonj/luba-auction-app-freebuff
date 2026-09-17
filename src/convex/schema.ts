@@ -4,7 +4,7 @@ import { Infer, v } from "convex/values";
 
 // default user roles. can add / remove based on the project as needed
 export const ROLES = {
-  SUPER_ADMIN: "super_admin", // platform owner — cannot be downgraded/deleted
+  SUPER_ADMIN: "super_admin", // platform owner - cannot be downgraded/deleted
   ADMIN: "admin",
   USER: "user",
   MEMBER: "member",
@@ -128,7 +128,7 @@ export const schema = defineSchema(
       ),
       noWinnerPolicy: noWinnerPolicyValidator, // frozen when OPEN (spec §29)
       winnerPaymentDeadline: v.number(), // ms after settlement
-      // Anti-snipe soft-close toggle (admin-configurable); default enabled —
+      // Anti-snipe soft-close toggle (admin-configurable); default enabled -
       // bids in the final 60s extend the auction by 2 minutes.
       antiSnipeDisabled: v.optional(v.boolean()),
       visibilityPolicy: v.union(v.literal("PUBLIC"), v.literal("PRIVATE")),
@@ -156,7 +156,7 @@ export const schema = defineSchema(
       bidValueSantims: v.number(), // the auction bid amount (spec §26)
       bidServiceFeeSantims: v.number(), // fee actually charged for this bid
       idempotencyKey: v.string(), // client-generated UUID (spec §17)
-      acceptedAt: v.number(), // server time — never client time
+      acceptedAt: v.number(), // server time - never client time
       status: v.union(
         v.literal("ACCEPTED"),
         v.literal("REFUNDED"),
@@ -171,7 +171,7 @@ export const schema = defineSchema(
 
     // ─── Auction result: exactly one per auction (Invariant 6) ─────────────
     auctionResults: defineTable({
-      auctionId: v.id("auctions"), // UNIQUE — see by_auction index
+      auctionId: v.id("auctions"), // UNIQUE - see by_auction index
       winnerUserId: v.optional(v.id("users")), // null if no unique bid
       winningBidValueSantims: v.optional(v.number()),
       winningBidId: v.optional(v.id("auctionBids")),
@@ -196,7 +196,7 @@ export const schema = defineSchema(
         v.literal("FORFEITED"),
       ),
       // ─── Claim & fulfillment flow (winner journey) ─────────────────────
-      // Public claim code delivered to the winner (SMS/Telegram) — shown at
+      // Public claim code delivered to the winner (SMS/Telegram) - shown at
       // pickup/delivery to prove identity alongside KYC verification.
       claimCode: v.optional(v.string()),
       // Winner's chosen fulfillment path, submitted after payment.
@@ -216,14 +216,14 @@ export const schema = defineSchema(
     // ─── Wallets (spec §25): paid + promo, projection of ledger ────────────
     wallets: defineTable({
       userId: v.id("users"), // UNIQUE per user
-      paidBalanceSantims: v.number(), // ledger projection — always ≥ 0 (Invariant 2)
+      paidBalanceSantims: v.number(), // ledger projection - always ≥ 0 (Invariant 2)
       promoBalanceSantims: v.number(),
       totalDepositedSantims: v.number(),
       totalSpentSantims: v.number(),
       updatedAt: v.number(),
     }).index("by_user", ["userId"]),
 
-    // ─── Double-entry ledger (spec §19–21) ─────────────────────────────────
+    // ─── Double-entry ledger (spec §19-21) ─────────────────────────────────
     // append-only. Invariant 1: Σ debits = Σ credits for every transaction.
     ledgerAccounts: defineTable({
       owner: v.optional(v.id("users")), // null = platform account
@@ -245,7 +245,7 @@ export const schema = defineSchema(
       txType: v.string(), // DEPOSIT | BID_FEE | WINNER_PAYMENT | REFUND | PRIZE_EXPENSE | PROMO_CREDIT
       reference: v.string(), // domain reference: bidId, paymentId, auctionId…
       description: v.string(),
-      idempotencyKey: v.string(), // UNIQUE — one op can never be posted twice (Invariant 4)
+      idempotencyKey: v.string(), // UNIQUE - one op can never be posted twice (Invariant 4)
       createdAt: v.number(),
     })
       .index("by_idempotency", ["idempotencyKey"])
@@ -264,7 +264,7 @@ export const schema = defineSchema(
       .index("by_account", ["accountId"])
       .index("by_user", ["userId"]), // user ledger history without table scans
 
-    // ─── Payments (spec §22–24) ────────────────────────────────────────────
+    // ─── Payments (spec §22-24) ────────────────────────────────────────────
     payments: defineTable({
       userId: v.id("users"),
       amountSantims: v.number(),
@@ -272,8 +272,8 @@ export const schema = defineSchema(
       kind: v.union(v.literal("DEPOSIT"), v.literal("WINNER_PAYMENT")),
       provider: v.string(), // "wallet" | "telebirr" | … provider adapter id
       providerReference: v.optional(v.string()), // UNIQUE with provider
-      merchantReference: v.string(), // UNIQUE — our id for this payment
-      // Normalized payer phone captured at checkout initiation — the fraud
+      merchantReference: v.string(), // UNIQUE - our id for this payment
+      // Normalized payer phone captured at checkout initiation - the fraud
       // key for MULTI_ACCOUNT_SUSPECT (multiple accounts funded by the same
       // payment source, spec §39).
       payerPhone: v.optional(v.string()),
@@ -349,7 +349,7 @@ export const schema = defineSchema(
 
     paymentEvents: defineTable({
       paymentId: v.id("payments"),
-      providerEventId: v.string(), // UNIQUE — webhook idempotency (spec §24)
+      providerEventId: v.string(), // UNIQUE - webhook idempotency (spec §24)
       eventType: v.string(),
       payload: v.optional(v.string()),
       createdAt: v.number(),
@@ -423,7 +423,7 @@ export const schema = defineSchema(
     // Delivered through Telegram/SMS only (never rendered in the browser),
     // so the user proves channel ownership by clicking the link.
     linkCodes: defineTable({
-      tokenHash: v.string(), // sha256 of the token — the token itself is never stored
+      tokenHash: v.string(), // sha256 of the token - the token itself is never stored
       userId: v.id("users"),
       method: v.union(v.literal("telegram"), v.literal("phone")),
       destination: v.string(), // chat id or phone (2519xxxxxxxx)
@@ -439,7 +439,7 @@ export const schema = defineSchema(
     // State machine: PENDING → REWARDED (or EXPIRED if unrewarded).
     referrals: defineTable({
       referrerId: v.id("users"),
-      refereeId: v.id("users"), // unique — a user can only be referred once
+      refereeId: v.id("users"), // unique - a user can only be referred once
       code: v.string(), // the code the referee used
       status: v.union(v.literal("PENDING"), v.literal("REWARDED"), v.literal("EXPIRED")),
       rewardedAt: v.optional(v.number()),

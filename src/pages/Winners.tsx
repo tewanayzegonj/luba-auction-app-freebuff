@@ -57,7 +57,7 @@ export default function Winners() {
           </p>
           <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
             <ShieldCheck className="size-3.5" />
-            Provably fair — no manual picks, ever
+            Provably fair - no manual picks, ever
           </div>
         </div>
 

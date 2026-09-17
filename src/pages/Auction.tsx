@@ -100,7 +100,7 @@ export default function AuctionPage() {
   const { isAuthenticated } = useAuth();
   const { t } = useLang();
 
-  // Bid form state (declared early — feeds the uniqueness query below)
+  // Bid form state (declared early - feeds the uniqueness query below)
   const [amountInput, setAmountInput] = useState("");
   const typedSantims = amountInput ? parseETBToSantims(amountInput) : null;
 
@@ -196,7 +196,7 @@ export default function AuctionPage() {
       if (sessionStorage.getItem(key) === "1") return;
       sessionStorage.setItem(key, "1");
     } catch {
-      // storage unavailable — still record, just unthrottled
+      // storage unavailable - still record, just unthrottled
     }
     void recordView({ code: auction.auctionCode }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -224,7 +224,7 @@ export default function AuctionPage() {
     return m;
   }, [uniqueness, myBids]);
 
-  // P6.7: real-time outbid toast — when one of my accepted unique bids becomes
+  // P6.7: real-time outbid toast - when one of my accepted unique bids becomes
   // duplicated (someone else matched the value), fire a toast once per value.
   const outbidRef = useRef<Set<number>>(new Set());
   useEffect(() => {
@@ -235,7 +235,7 @@ export default function AuctionPage() {
       if (count !== undefined && count > 1 && !outbidRef.current.has(b.bidValueSantims)) {
         outbidRef.current.add(b.bidValueSantims);
         toast.warning(t("auction.notUnique"), {
-          description: `${formatETB(b.bidValueSantims)} ETB is no longer unique — another bidder matched it.`,
+          description: `${formatETB(b.bidValueSantims)} ETB is no longer unique - another bidder matched it.`,
         });
       }
     }
@@ -457,7 +457,7 @@ export default function AuctionPage() {
                     const res = await toggleWatch({ auctionId: auction._id });
                     toast.success(
                       res.watching
-                        ? "Added to your watchlist — we'll alert you before it closes."
+                        ? "Added to your watchlist - we'll alert you before it closes."
                         : "Removed from your watchlist.",
                     );
                   } catch (err) {
@@ -472,7 +472,7 @@ export default function AuctionPage() {
                 ) : (
                   <Eye className="mr-1.5 size-4" />
                 )}
-                {watching ? "Watching — alerts on" : "Watch this auction"}
+                {watching ? "Watching - alerts on" : "Watch this auction"}
               </Button>
             )}
 
@@ -480,7 +480,7 @@ export default function AuctionPage() {
             <a
               className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#229ED9]/40 bg-[#229ED9]/10 text-sm font-medium text-[#229ED9] transition-colors hover:bg-[#229ED9]/20"
               target="_blank"
-              rel="noreferrer"              href={`https://t.me/share/url?url=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.href : ""}`)}&text=${encodeURIComponent(`🔥 ${auction.prize?.title ?? auction.title} is being auctioned on LUBA — lowest unique bid wins! Place your bid:`)}`}>
+              rel="noreferrer"              href={`https://t.me/share/url?url=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.href : ""}`)}&text=${encodeURIComponent(`🔥 ${auction.prize?.title ?? auction.title} is being auctioned on LUBA - lowest unique bid wins! Place your bid:`)}`}>
               <Send className="size-4" />
               Share to Telegram
             </a>
@@ -512,11 +512,11 @@ export default function AuctionPage() {
               <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">
                 <h3 className="flex items-center gap-2 font-semibold">
                   <BarChart3 className="size-4 text-primary" />
-                  Full bid history — published
+                  Full bid history - published
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Every accepted bid from this auction, lowest first. The winning
-                  value is highlighted — exactly how the result was determined.
+                  value is highlighted - exactly how the result was determined.
                 </p>
                 <div className="mt-3 max-h-72 space-y-1 overflow-y-auto pr-1">
                   {history.map.map((row) => (
@@ -542,17 +542,17 @@ export default function AuctionPage() {
               </div>
             )}
 
-            {/* Provably-fair per-bid breakdown — verifiable anti-fraud proof */}
+            {/* Provably-fair per-bid breakdown - verifiable anti-fraud proof */}
             {fairResults && fairResults.published && (
               <div className="rounded-2xl border border-border bg-card p-5 shadow-layered">
                 <h3 className="flex items-center gap-2 font-semibold">
                   <ShieldCheck className="size-4 text-emerald-500" />
-                  Provably fair — verify it yourself
+                  Provably fair - verify it yourself
                 </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   All {fairResults.totalBids} accepted bids, anonymized, lowest
                   first. {fairResults.uniqueCount} landed on unique values. The
-                  lowest unique value won — the math is right here.
+                  lowest unique value won - the math is right here.
                 </p>
                 <div className="mt-3 max-h-80 space-y-1 overflow-y-auto pr-1">
                   {fairResults.rows.map((row) => (
@@ -608,8 +608,8 @@ export default function AuctionPage() {
                   <div>
                     <h3 className="font-semibold">
                       {auction.result.resolution === "WINNER"
-                        ? "Auction completed — winning bid"
-                        : "Auction completed — no unique bid"}
+                        ? "Auction completed - winning bid"
+                        : "Auction completed - no unique bid"}
                     </h3>
                     {auction.result.resolution === "WINNER" &&
                     auction.result.winningBidValueSantims != null ? (
@@ -646,7 +646,7 @@ export default function AuctionPage() {
                 <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
                   <span>Bid range</span>
                   <span className="text-foreground tabular-nums">
-                    {formatETB(auction.minBidSantims)} – {formatETB(auction.maxBidSantims)}
+                    {formatETB(auction.minBidSantims)} - {formatETB(auction.maxBidSantims)}
                   </span>
                 </li>
                 <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5">
@@ -716,7 +716,7 @@ export default function AuctionPage() {
                       Your bid amount
                     </Label>
                     {/* Stepper input (HowLow pattern): ± buttons step by the
-                        auction's own increment — faster and less error-prone
+                        auction's own increment - faster and less error-prone
                         than typing on a phone keypad. Typing still works. */}
                     <div className="flex items-center gap-2">
                       <button
@@ -775,7 +775,7 @@ export default function AuctionPage() {
                       </button>
                     </div>
                     {bidValueSantims !== null && !validationError && (
-                      /* Status pairs icon + text (never color alone — the
+                      /* Status pairs icon + text (never color alone - the
                          amber/emerald distinction must survive color-blind
                          users and cheap low-gamut screens). */
                       <p
@@ -792,8 +792,8 @@ export default function AuctionPage() {
                           <CheckCircle2 className="size-3.5 shrink-0" />
                         )}
                         {taken
-                          ? `${taken} other ${taken === 1 ? "bid" : "bids"} already at this amount — you'd need to stay unique.`
-                          : "Not bid yet — currently would be unique!"}
+                          ? `${taken} other ${taken === 1 ? "bid" : "bids"} already at this amount - you'd need to stay unique.`
+                          : "Not bid yet - currently would be unique!"}
                       </p>
                     )}
                     {validationError && (
@@ -817,7 +817,7 @@ export default function AuctionPage() {
                           }
                         >
                           <Sparkles className="size-3.5" />
-                          Smart bid: {formatETB(smartBid)} — least crowded zone
+                          Smart bid: {formatETB(smartBid)} - least crowded zone
                         </button>
                       )}
                   </div>
@@ -835,7 +835,7 @@ export default function AuctionPage() {
 
                   {/* Bid heatmap: crowding across the bid range, lowest →
                       highest. Taller/warmer = more crowded. Never reveals
-                      exact values — strategy signal only. */}
+                      exact values - strategy signal only. */}
                   {heatmap && heatmap.totalBids > 0 && (
                     <div className="rounded-xl border border-border bg-background/60 p-3">
                       <div className="flex items-center justify-between">
@@ -853,7 +853,7 @@ export default function AuctionPage() {
                           return (
                             <div
                               key={i}
-                              title={`${formatETB(b.fromSantims)}–${formatETB(b.toSantims)}: ${b.count} bids`}
+                              title={`${formatETB(b.fromSantims)}-${formatETB(b.toSantims)}: ${b.count} bids`}
                               className="flex-1 rounded-sm bg-primary/25"
                               style={{
                                 height: `${hPct}%`,
@@ -1013,7 +1013,7 @@ export default function AuctionPage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Bid value</span>
               <span className="font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">
-                {bidValueSantims !== null ? formatETB(bidValueSantims) : "—"}
+                {bidValueSantims !== null ? formatETB(bidValueSantims) : "-"}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -1137,13 +1137,13 @@ export default function AuctionPage() {
           Hidden on lg where the sticky side panel owns the CTA. */}
       {isOpen && (
         <div
-          // Solid bar, no backdrop-blur — same scroll-jank rationale as the
+          // Solid bar, no backdrop-blur - same scroll-jank rationale as the
           // header/tab bar: blur re-composites the page under it every
           // frame. Consistency across all fixed surfaces.
           className="fixed inset-x-0 z-30 border-t border-border/70 bg-background px-4 py-3 lg:hidden"
           style={{
             // Sit flush above the mobile tab bar, which itself grows by the
-            // home-indicator safe area — so our offset must include it too.
+            // home-indicator safe area - so our offset must include it too.
             bottom: "calc(4rem + var(--safe-bottom))",
             paddingBottom: "max(0.75rem, var(--safe-bottom))",
           }}
@@ -1179,7 +1179,7 @@ export default function AuctionPage() {
                   }
                   if (!termsAccepted) {
                     // Scroll the full form into view so the user checks the
-                    // fee box — keeps consent explicit on small screens.
+                    // fee box - keeps consent explicit on small screens.
                     const terms = document.querySelector<HTMLElement>("#terms");
                     if (terms) {
                       smoothScrollTo(terms, { offset: -window.innerHeight * 0.3 });

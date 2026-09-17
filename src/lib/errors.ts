@@ -13,20 +13,20 @@
 /** Server codes we know, with copy that states the problem and the fix. */
 const FRIENDLY: Record<string, string> = {
   // Auth / session
-  UNAUTHENTICATED: "Your session expired — sign in again and retry.",
+  UNAUTHENTICATED: "Your session expired - sign in again and retry.",
   USER_NOT_FOUND: "We couldn't find your account. Sign in again or contact support.",
   ACCOUNT_RESTRICTED: "This account can't take that action right now. Contact support if you think this is a mistake.",
 
   // Wallet / payments
   INVALID_AMOUNT: "Enter a valid amount to top up.",
-  PAYMENT_NOT_FOUND: "That payment no longer exists — start the top-up again.",
+  PAYMENT_NOT_FOUND: "That payment no longer exists - start the top-up again.",
   PAYMENT_NOT_YOURS: "That payment belongs to another account.",
   NOT_A_MANUAL_PAYMENT: "This payment type can't be verified manually.",
   AMOUNT_MISMATCH: "The transferred amount doesn't match the top-up request. Start a new top-up for the exact amount.",
   SETTLEMENT_NOT_FOUND: "That prize settlement no longer exists.",
   NOT_THE_WINNER: "Only the auction winner can pay for this prize.",
   SETTLEMENT_ALREADY_SETTLED: "This prize is already paid.",
-  INSUFFICIENT_BALANCE: "Not enough balance in your wallet — top up first.",
+  INSUFFICIENT_BALANCE: "Not enough balance in your wallet - top up first.",
   SELF_EXCLUDED: "You're on a self-exclusion break. Bidding and deposits are paused until it lifts.",
   DEPOSIT_CAP: "That amount is above your daily deposit cap. Lower the amount or adjust the cap in Responsible play.",
 
@@ -47,13 +47,13 @@ const FRIENDLY: Record<string, string> = {
   // KYC
   KYC_ALREADY_PENDING: "You already have a document under review. We'll notify you when it's done.",
   ACCOUNT_NOT_ELIGIBLE: "Your account isn't eligible for verification yet. Complete your profile first.",
-  FILE_NOT_FOUND: "We couldn't read that file — pick it again.",
+  FILE_NOT_FOUND: "We couldn't read that file - pick it again.",
   FILE_TYPE_NOT_ALLOWED: "Only JPEG, PNG, WebP, or PDF files are accepted.",
-  FILE_TOO_LARGE_5MB: "That file is over 5 MB — pick a smaller one.",
+  FILE_TOO_LARGE_5MB: "That file is over 5 MB - pick a smaller one.",
 
   // Profile
   NAME_TOO_SHORT: "Your name needs at least 2 characters.",
-  NAME_TOO_LONG: "That name is too long — keep it under 40 characters.",
+  NAME_TOO_LONG: "That name is too long - keep it under 40 characters.",
   INVALID_NAME: "Use letters and spaces only for your display name.",
 };
 
@@ -74,6 +74,6 @@ export function friendlyError(err: unknown): string {
   // Human sentences from the server (e.g. "That phone number is already
   // linked to another user.") are already user-facing.
   if (msg.includes(" ")) return msg;
-  // Opaque unknown code — never show it raw.
+  // Opaque unknown code - never show it raw.
   return "That didn't go through. Check your connection and try again.";
 }

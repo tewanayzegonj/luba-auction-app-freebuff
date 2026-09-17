@@ -4,8 +4,8 @@ import { action, query } from "./_generated/server";
 /**
  * Chapa payment adapter (spec §22 provider seam).
  *
- * Chapa aggregates the Ethiopian PSPs — telebirr, CBE Birr, M-Pesa, Amole,
- * cards — so one integration covers every requested method.
+ * Chapa aggregates the Ethiopian PSPs - telebirr, CBE Birr, M-Pesa, Amole,
+ * cards - so one integration covers every requested method.
  *
  * API surface used (https://developer.chapa.co):
  *  - POST https://api.chapa.co/v1/transaction/initialize
@@ -21,7 +21,7 @@ import { action, query } from "./_generated/server";
  * HMAC-SHA256 of the raw body against CHAPA_WEBHOOK_SECRET; this module
  * handles the outbound calls.
  *
- * Credentials are read from the environment at call time — never committed.
+ * Credentials are read from the environment at call time - never committed.
  * Missing keys throw CHAPA_NOT_CONFIGURED so the UI can fall back to the
  * sandbox adapter.
  */
@@ -73,7 +73,7 @@ export function isChapaConfigured(): boolean {
 }
 
 /**
- * Setup status for the wallet UI. Reports only whether credentials exist —
+ * Setup status for the wallet UI. Reports only whether credentials exist -
  * never the values themselves.
  */
 export const getChapaStatus = query({
@@ -145,7 +145,7 @@ export const initializeCheckout = action({
       tx_ref: args.merchantReference,
       return_url: args.returnUrl,
       email,
-      // Chapa limits customization.title to 16 characters — longer titles
+      // Chapa limits customization.title to 16 characters - longer titles
       // are rejected with an HTTP 400 validation error.
       customization: {
         title: "Luba Top-Up",
@@ -154,7 +154,7 @@ export const initializeCheckout = action({
     };
     if (args.firstName) body.first_name = args.firstName;
     if (args.lastName) body.last_name = args.lastName;
-    // Chapa validates first_name/last_name as required — accounts registered
+    // Chapa validates first_name/last_name as required - accounts registered
     // via Telegram often have no display name, so substitute neutral
     // fallbacks (never used for payment confirmation, tx_ref only).
     if (!body.first_name) body.first_name = "LUBA";
@@ -179,7 +179,7 @@ export const initializeCheckout = action({
     }
 
     if (!response.ok) {
-      // Capture Chapa's own error body — it carries the actionable reason
+      // Capture Chapa's own error body - it carries the actionable reason
       // (invalid key, validation failure, unapproved account, …). We keep the
       // RAW text too: Chapa's 400 shapes vary (message / data string /
       // field-map), and seeing the exact payload beats guessing.
@@ -197,11 +197,11 @@ export const initializeCheckout = action({
               ? errPayload.data
               : (errPayload?.data?.message ?? detail);
       } catch {
-        // non-JSON error body — the raw text is the best we have
+        // non-JSON error body - the raw text is the best we have
       }
       console.error("[chapa] initialize failed", {
         status: response.status,
-        // Never log the Authorization header — body only.
+        // Never log the Authorization header - body only.
         body: rawText.slice(0, 500),
       });
       return { ok: false, error: `CHAPA_HTTP_${response.status}`, detail };

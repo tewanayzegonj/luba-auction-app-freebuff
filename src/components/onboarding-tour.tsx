@@ -9,7 +9,7 @@ import { useLang } from "@/lib/i18n";
  * First-run guided tour (3 steps, ~15 seconds, skippable, shown ONCE).
  *
  * Shown only on the dashboard for users who haven't completed it. Persisted in
- * localStorage ("luba.tourDone") — deliberately not server state: it's pure
+ * localStorage ("luba.tourDone") - deliberately not server state: it's pure
  * presentation, per-device, and must never block a returning user on a new
  * device from using the app.
  *
@@ -42,7 +42,7 @@ export function OnboardingTour() {
 
   useEffect(() => {
     if (!isTourDone()) {
-      // Small delay so the dashboard settles first — feels intentional.
+      // Small delay so the dashboard settles first - feels intentional.
       const id = setTimeout(() => setOpen(true), 700);
       return () => clearTimeout(id);
     }

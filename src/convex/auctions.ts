@@ -15,7 +15,7 @@ import { settleAuctionInternal } from "./lib/settlement";
 import { resolveLowestUniqueBid } from "./lib/winner";
 
 /**
- * Auction engine — spec §11–17, §27, §30–31.
+ * Auction engine - spec §11-17, §27, §30-31.
  * All validation and time comes from the server. Clients never decide.
  */
 
@@ -35,7 +35,7 @@ export const listOpenAuctions = query({
       .withIndex("by_status", (q) => q.eq("status", "CLOSING"))
       .collect();
 
-    // Defensive: never render a dead auction, even between lifecycle ticks —
+    // Defensive: never render a dead auction, even between lifecycle ticks -
     // a close time in the past means it must not be listed as open.
     const all = [...auctions, ...closing]
       .filter((a) => a.closesAt > now)
@@ -77,7 +77,7 @@ export const listOpenAuctions = query({
 });
 
 /**
- * Compact summaries for specific auctions by ID — lets the Dashboard render
+ * Compact summaries for specific auctions by ID - lets the Dashboard render
  * correct titles for bids on CLOSED auctions (listOpenAuctions only covers
  * live ones). Public-safe: title, code, status, close time only.
  */
@@ -106,7 +106,7 @@ export const getAuctionSummaries = query({
 /** Public detail for an auction by code, joined with prize + recent bid stats. */
 /**
  * Record a detail-page view (P3.8). Throttled per user+auction via
- * sessionStorage on the client — the server just increments. Best-effort:
+ * sessionStorage on the client - the server just increments. Best-effort:
  * view stats are presentation metrics, not financial truth.
  */
 export const recordAuctionView = mutation({
@@ -187,7 +187,7 @@ export const getAuctionByCode = query({
 /**
  * Uniqueness counts for SPECIFIC bid values only (spec §33: limited public
  * info). The client asks about the value it's about to bid plus its own
- * bids — never the full distribution, which would enable strategic
+ * bids - never the full distribution, which would enable strategic
  * scraping. Presentation data only; never authoritative for settlement.
  */
 export const getUniquenessForValues = query({
@@ -196,7 +196,7 @@ export const getUniquenessForValues = query({
     if (args.values.length === 0) return [];
 
     // Phase 6: one bounded indexed read per requested value (take(2) is all
-    // uniqueness display needs — 1 = unique, ≥2 = taken) instead of scanning
+    // uniqueness display needs - 1 = unique, ≥2 = taken) instead of scanning
     // the whole auction's bid set on every keystroke.
     const counts: { valueSantims: number; count: number }[] = [];
     for (const value of args.values) {
@@ -235,7 +235,7 @@ export const getMyBidsForAuction = query({
 // ─── Mutations ──────────────────────────────────────────────────────────────
 
 /**
- * Place a bid — the atomic core (spec §14–17).
+ * Place a bid - the atomic core (spec §14-17).
  * Validates every rule, charges the fee, creates the bid, and writes the
  * outbox event in ONE transaction. Accepted exactly once, or not at all.
  */
@@ -309,7 +309,7 @@ export const placeBid = mutation({
     const auction = await ctx.db.get(args.auctionId);
     if (!auction) throw new Error("AUCTION_NOT_FOUND");
 
-    // Rule 3–4: auction OPEN and server time before close.
+    // Rule 3-4: auction OPEN and server time before close.
     if (auction.status !== "OPEN" && auction.status !== "CLOSING") {
       throw new Error("AUCTION_NOT_OPEN");
     }
@@ -334,7 +334,7 @@ export const placeBid = mutation({
       }
     }
 
-    // Rules 7–9 + fee charge (spec §12, §13, §15) via the shared core:
+    // Rules 7-9 + fee charge (spec §12, §13, §15) via the shared core:
     // index-driven, no auction-row writes, no full-auction scans (Phase 6).
     const attempt = await attemptBid(ctx, {
       auction,
@@ -354,7 +354,7 @@ export const placeBid = mutation({
     // Anti-snipe soft-close (popcorn bidding): a bid inside the final window
     // pushes the close time out so human bidders on slow mobile connections
     // retain a real chance to react. One OCC-serialized patch per auction
-    // row — contention is bounded to the final-minute frenzy by design.
+    // row - contention is bounded to the final-minute frenzy by design.
     const ANTI_SNIPE_WINDOW_MS = 60_000;
     const ANTI_SNIPE_EXTENSION_MS = 120_000;
     if (
@@ -369,14 +369,14 @@ export const placeBid = mutation({
         userId,
         type: "AUCTION_EXTENDED",
         title: "Auction extended",
-        body: `${auction.auctionCode} was extended — a bid landed in the final minute. New close time applies.`,
+        body: `${auction.auctionCode} was extended - a bid landed in the final minute. New close time applies.`,
         auctionId: auction._id,
         now,
       });
     }
 
     // Phase 6: display counters are refreshed by a throttled background
-    // reconciler, never inside the bid transaction — per-bid patches on the
+    // reconciler, never inside the bid transaction - per-bid patches on the
     // auction document would serialize every concurrent bidder through OCC
     // retries.
     await ctx.scheduler.runAfter(
@@ -385,7 +385,7 @@ export const placeBid = mutation({
       { auctionId: auction._id },
     );
 
-    // Outbox event (spec §18) — consumers must be idempotent.
+    // Outbox event (spec §18) - consumers must be idempotent.
     await ctx.db.insert("outboxEvents", {
       eventType: "BID_ACCEPTED",
       payload: {
@@ -409,7 +409,7 @@ export const placeBid = mutation({
     });
 
     // Referral reward: a referee's first successful bid-fee triggers the
-    // promo grants (idempotent — PENDING → REWARDED fence inside).
+    // promo grants (idempotent - PENDING → REWARDED fence inside).
     if (user.referredBy) {
       await ctx.scheduler.runAfter(0, internal.growth.rewardReferralInternal, {
         refereeId: userId,
@@ -432,7 +432,7 @@ export const placeBid = mutation({
 
 /**
  * Recompute denormalized display counters from accepted bids and store with
- * a staleness timestamp. Presentation-only — winner resolution recomputes
+ * a staleness timestamp. Presentation-only - winner resolution recomputes
  * from bid rows and never reads these (Invariant 7).
  */
 async function refreshAuctionCounters(
@@ -534,7 +534,7 @@ export const recentWinners = query({
 });
 
 /**
- * Settle a CLOSED auction — deterministic winner resolution (spec §27–31).
+ * Settle a CLOSED auction - deterministic winner resolution (spec §27-31).
  * Delegates to the shared settlement lib (unique-fence guarded).
  */
 export const settleAuction = mutation({

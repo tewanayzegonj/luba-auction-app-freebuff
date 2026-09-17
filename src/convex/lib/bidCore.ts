@@ -5,10 +5,10 @@ import { LedgerError } from "./ledger";
 import { isConsecutiveBidAllowed } from "./winner";
 
 /**
- * Shared bid-attempt core — the single rules path for every way a bid enters
+ * Shared bid-attempt core - the single rules path for every way a bid enters
  * the system (user click, scheduled bid, future bot/API). Phase 6 hardening:
  *
- *  - Validation is fully index-driven (per-user index only — never a scan of
+ *  - Validation is fully index-driven (per-user index only - never a scan of
  *    the whole auction's bid set), so a heavily contested auction does not
  *    slow individual bids down.
  *  - The bid row and its fee posting commit in one transaction (spec §15).
@@ -32,7 +32,7 @@ export type BidAttemptResult =
 /**
  * Attempt one bid against `auction`. Assumes the caller has already verified
  * authentication, eligibility, auction OPEN/CLOSING state, server-vs-closesAt
- * timing, rate limits, and idempotency replay — those differ per caller.
+ * timing, rate limits, and idempotency replay - those differ per caller.
  */
 export async function attemptBid(
   ctx: MutationCtx,
@@ -62,7 +62,7 @@ export async function attemptBid(
     return { ok: false, code: "BID_NOT_ON_INCREMENT" };
   }
 
-  // Rule 7 + Rule 9: per-user cap and consecutive policy — one small indexed
+  // Rule 7 + Rule 9: per-user cap and consecutive policy - one small indexed
   // read of THIS user's bids on THIS auction (bounded by the cap itself).
   const myBids = await ctx.db
     .query("auctionBids")

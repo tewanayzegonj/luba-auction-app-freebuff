@@ -6,7 +6,7 @@ import { insertAuditLog, insertNotification } from "./lib/notifications";
 import { requireAdmin } from "./admin";
 
 /**
- * KYC documents (spec §32, §41) — winner identity verification.
+ * KYC documents (spec §32, §41) - winner identity verification.
  *
  * Flow: user uploads a photo ID (image or PDF, ≤5MB) → status PENDING →
  * admin approves/rejects → user.kycStatus updated + notified. The document

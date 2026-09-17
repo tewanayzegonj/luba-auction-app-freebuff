@@ -17,7 +17,7 @@ import { insertAuditLog } from "./lib/notifications";
  *  3. When the referee's FIRST bid fee is charged, rewardReferralInternal
  *     grants both sides promo credit via balanced ledger postings.
  *
- * Promo balances are a projection of the ledger — never free-floating
+ * Promo balances are a projection of the ledger - never free-floating
  * counters (Invariant 1 applies to every promo credit).
  */
 
@@ -33,7 +33,7 @@ function generateReferralCode(): string {
   return generateRandomString(random, REFERRAL_ALPHABET, 8);
 }
 
-/** Lazily mint the caller's unique referral code (write — must be a mutation). */
+/** Lazily mint the caller's unique referral code (write - must be a mutation). */
 export const ensureReferralCode = mutation({
   args: {},
   handler: async (ctx) => {
@@ -147,7 +147,7 @@ export const rewardReferralInternal = internalMutation({
     await postTransaction(ctx, {
       txType: "PROMO_CREDIT",
       reference: `referral:${referral._id}:referrer`,
-      description: "Referral reward — friend's first bid",
+      description: "Referral reward - friend's first bid",
       idempotencyKey: `referral_reward:${referral._id}:referrer`,
       now,
       lines: [
@@ -199,7 +199,7 @@ export const rewardReferralInternal = internalMutation({
         userId: referral.referrerId,
         type: "SYSTEM",
         title: "Referral reward earned 🎉",
-        body: "Your friend placed their first bid — promo credit has been added to your wallet.",
+        body: "Your friend placed their first bid - promo credit has been added to your wallet.",
       },
       processed: false,
       createdAt: now,
@@ -232,7 +232,7 @@ export const setResponsiblePlayLimits = mutation({
         throw new Error("Cap must be zero or positive.");
       }
       // Limits can only be tightened. Raising a cap requires a 24h cooling
-      // period — implemented as: new cap takes effect after 24h.
+      // period - implemented as: new cap takes effect after 24h.
       const user = await ctx.db.get(userId);
       const current = user?.selfDepositCapSantims;
       if (current !== undefined && args.dailyDepositCapSantims > current) {

@@ -24,10 +24,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
-  BadgeCheck,
-  Lock,
   Search,
-  ShieldCheck,
   Smartphone,
   Trophy,
   TrendingDown,
@@ -71,11 +68,9 @@ export default function Landing() {
           {/* Opacity-only hero entrance: route changes must not re-stage a
               vertical move (the crossfade owns route motion; a rising hero
               is what read as the page "shaking" open on tab presses). */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.35, ease: "linear" }}
-          >
+          {/* No local enter animation: the global route crossfade owns
+              page entry, and a second local fade competes with it. */}
+          <motion.div>
             <Badge
               variant="outline"
               className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-xs tabular-nums text-primary md:mb-5"
@@ -94,7 +89,7 @@ export default function Landing() {
             <p className="mt-4 max-w-md text-pretty text-[15px] leading-6 text-muted-foreground md:mt-5 md:text-lg md:leading-7">
               {t("hero.subtitle")}
             </p>
-            {/* Full-width stacked CTAs on phones — thumb-sized targets. */}
+            {/* Full-width stacked CTAs on phones - thumb-sized targets. */}
             <div className="mt-6 grid gap-2.5 sm:mt-8 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
               <Button size="lg" className="h-12 px-6 sm:h-11 sm:flex-1 sm:px-6" asChild>
                 <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
@@ -124,30 +119,19 @@ export default function Landing() {
                 </a>
               </Button>
             </div>
-            <div className="mt-6 flex flex-col gap-2 text-xs uppercase tracking-wider text-muted-foreground sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck className="size-4 text-primary" /> Deterministic
-                settlement
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Lock className="size-4 text-primary" /> Private bid amounts
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <BadgeCheck className="size-4 text-primary" /> Auditable ledger
-              </span>
-            </div>
+            {/* Trust points live in the FAQ/CTA sections, not the hero:
+                max 4 text elements per hero (eyebrow, headline, subtext,
+                CTAs) - the trust micro-strip inside a hero is a listed
+                anti-pattern (taste skill §4.7). */}
           </motion.div>
 
-          {/* Hero mechanic — THE RULE, PLAYED. A self-running demonstration
-              of bid frequency (the product's ownable moment — no template
+          {/* Hero mechanic - THE RULE, PLAYED. A self-running demonstration
+              of bid frequency (the product's ownable moment - no template
               has a hero like this because no template has this game rule).
               No fake prize name, no price, no countdown: nothing that could
               be mistaken for a live listing by a new visitor (trust rule).
               Real listings appear in the Open auctions section below. */}
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, ease: "linear", delay: 0.08 }}
             className="relative mx-auto w-full max-w-sm"
           >
             <BidFrequencyDemo />
@@ -197,7 +181,7 @@ export default function Landing() {
               </p>
             </div>
           ) : (
-            /* Phones: single-column full-width row cards — thumb-sized
+            /* Phones: single-column full-width row cards - thumb-sized
                targets, no 160px cramping. sm+: proper 2-up media-top cards,
                lg: the 3-col grid. */
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:grid sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
@@ -212,7 +196,7 @@ export default function Landing() {
                           void toggleWatch({ auctionId }).then((r) => {
                             toast.success(
                               r.watching
-                                ? "Added to your watchlist — we'll alert you before it closes."
+                                ? "Added to your watchlist - we'll alert you before it closes."
                                 : "Removed from your watchlist.",
                             );
                           });
@@ -275,18 +259,18 @@ export default function Landing() {
             </h2>
             <p className="mt-2 text-sm text-muted-foreground md:text-base">
               Four steps between you and the prize. No luck, no hidden
-              rules — just game theory.
+              rules - just game theory.
             </p>
           </div>
           <div className="mt-10 flex flex-col divide-y divide-border md:grid md:grid-cols-4 md:gap-0 md:divide-x md:divide-y-0">
             {[
               {
                 title: "Top up",
-                body: "Add funds to your wallet once — then bid without friction.",
+                body: "Add funds to your wallet once - then bid without friction.",
               },
               {
                 title: "Choose an amount",
-                body: "Pick any value in the auction's range — say, 2.00 ETB — and keep it to yourself.",
+                body: "Pick any value in the auction's range - say, 2.00 ETB - and keep it to yourself.",
               },
               {
                 title: "Pay the service fee",
@@ -329,7 +313,7 @@ export default function Landing() {
             <p className="text-sm leading-6 text-foreground/90">
               <span className="font-semibold">The catch:</span> everyone pays
               the same fee, but nobody sees anyone else's amounts. The lowest
-              value that exactly one person chose wins — so the winning move is
+              value that exactly one person chose wins - so the winning move is
               to be precise, not aggressive.
             </p>
           </div>
@@ -344,7 +328,7 @@ export default function Landing() {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Every closed auction resolves deterministically and is published
-            here — permanently and independently verifiable.
+            here - permanently and independently verifiable.
           </p>
           <RecentWinners />
         </div>
@@ -362,7 +346,7 @@ export default function Landing() {
               <AccordionContent>
                 A bid amount that only one participant submitted. If 1.00 ETB was
                 placed by two people and 2.00 ETB by exactly one, then 2.00 ETB is
-                the lowest unique bid — and 2.00 ETB wins, even though 1.00 ETB is
+                the lowest unique bid - and 2.00 ETB wins, even though 1.00 ETB is
                 lower.
               </AccordionContent>
             </AccordionItem>
@@ -370,7 +354,7 @@ export default function Landing() {
               <AccordionTrigger>What do I pay when I place a bid?</AccordionTrigger>
               <AccordionContent>
                 Only the fixed service fee for that auction. The amount you bid
-                is not charged up front — if you win, you pay your bid amount
+                is not charged up front - if you win, you pay your bid amount
                 (plus applicable taxes and fees) to claim the prize.
               </AccordionContent>
             </AccordionItem>
@@ -380,7 +364,7 @@ export default function Landing() {
                 Automatically and deterministically. When the auction closes, the
                 engine selects the lowest accepted amount that exactly one
                 participant submitted. The same set of bids always produces the
-                same winner — no manual picks, no randomness, no exceptions.
+                same winner - no manual picks, no randomness, no exceptions.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="q4">
@@ -388,7 +372,7 @@ export default function Landing() {
                 Can I place more than one bid?
               </AccordionTrigger>
               <AccordionContent>
-                Yes — each auction shows the maximum bids per participant
+                Yes - each auction shows the maximum bids per participant
                 (typically up to 100). Each bid pays its own service fee. Back-to-back
                 amounts may be limited by the auction’s consecutive-bid rule.
               </AccordionContent>
@@ -397,7 +381,7 @@ export default function Landing() {
               <AccordionTrigger>What if nobody wins?</AccordionTrigger>
               <AccordionContent>
                 If no bid value is unique, the auction’s published no-winner policy
-                applies — for example, all bid service fees are refunded and the
+                applies - for example, all bid service fees are refunded and the
                 auction is cancelled. The policy is locked in before the auction
                 opens.
               </AccordionContent>
@@ -417,10 +401,10 @@ export default function Landing() {
 
       {/* ─── CTA ──────────────────────────────────────────────────────────── */}
       <section className="px-4 pb-16 sm:px-6 md:pb-24">
-        {/* The page's one loud moment — an elevated panel lit by the brand's
+        {/* The page's one loud moment - an elevated panel lit by the brand's
             cyan rim-glow (the hero's own lighting pattern, so the page reads
             as one object). NEVER a filled slab: bg-foreground inverts to
-            near-white under the dark theme (the "too white" report) — the
+            near-white under the dark theme (the "too white" report) - the
             surface must come from tokens that stay dark when the theme is
             dark. Exactly one cyan signal: the button. */}
         <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-primary/25 bg-card shadow-layered-lg">
@@ -462,7 +446,7 @@ export default function Landing() {
 function RecentWinners() {
   const winners = useQuery(api.auctions.recentWinners, {}) ?? [];
 
-  // No settled auctions yet — an honest empty state only. No fake winner
+  // No settled auctions yet - an honest empty state only. No fake winner
   // cards: invented names/prizes read as phantom listings to new visitors.
   if (winners.length === 0) {
     return (
@@ -471,7 +455,7 @@ function RecentWinners() {
         <h3 className="mt-3 font-semibold">No settled auctions yet</h3>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
           Once the first auctions close, every winning bid is recorded here
-          and stays public — permanently verifiable.
+          and stays public - permanently verifiable.
         </p>
       </div>
     );

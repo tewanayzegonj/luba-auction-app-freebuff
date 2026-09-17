@@ -75,7 +75,7 @@ export function LubaWordmark({ to = "/" }: { to?: string }) {
           Unique-bid auctions
         </div>
       </div>
-      <span className="sr-only">Luba — home</span>
+      <span className="sr-only">Luba - home</span>
     </Link>
   );
 }
@@ -118,7 +118,7 @@ export function AlertsBell({
 
 // ─── Support links (drawer section) ──────────────────────────────────────
 
-/** Human support contact — a real Telegram ACCOUNT (not the bot), so users
+/** Human support contact - a real Telegram ACCOUNT (not the bot), so users
     talk to a person. Configurable via env; falls back to the bot. */
 export const SUPPORT_TELEGRAM_URL =
   import.meta.env.VITE_SUPPORT_TELEGRAM_USERNAME?.trim()
@@ -173,7 +173,7 @@ export function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   // Drawer hygiene: Escape closes it and the page behind can't scroll while
-  // the menu is open (standard drawer behavior — prevents scroll-behind
+  // the menu is open (standard drawer behavior - prevents scroll-behind
   // feeling broken on touch).
   const [code, setCode] = useState("");
 
@@ -202,7 +202,7 @@ export function SiteHeader() {
 
   return (
     /* Solid background, not backdrop-blur: blur forces every device to
-       re-composite the whole page under the bar on every scroll frame —
+       re-composite the whole page under the bar on every scroll frame -
        the #1 scroll-jank source on mid-range Android. In this design the
        bar sits on the page background anyway; opacity tricks buy nothing
        and cost frames. */
@@ -210,7 +210,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
         <LubaWordmark />
 
-        {/* Code search on desktop — sitewide quick jump. Narrow at lg so the
+        {/* Code search on desktop - sitewide quick jump. Narrow at lg so the
             whole header fits 1024px; full width from xl. */}
         <div className="relative hidden lg:block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -233,7 +233,7 @@ export function SiteHeader() {
           <Button variant="ghost" asChild>
             <Link to="/winners">Winners</Link>
           </Button>
-          {/* Anchor links fit from xl — below that they live in the drawer. */}
+          {/* Anchor links fit from xl - below that they live in the drawer. */}
           <Button variant="ghost" className="hidden xl:inline-flex" asChild>
             <a href="/#how-it-works" onClick={scrollToAnchor}>{t("nav.howItWorks")}</a>
           </Button>
@@ -247,9 +247,9 @@ export function SiteHeader() {
           <ThemeToggle />
           {isLoading ? null : isAuthenticated ? (
             <>
-              {/* Alerts — always one tap away (HowLow pattern). */}
+              {/* Alerts - always one tap away (HowLow pattern). */}
               <AlertsBell />
-              {/* Dashboard is a primary destination — sits directly in the
+              {/* Dashboard is a primary destination - sits directly in the
                   header, not only inside the avatar menu. */}
               <Button variant="ghost" className="gap-2" asChild>
                 <Link to="/dashboard">
@@ -315,7 +315,7 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* Mobile search row — full-width input under the top bar. */}
+      {/* Mobile search row - full-width input under the top bar. */}
       {searchOpen && (
         <div className="border-t border-border/70 bg-background px-4 py-3 lg:hidden">
           <div className="relative">
@@ -333,14 +333,14 @@ export function SiteHeader() {
             />
           </div>
           <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Tip: find the code on any auction listing — it's shown above the prize name.
+            Tip: find the code on any auction listing - it's shown above the prize name.
           </p>
         </div>
       )}
 
       {/* Drawer (below lg): BOTH overlay and panel are portaled to
           document.body. The header's backdrop-filter creates a containing
-          block that traps position:fixed descendants (CSS spec) — inside the
+          block that traps position:fixed descendants (CSS spec) - inside the
           header the overlay could never cover the page, and the panel's
           z-index was also capped by the header's own context. Portal order +
           z-40/z-50 puts the overlay above the tab bar and support button, so
@@ -414,7 +414,7 @@ export function SiteHeader() {
               )}
             </div>
 
-            {/* Contact support — a real Telegram ACCOUNT (a person), not the
+            {/* Contact support - a real Telegram ACCOUNT (a person), not the
                 bot. Deliberately outside the nav list so it reads as a footer
                 action, always available signed in or out. */}
             <div className="mt-3 border-t border-border/70 pt-3">
@@ -439,7 +439,7 @@ export function SiteHeader() {
   );
 }
 
-/** Smooth-scroll anchor handler — native hash links without a router jump. */
+/** Smooth-scroll anchor handler - native hash links without a router jump. */
 function scrollToAnchor(e: React.MouseEvent<HTMLAnchorElement>) {
   const hash = e.currentTarget.hash;
   if (!hash) return;
@@ -450,7 +450,7 @@ function scrollToAnchor(e: React.MouseEvent<HTMLAnchorElement>) {
   }
 }
 
-/** §3.11 — the header avatar is a dropdown with profile shortcuts. */
+/** §3.11 - the header avatar is a dropdown with profile shortcuts. */
 function UserMenu({
   name,
   isOwner,
@@ -524,11 +524,11 @@ export function MobileTabBar() {
   const setSearchParams = useSearchParams()[1];
   const authed = isAuthenticated;
   const path = window.location.pathname;
-  // Dashboard tabs are selected with ?tab= (not hash) — read it so the
+  // Dashboard tabs are selected with ?tab= (not hash) - read it so the
   // active highlight actually tracks My Bids / Wallet / Profile.
   const dashTab = new URLSearchParams(window.location.search).get("tab");
 
-  // The auth screen is a focused flow — no tab bar there.
+  // The auth screen is a focused flow - no tab bar there.
   if (path.startsWith("/auth")) return null;
 
   /** Land on the exact section: make sure the right dashboard tab is
@@ -545,7 +545,7 @@ export function MobileTabBar() {
       navigateTo(navigate, `/dashboard?tab=${tab}&scroll=1`);
       return;
     }
-    // Already on the dashboard — switch tab if needed, then scroll.
+    // Already on the dashboard - switch tab if needed, then scroll.
     if (dashTab !== tab) {
       setSearchParams({ tab }, { replace: true });
     }
@@ -621,7 +621,7 @@ export function MobileTabBar() {
                 isActive ? "text-primary" : "text-muted-foreground",
               )}
             >
-              {/* Gliding highlight — the pill physically slides between tabs
+              {/* Gliding highlight - the pill physically slides between tabs
                   (shared layout) instead of teleporting. layoutId animates
                   position; the spring keeps it lively without bounce. */}
               {isActive && (
@@ -664,7 +664,7 @@ export function SiteFooter() {
         <div>
           <LubaWordmark />
           <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
-            Pick the lowest amount nobody else picks — the lowest unique bid
+            Pick the lowest amount nobody else picks - the lowest unique bid
             wins the prize. Every fee is just a few Birr, every result is
             published openly, and help is one tap away on Telegram.
           </p>
@@ -745,7 +745,7 @@ export function Countdown({
   const m = Math.floor((remaining % 3_600_000) / 60_000);
   const s = Math.floor((remaining % 60_000) / 1000);
 
-  /* Urgency tiers — a real auction product tells you when time is running
+  /* Urgency tiers - a real auction product tells you when time is running
      out, not just when it's out. Final 5 min = amber warning; final 60 s =
      the destructive token + a slow pulse (motion, not just color, so the
      signal survives color-blindness; killed under prefers-reduced-motion
@@ -780,7 +780,7 @@ export function Countdown({
           : d > 0
             ? `${d}d ${h}h`
             : `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`}
-        {urgency && <span className="sr-only">— closing soon</span>}
+        {urgency && <span className="sr-only">- closing soon</span>}
       </span>
     );
   }
@@ -792,7 +792,7 @@ export function Countdown({
     { label: "Sec", value: s },
   ];
   return (
-    // Equal-width cells that shrink on phones — 4×min-w-14 boxes overflow
+    // Equal-width cells that shrink on phones - 4×min-w-14 boxes overflow
     // inside a ~320px card. Gap and padding tighten at small sizes too.
     <div
       className={cn(
@@ -856,7 +856,7 @@ export function PrizeVisual({
         className={cn(
           "relative block h-full w-full overflow-hidden",
           /* Studio surface (Amazon/Jumia/Google-Shopping pattern): a neutral,
-             theme-aware backdrop the product floats on — NOT a blur. Blur
+             theme-aware backdrop the product floats on - NOT a blur. Blur
              backdrops are a media-app pattern; in commerce cards they
              artifact at small sizes and fight the UI. Neutral surface +
              object-contain is deterministic and clean at every size. */
@@ -864,7 +864,7 @@ export function PrizeVisual({
           className,
         )}
       >
-        {/* Soft centered glow in the brand hue — gives the surface depth
+        {/* Soft centered glow in the brand hue - gives the surface depth
             without depending on the image at all (nothing to artifact). */}
         <span
           aria-hidden
@@ -876,7 +876,7 @@ export function PrizeVisual({
           src={imageUrl}
           alt=""
           /* 1px 10%-alpha outline per surface rules: black in light theme,
-             white in dark — never tinted neutrals, which pick up the
+             white in dark - never tinted neutrals, which pick up the
              surface color and read as dirt on the image edge. Gives the
              product consistent edge definition on any backdrop. */
           className="relative h-full w-full object-contain p-3 outline-1 outline-black/10 outline-offset-[-1px] drop-shadow-md sm:p-4 dark:outline-white/10"
@@ -919,7 +919,7 @@ function hashSeed(seed: string): number {
 
 export function StatusBadge({ status }: { status: string }) {
   /* Dual-tone rule (master skill, contrast section): dark theme uses the
-     300-weight tints; light theme needs 700-weight on white cards — 300/400
+     300-weight tints; light theme needs 700-weight on white cards - 300/400
      on white is ~2:1 and fails WCAG AA. Never introduce a single-tone
      status color again. */
   const styles: Record<string, string> = {
@@ -993,7 +993,7 @@ export function AuctionCard({
       className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-layered-lg active:translate-y-0 sm:flex-col"
     >
       {/* Phones: horizontal row (96px thumb + content). sm+: media-on-top
-          card — the thumb's sm:w-full REQUIRES the column direction, or the
+          card - the thumb's sm:w-full REQUIRES the column direction, or the
           shrink-0 thumb forces the row ~1.6× past the card width and
           stretches the whole page horizontally. */}
       <div className="relative size-24 shrink-0 sm:aspect-[16/10] sm:size-auto sm:w-full sm:self-stretch">
@@ -1083,7 +1083,7 @@ export function AuctionCard({
 
 function formatETBShort(santims: number): string {
   const etb = Math.abs(Math.trunc(santims)) / 100;
-  // §3.10: standard thousands formatting (145,000 ETB) — never “14.5M”.
+  // §3.10: standard thousands formatting (145,000 ETB) - never “14.5M”.
   return `${etb.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,

@@ -6,7 +6,7 @@ import { internalAction } from "./_generated/server";
 import { sendSms, sendTelegramMessage } from "./auth/senders";
 
 /**
- * Bilingual Telegram titles — natural Amharic first, English second.
+ * Bilingual Telegram titles - natural Amharic first, English second.
  * SMS stays English-only (cost per character).
  */
 const TG_TITLES: Record<string, string> = {
@@ -21,8 +21,8 @@ const TG_TITLES: Record<string, string> = {
 
 /** Native Amharic lead-in shown above the English detail body. */
 const TG_LEADINS: Record<string, string> = {
-  BID_ACCEPTED: "ጨረታዎ ገብቷል — ዝርዝሩ ከታች፦",
-  AUCTION_ENDING: "ጨረታው እየተጠናቀቀ ነው — ልዩ ዋጋዎን ያስገቡ።",
+  BID_ACCEPTED: "ጨረታዎ ገብቷል - ዝርዝሩ ከታች፦",
+  AUCTION_ENDING: "ጨረታው እየተጠናቀቀ ነው - ልዩ ዋጋዎን ያስገቡ።",
   WINNER_ANNOUNCED: "እንኳን አሸነፉ! የክፍያ ዝርዝር ከታች ይገኛል።",
   PAYMENT_REMINDER: "እባክዎ የሽንፍታ ክፍያዎን በጊዜው ይክፈሉ።",
   PAYMENT_SUCCESS: "የዋሌት ሒሳብዎ ተሟልቷል።",

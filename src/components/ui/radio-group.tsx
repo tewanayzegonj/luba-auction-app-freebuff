@@ -27,7 +27,7 @@ function RadioGroupItem({
         data-slot="radio-group-item"
         className={cn(
           "border-input text-primary focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 relative aspect-square size-4 shrink-0 rounded-full border shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-          // Invisible 44px hit-area halo (same rationale as the checkbox —
+          // Invisible 44px hit-area halo (same rationale as the checkbox -
           // the min-height touch rule would deform the 16px dot otherwise).
           "after:absolute after:-inset-3.5 after:content-['']",
           className

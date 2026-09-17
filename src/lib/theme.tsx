@@ -9,7 +9,7 @@ import {
 } from "react";
 
 /**
- * Theme (P3.9) — dark is the brand default; light mode is a clean,
+ * Theme (P3.9) - dark is the brand default; light mode is a clean,
  * high-contrast palette defined in index.css. The choice persists to
  * localStorage and toggles the `light` class on <html>.
  */
@@ -44,7 +44,7 @@ function applyTheme(theme: Theme) {
   root.classList.toggle("dark", theme === "dark");
 
   // Motion law (better-ui): a theme flip changes color/background/border on
-  // nearly every element at once — with transitions enabled they all fire
+  // nearly every element at once - with transitions enabled they all fire
   // together and the switch SMEARS instead of snapping. Suppress every
   // transition for this frame, force a reflow, restore on the next.
   const style = document.createElement("style");
@@ -62,7 +62,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {
-      // private mode — theme just won't persist
+      // private mode - theme just won't persist
     }
   }, [theme]);
 

@@ -16,7 +16,7 @@ import { insertNotification } from "./lib/notifications";
 import { assertRateLimit } from "./lib/rateLimit";
 
 /**
- * Payments — spec §22–25.
+ * Payments - spec §22-25.
  *
  * Provider seam (spec §22): every deposit flows through
  *   initiateTopUp  →  confirmProviderPaymentInternal  →  deposit (ledger)
@@ -29,7 +29,7 @@ import { assertRateLimit } from "./lib/rateLimit";
  *  - webhook: POST with JSON body; verify HMAC-SHA256 of the raw body against
  *    CHAPA_WEBHOOK_SECRET, matched in header x-chapa-signature (or
  *    chapa-signature). Event charge.success carries `tx_ref` and `amount`.
- *  - verify: GET /v1/transaction/verify/{tx_ref} — webhook best practice is to
+ *  - verify: GET /v1/transaction/verify/{tx_ref} - webhook best practice is to
  *    re-verify server-side before granting value.
  *
  * Idempotency (spec §24, Invariant 5): paymentEvents.providerEventId is the
@@ -104,7 +104,7 @@ const initiateArgs = v.object({
     v.literal(PROVIDER_LINKSET),
   ),
   // Optional: the payer's telebirr/mobile-money phone, used only as a
-  // fraud-correlation key (MULTI_ACCOUNT_SUSPECT) — never for marketing.
+  // fraud-correlation key (MULTI_ACCOUNT_SUSPECT) - never for marketing.
   payerPhone: v.optional(v.string()),
 });
 
@@ -139,7 +139,7 @@ async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
 
   // Chapa requires an email in the checkout payload (HTTP 400 otherwise),
   // but Telegram-only users have a numeric chat ID in the email field. Give
-  // Chapa a deterministic stand-in — payments are confirmed by tx_ref, not
+  // Chapa a deterministic stand-in - payments are confirmed by tx_ref, not
   // by this address; receipts are delivered in-app and via Telegram.
   const rawIdentifier = (await ctx.db.get(userId))?.email ?? "";
   const payerEmail =
@@ -147,7 +147,7 @@ async function initiateTopUpCore(ctx: MutationCtx, args: InitiateArgs) {
       ? rawIdentifier
       : `user_${rawIdentifier || userId.toString().replace(/[^a-z0-9]/gi, "")}@luba.et`;
 
-  // Normalized payer phone (Ethiopian format) — the fraud key for
+  // Normalized payer phone (Ethiopian format) - the fraud key for
   // MULTI_ACCOUNT_SUSPECT detection when several accounts top up from the
   // same payment source (spec §39).
   let payerPhone: string | undefined;
@@ -195,7 +195,7 @@ async function confirmCore(
 ) {
   const now = Date.now();
 
-  // §24: provider_event_id UNIQUE — replayed webhook is a no-op.
+  // §24: provider_event_id UNIQUE - replayed webhook is a no-op.
   const seenEvent = await ctx.db
     .query("paymentEvents")
     .withIndex("by_event_id", (q) =>
@@ -262,7 +262,7 @@ async function confirmCore(
     completedAt: now,
   });
 
-  // Credit the wallet — same transaction as the payment state change.
+  // Credit the wallet - same transaction as the payment state change.
   await deposit(ctx, {
     userId: payment.userId,
     amountSantims: payment.amountSantims,
@@ -297,7 +297,7 @@ function formatSantims(santims: number): string {
 
 /**
  * Initiate a wallet top-up: creates the PENDING payment row with a unique
- * merchant reference. The provider adapter completes it — Chapa via webhook
+ * merchant reference. The provider adapter completes it - Chapa via webhook
  * (chapaWebhook), manual/sandbox via confirmManualTopUp.
  */
 export const initiateTopUp = mutation({
@@ -306,7 +306,7 @@ export const initiateTopUp = mutation({
 });
 
 /**
- * Sandbox/manual adapter completion — used before PSP credentials exist and by
+ * Sandbox/manual adapter completion - used before PSP credentials exist and by
  * admin-assisted deposits. Never callable for a Chapa payment.
  */
 export const confirmManualTopUp = mutation({
@@ -343,7 +343,7 @@ export const confirmManualTopUp = mutation({
 
 /**
  * Abandon the caller's own PENDING top-up (e.g. the provider could not start
- * checkout). Only ever marks a payment FAILED — it can never credit
+ * checkout). Only ever marks a payment FAILED - it can never credit
  * anything, so it's safe to expose to the owner.
  */
 export const cancelMyTopUp = mutation({
@@ -497,10 +497,10 @@ export const failPendingManualPaymentInternal = internalMutation({
 });
 
 /**
- * Cron sweeper: PENDING payments older than 24h are dead checkouts —
+ * Cron sweeper: PENDING payments older than 24h are dead checkouts -
  * mark FAILED so history reflects reality. Manual (sandbox) payments expire
  * after 1h. Chapa payments get the full 24h (slow bank channels, retries).
- * Never touches COMPLETED payments — crediting is idempotent and terminal.
+ * Never touches COMPLETED payments - crediting is idempotent and terminal.
  */
 export const sweepStalePendingPayments = internalMutation({
   args: {},
@@ -604,7 +604,7 @@ export const reverifyChapaPaymentInternal = internalAction({
 
 /**
  * Webhook/return-flow reconciliation: every 10 minutes, stale PENDING Chapa
- * payments are re-verified against the provider and completed — a missed
+ * payments are re-verified against the provider and completed - a missed
  * webhook (secret unset, network blip, user closed the tab) can never strand
  * a funded payment in PENDING for 24h. Wired in crons.ts.
  */

@@ -88,7 +88,7 @@ export async function assertBidMinInterval(
   await assertRateLimit(ctx, { scope: "BID_MIN_INTERVAL", key: userId });
 }
 
-/** Best-effort cleanup cron helper — removes windows older than 1 hour. */
+/** Best-effort cleanup cron helper - removes windows older than 1 hour. */
 export async function purgeStaleWindows(ctx: MutationCtx, now: number): Promise<number> {
   const cutoff = now - 60 * 60 * 1000;
   let purged = 0;

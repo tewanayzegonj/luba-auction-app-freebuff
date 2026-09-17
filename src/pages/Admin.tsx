@@ -57,7 +57,7 @@ import { cn } from "@/lib/utils";
 import { cleanConvexError } from "@/lib/errors";
 
 /**
- * Admin console — spec §41–43.
+ * Admin console - spec §41-43.
  * Reachable only by users with the admin role; every sensitive action is
  * audited server-side. Convex reactive queries keep the views live.
  *
@@ -203,7 +203,7 @@ function AdminConsole() {
           />
         </div>
 
-        {/* Financial overview (from the ledger — spec §41) */}
+        {/* Financial overview (from the ledger - spec §41) */}
         {finance && (
           <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
@@ -251,7 +251,7 @@ function AdminConsole() {
               <>
                 <span className="font-semibold">LEDGER IMBALANCE DETECTED.</span>{" "}
                 Debits {formatETB(stats.ledger.totalDebitsSantims)} ≠ credits{" "}
-                {formatETB(stats.ledger.totalCreditsSantims)} — investigate
+                {formatETB(stats.ledger.totalCreditsSantims)} - investigate
                 immediately.
               </>
             )}
@@ -259,7 +259,7 @@ function AdminConsole() {
         )}
 
         <Tabs defaultValue="users" className="mt-8">
-          {/* P4.10: horizontally scrollable tab strip on small screens —
+          {/* P4.10: horizontally scrollable tab strip on small screens -
               scroll-aware fades + chevrons (see ScrollableTabs). */}
           <ScrollableTabs>
           {/* min-w-max: keep the pill behind ALL triggers when the 12 tabs
@@ -333,9 +333,9 @@ function AdminConsole() {
                         className="border-b border-border/60 last:border-0 hover:bg-secondary/30"
                       >
                         <td className="cursor-pointer px-4 py-3" onClick={() => setProfileUser(u.id)}>
-                          <p className="font-medium hover:underline">{u.email ?? "—"}</p>
+                          <p className="font-medium hover:underline">{u.email ?? "-"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {u.name ?? "—"}
+                            {u.name ?? "-"}
                           </p>
                         </td>
                         <td className="px-4 py-3">
@@ -803,7 +803,7 @@ function AdminConsole() {
                           disabled={busy === `pause-${a.id}`}
                           onClick={() => {
                             const reason = window.prompt(
-                              `Pause ${a.auctionCode} — reason (recorded in the audit log):`,
+                              `Pause ${a.auctionCode} - reason (recorded in the audit log):`,
                               "Technical issue",
                             );
                             if (!reason) return;
@@ -858,7 +858,7 @@ function AdminConsole() {
                           disabled={busy === `extend-${a.id}`}
                           onClick={() => {
                             const input = window.prompt(
-                              `Extend ${a.auctionCode} — additional hours:`,
+                              `Extend ${a.auctionCode} - additional hours:`,
                               "24",
                             );
                             if (!input) return;
@@ -885,7 +885,7 @@ function AdminConsole() {
                           disabled={busy === `cancel-${a.id}`}
                           onClick={() => {
                             const reason = window.prompt(
-                              `Cancel ${a.auctionCode} — reason (recorded in the audit log, fees refunded to all bidders):`,
+                              `Cancel ${a.auctionCode} - reason (recorded in the audit log, fees refunded to all bidders):`,
                               "Prize unavailable",
                             );
                             if (!reason) return;
@@ -938,7 +938,7 @@ function AdminConsole() {
                 ))}
                 {campaigns.length === 0 && (
                   <p className="py-8 text-center text-sm text-muted-foreground">
-                    No campaigns yet — create the first one above.
+                    No campaigns yet - create the first one above.
                   </p>
                 )}
               </div>
@@ -976,7 +976,7 @@ function AdminConsole() {
                       {!p.imageUrl && (
                         <label
                           className="group/btn relative cursor-pointer"
-                          title="Upload image — recommended 1200×800 (3:2) or square, PNG/JPG up to 5 MB"
+                          title="Upload image - recommended 1200×800 (3:2) or square, PNG/JPG up to 5 MB"
                         >
                           <input
                             type="file"
@@ -1188,10 +1188,10 @@ function AdminConsole() {
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  All figures are computed from the append-only double-entry ledger — the financial source of truth. Pending deposits are awaiting provider confirmation; {finance.pendingSettlements} winner claim{finance.pendingSettlements === 1 ? "" : "s"} await payment ({finance.overdueSettlements} overdue). {finance.txCount} ledger transactions posted to date.
+                  All figures are computed from the append-only double-entry ledger - the financial source of truth. Pending deposits are awaiting provider confirmation; {finance.pendingSettlements} winner claim{finance.pendingSettlements === 1 ? "" : "s"} await payment ({finance.overdueSettlements} overdue). {finance.txCount} ledger transactions posted to date.
                 </p>
 
-                {/* Ledger browser — every posting with its balanced entries */}
+                {/* Ledger browser - every posting with its balanced entries */}
                 <div>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Transaction ledger (last 50)
@@ -1250,7 +1250,7 @@ function AdminConsole() {
                 {/* Transaction ledger browser (spec §41 reconciliation) */}
                 <div>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Transaction ledger — every monetary event, latest first
+                    Transaction ledger - every monetary event, latest first
                   </p>
                   {ledgerTxs === undefined ? (
                     <LoadingRows />
@@ -1380,8 +1380,8 @@ function AdminConsole() {
                             {g.configured
                               ? g.enabled
                                 ? "Accepting new deposits"
-                                : "Disabled — deposits rejected"
-                              : "Not configured — add API keys first"}
+                                : "Disabled - deposits rejected"
+                              : "Not configured - add API keys first"}
                           </p>
                         </div>
                         <Switch
@@ -1417,7 +1417,7 @@ function AdminConsole() {
                           <p className="text-xs text-muted-foreground">
                             {g.configured
                               ? g.enabled
-                                ? "Active — users can top up through it"
+                                ? "Active - users can top up through it"
                                 : "Configured but disabled"
                               : "Keys not set yet"}
                           </p>
@@ -1435,7 +1435,7 @@ function AdminConsole() {
                     ))
                   )}
                   <p className="text-xs text-muted-foreground">
-                    Disabling a gateway immediately stops new top-ups through it (existing payments still settle). The manual gateway is for testing — disable it before going live.
+                    Disabling a gateway immediately stops new top-ups through it (existing payments still settle). The manual gateway is for testing - disable it before going live.
                   </p>
                 </CardContent>
               </Card>
@@ -1446,7 +1446,7 @@ function AdminConsole() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    Send an in-app notification to every active user — auction starts, maintenance windows, policy changes.
+                    Send an in-app notification to every active user - auction starts, maintenance windows, policy changes.
                   </p>
                   <Button variant="outline" onClick={() => setAnnounceOpen(true)}>
                     <Megaphone className="mr-1.5 size-4" /> Compose announcement
@@ -1488,7 +1488,7 @@ function AdminConsole() {
                     <span className="font-medium">{l.actor}</span>
                     <span className="text-muted-foreground">
                       {l.resource}
-                      {l.details ? ` — ${l.details}` : ""}
+                      {l.details ? ` - ${l.details}` : ""}
                     </span>
                   </div>
                 ))}
@@ -1552,7 +1552,7 @@ function AdminConsole() {
                             void act(
                               `wd-${w.id}-rej`,
                               () => reviewWithdrawal({ withdrawalId: w.id, decision: "REJECTED", note: note || undefined }),
-                              "Withdrawal rejected — funds returned",
+                              "Withdrawal rejected - funds returned",
                             );
                           }}
                         >
@@ -1588,7 +1588,7 @@ function AdminConsole() {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">
-                  Heuristic signals for manual review — multiple accounts funded
+                  Heuristic signals for manual review - multiple accounts funded
                   by the same payment source, velocity spikes, etc.
                 </p>
                 <Button
@@ -1934,7 +1934,7 @@ function AdminConsole() {
       <Dialog open={!!freqAuction} onOpenChange={(open) => !open && setFreqAuction(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Bid audit — {freqAuction?.title}</DialogTitle>
+            <DialogTitle>Bid audit - {freqAuction?.title}</DialogTitle>
             <DialogDescription className="font-mono text-xs">
               {freqAuction?.code} · complete frequency map of accepted bids, lowest first. The winning bid is the lowest value held by exactly one bidder.
             </DialogDescription>
@@ -2047,7 +2047,7 @@ function AdminConsole() {
               <Textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder="The iPhone 17 Pro campaign opens this evening — the first 100 bidders get a discounted entry fee."
+                placeholder="The iPhone 17 Pro campaign opens this evening - the first 100 bidders get a discounted entry fee."
                 rows={4}
               />
             </Field>
@@ -2084,7 +2084,7 @@ function RestrictedArea({ userName }: { userName: string | null }) {
     } catch (err) {
       toast.error(
         err instanceof Error && err.message.includes("BOOTSTRAP_CLOSED")
-          ? "Bootstrap is closed — an admin already exists and must grant roles."
+          ? "Bootstrap is closed - an admin already exists and must grant roles."
           : "Could not claim the admin role.",
       );
     } finally {
@@ -2203,7 +2203,7 @@ type CampaignInput = {
 };
 
 /**
- * Campaign creation form — spec §10's full configurable rule set. Money
+ * Campaign creation form - spec §10's full configurable rule set. Money
  * fields are entered in ETB and converted to integer santims.
  */
 function CampaignForm({
@@ -2409,7 +2409,7 @@ function CampaignForm({
               <SelectContent>
                 {(prizes ?? []).map((p) => (
                   <SelectItem key={p._id} value={p._id}>
-                    {p.emoji ?? "🎁"} {p.title} — {formatETB(p.valueSantims)}
+                    {p.emoji ?? "🎁"} {p.title} - {formatETB(p.valueSantims)}
                   </SelectItem>
                 ))}
               </SelectContent>
