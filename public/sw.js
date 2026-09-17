@@ -9,7 +9,11 @@
  *    financial data must not be served from a cache (client trust model).
  */
 
-const CACHE = "luba-shell-v1";
+// v2: busts every cached asset from the v1 era. Hashed chunk names change
+// between builds, and a cache-first SW holding old names while the shell
+// updates produces "Importing a module script failed" for returning visitors.
+// Bump this version on any build that changes chunk hashes.
+const CACHE = "luba-shell-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/logo.svg"];
 
 self.addEventListener("install", (event) => {
