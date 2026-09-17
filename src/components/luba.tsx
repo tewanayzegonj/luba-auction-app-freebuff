@@ -714,12 +714,32 @@ export function Countdown({
   const m = Math.floor((remaining % 3_600_000) / 60_000);
   const s = Math.floor((remaining % 60_000) / 1000);
 
+  /* Urgency tiers — a real auction product tells you when time is running
+     out, not just when it's out. Final 5 min = amber warning; final 60 s =
+     the destructive token + a slow pulse (motion, not just color, so the
+     signal survives color-blindness; killed under prefers-reduced-motion
+     in index.css). Both tiers carry an sr-only announcement for screen
+     readers so the state isn't visual-only. */
+  const critical = remaining > 0 && remaining <= 60_000;
+  const warning = !critical && remaining > 0 && remaining <= 300_000;
+  const urgency = critical
+    ? ("countdown-critical" as const)
+    : warning
+      ? ("countdown-warning" as const)
+      : null;
+
   if (compact) {
     return (
       <span
         className={cn(
           "inline-flex items-center gap-1.5 text-xs tabular-nums",
-          remaining === 0 ? "text-muted-foreground" : "text-foreground/80",
+          remaining === 0
+            ? "text-muted-foreground"
+            : urgency === "countdown-critical"
+              ? "font-semibold text-destructive"
+              : urgency === "countdown-warning"
+                ? "font-semibold text-amber-700 dark:text-amber-400"
+                : "text-foreground/80",
           className,
         )}
       >
@@ -729,6 +749,7 @@ export function Countdown({
           : d > 0
             ? `${d}d ${h}h`
             : `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`}
+        {urgency && <span className="sr-only">— closing soon</span>}
       </span>
     );
   }
@@ -742,13 +763,27 @@ export function Countdown({
   return (
     // Equal-width cells that shrink on phones — 4×min-w-14 boxes overflow
     // inside a ~320px card. Gap and padding tighten at small sizes too.
-    <div className={cn("grid grid-cols-4 gap-1.5 sm:gap-2", className)}>
+    <div
+      className={cn(
+        "grid grid-cols-4 gap-1.5 sm:gap-2",
+        urgency,
+        className,
+      )}
+      role="timer"
+      aria-label={
+        critical
+          ? "Auction closes in under a minute"
+          : warning
+            ? "Auction closes in under five minutes"
+            : undefined
+      }
+    >
       {units.map((u) => (
         <div
           key={u.label}
-          className="flex flex-col items-center rounded-lg border border-border bg-card px-1 py-2 shadow-layered sm:px-2.5"
+          className="countdown-cell flex flex-col items-center rounded-lg border border-border bg-card px-1 py-2 shadow-layered sm:px-2.5"
         >
-          <span className="text-base font-semibold tabular-nums sm:text-lg">
+          <span className="countdown-value font-display text-base font-semibold tabular-nums sm:text-lg">
             {String(u.value).padStart(2, "0")}
           </span>
           <span className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground sm:text-[10px]">

@@ -5,6 +5,7 @@ import {
   SiteFooter,
   SiteHeader,
 } from "@/components/luba";
+import { BidFrequencyDemo } from "@/components/bid-frequency-demo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -123,9 +124,11 @@ export default function Landing() {
             </div>
           </motion.div>
 
-          {/* Hero mechanic card — a pure illustration of the RULE. No fake
-              prize name, no price, no countdown: nothing that could be
-              mistaken for a live listing by a new visitor (trust rule).
+          {/* Hero mechanic — THE RULE, PLAYED. A self-running demonstration
+              of bid frequency (the product's ownable moment — no template
+              has a hero like this because no template has this game rule).
+              No fake prize name, no price, no countdown: nothing that could
+              be mistaken for a live listing by a new visitor (trust rule).
               Real listings appear in the Open auctions section below. */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -133,53 +136,7 @@ export default function Landing() {
             transition={{ duration: 0.55, delay: 0.12 }}
             className="relative mx-auto w-full max-w-sm"
           >
-            <div className="relative rounded-2xl border border-border bg-card p-5 shadow-layered-lg">
-              <div className="flex items-center justify-between">
-                <Badge className="border-transparent bg-secondary text-secondary-foreground ring-1 ring-inset ring-foreground/10">
-                  How winning works
-                </Badge>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                Four bids come in. The lowest amount chosen by{' '}
-                <span className="font-medium text-foreground">exactly one person</span>{' '}
-                wins — not simply the lowest number.
-              </p>
-              <div className="mt-4 space-y-1.5">
-                {[
-                  { v: "1.00", n: 2, state: "dup" },
-                  { v: "2.00", n: 1, state: "win" },
-                  { v: "3.00", n: 2, state: "dup" },
-                  { v: "4.00", n: 1, state: "uniq" },
-                ].map((b) => (
-                  <div
-                    key={b.v}
-                    className={
-                      b.state === "win"
-                        ? "flex items-center justify-between rounded-lg bg-primary px-3 py-2 text-xs font-semibold tabular-nums text-primary-foreground"
-                        : b.state === "uniq"
-                          ? "flex items-center justify-between rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium tabular-nums text-primary ring-1 ring-inset ring-primary/25"
-                          : "flex items-center justify-between rounded-lg bg-secondary/60 px-3 py-2 text-xs tabular-nums text-muted-foreground"
-                    }
-                  >
-                    <span>{b.v} ETB</span>
-                    <span className="text-[10px] font-medium uppercase tracking-wider">
-                      {b.state === "win"
-                        ? "★ Winner — lowest & unique"
-                        : b.state === "uniq"
-                          ? "Unique, but not lowest"
-                          : `×${b.n} — not unique`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex items-start gap-2 border-t border-border/70 pt-3">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-                <p className="text-xs leading-5 text-muted-foreground">
-                  After close, every auction publishes its full bid math —
-                  you can verify each result yourself.
-                </p>
-              </div>
-            </div>
+            <BidFrequencyDemo />
           </motion.div>
         </div>
       </section>
