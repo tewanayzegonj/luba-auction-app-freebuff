@@ -4,6 +4,17 @@ import { attemptBid } from "./lib/bidCore";
 import { resolveLowestUniqueBid } from "./lib/winner";
 
 /**
+ * Sandbox marker: every simulation auction's code is prefixed `SIM-` at
+ * creation (see simCreateAuction). This is the single guaranteed-present,
+ * user-invisible marker - public queries filter on it so test data can
+ * never surface on the landing page, winners ledger, or auction detail,
+ * no matter which deployment it was written to.
+ */
+export function isSandboxCode(code: string | undefined | null): boolean {
+  return typeof code === "string" && code.startsWith("SIM-");
+}
+
+/**
  * Dev-only simulation endpoints used by scripts/simulate-concurrency.ts.
  *
  * SAFETY (fail-closed, two conditions):
@@ -25,6 +36,91 @@ function assertSimSafe() {
     );
   }
 }
+
+/**
+ * Remove the sandbox rows a simulation run left behind. Same fail-closed
+ * guard as every sim endpoint. Scoped strictly to SIM-marked auctions and
+ * their direct children (bids, results, settlements, schedules, auto-bid
+ * plans, watchlist rows, the sim prize). Ledger transactions are NOT
+ * deleted - the ledger is append-only truth; sim fee postings balance to
+ * zero economic effect and never surface on public pages.
+ */
+export const simPurgeAuctions = mutation({
+  args: {},
+  handler: async (ctx) => {
+    assertSimSafe();
+    const sims = await ctx.db.query("auctions").collect();
+    let auctions = 0;
+    let bids = 0;
+    let results = 0;
+    let settlements = 0;
+    let scheduled = 0;
+    let autoBids = 0;
+    let watchlist = 0;
+    let prizes = 0;
+
+    for (const a of sims) {
+      if (!isSandboxCode(a.auctionCode)) continue;
+
+      for (const b of await ctx.db
+        .query("auctionBids")
+        .withIndex("by_auction_value", (q) => q.eq("auctionId", a._id))
+        .collect()) {
+        await ctx.db.delete(b._id);
+        bids++;
+      }
+
+      for (const s of await ctx.db
+        .query("scheduledBids")
+        .withIndex("by_auction_status", (q) => q.eq("auctionId", a._id))
+        .collect()) {
+        await ctx.db.delete(s._id);
+        scheduled++;
+      }
+
+      for (const p of await ctx.db
+        .query("autoBids")
+        .withIndex("by_auction_status", (q) => q.eq("auctionId", a._id))
+        .collect()) {
+        await ctx.db.delete(p._id);
+        autoBids++;
+      }
+
+      for (const w of await ctx.db
+        .query("watchlist")
+        .withIndex("by_auction", (q) => q.eq("auctionId", a._id))
+        .collect()) {
+        await ctx.db.delete(w._id);
+        watchlist++;
+      }
+
+      for (const r of await ctx.db
+        .query("auctionResults")
+        .withIndex("by_auction", (q) => q.eq("auctionId", a._id))
+        .collect()) {
+        for (const st of await ctx.db
+          .query("winnerSettlements")
+          .withIndex("by_result", (q) => q.eq("resultId", r._id))
+          .collect()) {
+          await ctx.db.delete(st._id);
+          settlements++;
+        }
+        await ctx.db.delete(r._id);
+        results++;
+      }
+
+      const prize = await ctx.db.get(a.prizeId);
+      await ctx.db.delete(a._id);
+      auctions++;
+      if (prize) {
+        await ctx.db.delete(prize._id);
+        prizes++;
+      }
+    }
+
+    return { auctions, bids, results, settlements, scheduled, autoBids, watchlist, prizes };
+  },
+});
 
 /** Create the sandbox prize + OPEN auction for a concurrency test run. */
 export const simCreateAuction = mutation({

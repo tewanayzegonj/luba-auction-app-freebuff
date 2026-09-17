@@ -37,8 +37,10 @@ export const listOpenAuctions = query({
 
     // Defensive: never render a dead auction, even between lifecycle ticks -
     // a close time in the past means it must not be listed as open.
+    // Sandbox marker: [SIM] concurrency-test auctions are never public,
+    // even if sim rows linger in the database (they're purged separately).
     const all = [...auctions, ...closing]
-      .filter((a) => a.closesAt > now)
+      .filter((a) => a.closesAt > now && !a.auctionCode.startsWith("SIM-"))
       .sort((a, b) => a.closesAt - b.closesAt);
 
     return Promise.all(
@@ -132,7 +134,9 @@ export const getAuctionByCode = query({
       .query("auctions")
       .withIndex("by_code", (q) => q.eq("auctionCode", args.code))
       .unique();
-    if (!auction) return null;
+    // Sandbox marker: sim auctions are not addressable by the public detail
+    // route - a lingering sim row can't render as a real auction page.
+    if (!auction || auction.auctionCode.startsWith("SIM-")) return null;
 
     const prize = await ctx.db.get(auction.prizeId);
     const prizeImageUrl =
@@ -510,6 +514,8 @@ export const recentWinners = query({
     for (const r of results) {
       if (r.resolution !== "WINNER" || !r.winnerUserId) continue;
       const auction = await ctx.db.get(r.auctionId);
+      // Sandbox marker: sim settlements never appear on the public ledger.
+      if (!auction || auction.auctionCode.startsWith("SIM-")) continue;
       const winner = await ctx.db.get(r.winnerUserId);
       const prize = auction ? await ctx.db.get(auction.prizeId) : null;
       const prizeImageUrl =
