@@ -38,7 +38,7 @@ export default function Winners() {
   const winners = (useQuery(api.auctions.recentWinners, {}) ?? []) as WinnerRow[];
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <SiteHeader />
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 md:py-14">
@@ -78,7 +78,7 @@ export default function Winners() {
               <Link
                 key={w.resultId}
                 to={`/auction/${w.auctionCode}`}
-                className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg sm:flex-col"
+                className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-layered-lg active:translate-y-0 sm:flex-col"
               >
                 <div className="size-20 shrink-0 sm:aspect-[4/3] sm:size-auto sm:w-full sm:self-stretch">
                   <PrizeVisual

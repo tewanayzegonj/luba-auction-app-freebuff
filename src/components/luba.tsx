@@ -867,7 +867,11 @@ export function PrizeVisual({
         <img
           src={imageUrl}
           alt=""
-          className="relative h-full w-full object-contain p-3 drop-shadow-md sm:p-4"
+          /* 1px 10%-alpha outline per surface rules: black in light theme,
+             white in dark — never tinted neutrals, which pick up the
+             surface color and read as dirt on the image edge. Gives the
+             product consistent edge definition on any backdrop. */
+          className="relative h-full w-full object-contain p-3 outline-1 outline-black/10 outline-offset-[-1px] drop-shadow-md sm:p-4 dark:outline-white/10"
           onError={(e) => {
             e.currentTarget.src = "/placeholder.svg";
           }}
@@ -978,7 +982,7 @@ export function AuctionCard({
   return (
     <Link
       to={`/auction/${auction.auctionCode}`}
-      className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg sm:flex-col"
+      className="group flex overflow-hidden rounded-xl border border-border bg-card shadow-layered transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-layered-lg active:translate-y-0 sm:flex-col"
     >
       {/* Phones: horizontal row (96px thumb + content). sm+: media-on-top
           card — the thumb's sm:w-full REQUIRES the column direction, or the

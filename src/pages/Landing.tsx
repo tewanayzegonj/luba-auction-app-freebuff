@@ -57,7 +57,7 @@ export default function Landing() {
     .slice(0, 3);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <SiteHeader />
 
       {/* ─── Hero ─────────────────────────────────────────────────────────── */}
@@ -221,7 +221,7 @@ export default function Landing() {
                 <Link
                   key={a._id}
                   to={`/auction/${a.auctionCode}`}
-                  className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-3 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg sm:p-3.5"
+                  className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-3 shadow-layered transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-layered-lg active:translate-y-0 sm:p-3.5"
                 >
                   <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
                     <PrizeVisual

@@ -205,6 +205,57 @@ mid-word breaks in chips/buttons, extra horizontal padding on buttons. See
 `html[lang="am"]` rules in `src/index.css`. Never tighten leading or tracking
 "for style" on text that can render in Amharic.
 
+## Motion & polish law (ui-skills.com canon — learned 2026-09)
+
+Distilled from the UI Skills catalog (Emil Kowalski's motion philosophy, better-ui,
+12-principles-of-animation, baseline-ui, interaction-design). These are exact values,
+not ranges — `0.96` is not `0.95`, and `cubic-bezier(0.2,0,0,1)` is not `ease`.
+
+**Easing / timing**
+- Entrances: `ease-out` (arrive fast, settle gently). Exits: `ease-in`.
+- User-initiated animation completes ≤ 300ms; interaction feedback ≤ 200ms.
+- Similar elements share identical timing. No `transition: all` — name the
+  exact properties (`transform, opacity, box-shadow`).
+- Springs only when overshoot-and-settle is intended; `bounce: 0` for icons.
+- Stagger ≤ 50ms per item (our standard: 35–50ms). Never stagger high-frequency UI.
+- Progress indicators may be linear; nothing else.
+
+**Physics / feedback**
+- Every interactive element has a pressed state: `scale(0.98)` (buttons 0.96).
+  Nothing below 0.95 — exaggerated squashes read as toy-like.
+- High-frequency interactions get instant feedback or ≤150ms opacity/color only.
+- Every animated state change has a static cue too (color/icon/label).
+- Exits are softer than enters: small fixed `translateY(4px)`, not full height.
+
+**Compositor discipline**
+- Animate only `transform` and `opacity` (plus small local color/filter).
+- Never animate layout properties (width/height/top/left/margin/padding)
+  or large `blur()`/`backdrop-filter` surfaces.
+- `will-change` only during an active animation, only transform/opacity/filter.
+- Looping animations pause off-screen. `prefers-reduced-motion` always honored.
+
+**Surfaces & icons**
+- Concentric radius: outer = inner + padding. Mismatched nested radii are the
+  #1 "feels off" tell.
+- Shadows express elevation; borders express structure/state — never both for depth.
+- Images get a `1px` pure-white (dark) / pure-black (light) 10%-alpha outline.
+  Never tinted neutrals — they read as dirt on the image edge.
+- Icon stroke matches adjacent text weight (1.5px beside 400, 2px beside 600);
+  one icon library per surface; `currentColor` recoloring only.
+- `AnimatePresence` with `initial={false}` so enter animations skip first render.
+
+**Theme switch (implemented)**
+- Suppress all transitions during a theme flip: inject
+  `*,*::before,*::after{transition:none!important}`, force reflow, remove next
+  frame. Otherwise every element's color transition fires at once and the
+  switch smears.
+
+**Stack discipline (already enforced)**
+- Tailwind tokens + `cn()`; Radix primitives for keyboard/focus; motion/react
+  for JS animation; `min-h-dvh` over `min-h-screen` (mobile URL bar); errors
+  render next to the action that caused them; empty states carry one clear
+  next action; one accent per view.
+
 ## The Golden Rule
 
 Never ask "what would AI generate here?" — ask "what would an exceptional

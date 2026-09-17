@@ -263,7 +263,7 @@ export default function AuctionPage() {
 
   if (auction === undefined) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-dvh flex-col">
         <SiteHeader />
         <div className="flex flex-1 items-center justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -274,7 +274,7 @@ export default function AuctionPage() {
 
   if (auction === null) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-dvh flex-col">
         <SiteHeader />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
           <Gavel className="size-8 text-muted-foreground/50" />
@@ -330,7 +330,7 @@ export default function AuctionPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <SiteHeader />
 
       {/* Bottom clearance must clear the fixed stack: mobile tab bar (64px +

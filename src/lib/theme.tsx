@@ -42,6 +42,16 @@ function applyTheme(theme: Theme) {
   const root = document.documentElement;
   root.classList.toggle("light", theme === "light");
   root.classList.toggle("dark", theme === "dark");
+
+  // Motion law (better-ui): a theme flip changes color/background/border on
+  // nearly every element at once — with transitions enabled they all fire
+  // together and the switch SMEARS instead of snapping. Suppress every
+  // transition for this frame, force a reflow, restore on the next.
+  const style = document.createElement("style");
+  style.textContent = "*,*::before,*::after{transition:none!important}";
+  document.head.appendChild(style);
+  void root.offsetHeight; // force reflow so the rule takes effect
+  requestAnimationFrame(() => style.remove());
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

@@ -441,7 +441,7 @@ export default function Dashboard() {
     (auctions ?? []).find((a) => a._id === auctionId);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-dvh flex-col">
       <SiteHeader />
       {/* First-visit guided tour — shown once per device, skippable. */}
       <OnboardingTour />
@@ -709,7 +709,7 @@ export default function Dashboard() {
                       <Link
                         key={a._id}
                         to={`/auction/${a.auctionCode}`}
-                        className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-3.5 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
+                        className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-3.5 shadow-layered transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-layered-lg active:translate-y-0"
                       >
                         <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
                           <PrizeVisual
@@ -1343,7 +1343,7 @@ function WatchlistPanel() {
         <Link
           key={w.watchId}
           to={`/auction/${w.auctionCode}`}
-          className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-4 shadow-layered transition-all hover:-translate-y-0.5 hover:shadow-layered-lg"
+          className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-4 shadow-layered transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-layered-lg active:translate-y-0"
         >
           <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
             <PrizeVisual
