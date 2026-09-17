@@ -7,7 +7,13 @@ import { ThemeProvider } from "@/lib/theme";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
-import React, { StrictMode, useEffect, lazy, Suspense } from "react";
+import React, {
+  StrictMode,
+  useEffect,
+  useLayoutEffect,
+  lazy,
+  Suspense,
+} from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import { smoothScrollTo } from "@/lib/scroll";
@@ -60,7 +66,7 @@ function usePrefetchRoutes() {
 // text flash that reads as broken).
 function RouteLoading() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className="flex min-h-dvh items-center justify-center">
       <img
         src="/logo.svg"
         alt=""
@@ -107,7 +113,7 @@ class RootErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
+        <div className="min-h-dvh flex items-center justify-center bg-background text-foreground p-6">
           <div className="max-w-lg text-center">
             <p className="text-sm font-semibold">Preview runtime error</p>
             <p className="mt-2 text-xs text-muted-foreground break-words">
@@ -163,10 +169,15 @@ function RouteSyncer() {
 }
 
 /** Scrolls to `#anchor` after navigating to /#anchor from another page (and
-    resets to top on plain navigation, which react-router never does). */
+    resets to top on plain navigation, which react-router never does).
+
+    useLayoutEffect, not useEffect: this must run BEFORE the browser paints
+    the new route. In a useEffect it fires after paint, so every navigation
+    rendered the new page at the previous scroll offset for a frame and then
+    snapped to top — a visible vertical jerk on each tab press. */
 function HashScroll() {
   const location = useLocation();
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (location.hash) {
       // The landing page is lazy-loaded, so the section may not exist for a
       // few frames after navigation. Retry until it mounts (or give up ~1s).

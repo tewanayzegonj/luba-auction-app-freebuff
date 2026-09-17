@@ -31,6 +31,20 @@
           document.documentElement.classList.add("light");
         }
       } catch (e) {}
+      // Scroll + layout stability, established BEFORE first paint:
+      // 1) Reserve the scrollbar column up front — pages alternate short
+      //    (auth) and long (dashboard), and a scrollbar appearing later
+      //    reflowed the whole viewport sideways (the navigation "shake").
+      //    (Also on `html` in index.css; this covers the very first paint
+      //    while the bundle is still loading.)
+      // 2) Take manual ownership of scroll restoration: react-router never
+      //    restores scroll, and the app's old post-paint scrollTo(0,0)
+      //    painted each new page at the previous offset for a frame before
+      //    snapping to top — a visible jerk on every navigation.
+      try {
+        document.documentElement.style.scrollbarGutter = "stable";
+        history.scrollRestoration = "manual";
+      } catch (e) {}
     </script>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>

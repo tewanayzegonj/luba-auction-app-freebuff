@@ -95,7 +95,7 @@
   --sidebar-ring: oklch(0.55 0.11 210);
 }
 
-/* The interface is dark by default — the .dark scope mirrors the legacy root. */
+/* Dark theme: deep slate panels, luminous cyan accent, hairline borders. */
 .dark {
   --background: oklch(0.145 0.008 250);
   --foreground: oklch(0.965 0.003 250);
@@ -112,8 +112,8 @@
   --accent: oklch(0.26 0.012 250);
   --accent-foreground: oklch(0.965 0.003 250);
   --destructive: oklch(0.62 0.2 25);
-  --border: oklch(0.965 0.003 250 / 10%);
-  --input: oklch(0.965 0.003 250 / 14%);
+  --border: oklch(0.965 0.003 250 / 0.1);
+  --input: oklch(0.965 0.003 250 / 0.14);
   --ring: oklch(0.78 0.13 195);
   --chart-1: oklch(0.78 0.13 195);
   --chart-2: oklch(0.72 0.14 150);
@@ -126,62 +126,66 @@
   --sidebar-primary-foreground: oklch(0.14 0.02 230);
   --sidebar-accent: oklch(0.26 0.012 250);
   --sidebar-accent-foreground: oklch(0.965 0.003 250);
-  --sidebar-border: oklch(0.965 0.003 250 / 10%);
+  --sidebar-border: oklch(0.965 0.003 250 / 0.1);
   --sidebar-ring: oklch(0.78 0.13 195);
 }
 
 @layer base {
+  * {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+  @supports (color: color-mix(in lab, red, red)) {
+    * {
+      outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+    }
+  }
   html {
     color-scheme: dark;
   }
   html.light {
     color-scheme: light;
   }
-  * {
-    @apply border-border outline-ring/50;
-  }
+  /* Linear's exact micro-typography recipe: stylistic set 01 (open digits),
+     character variant 01 (single-story a), tabular numerals for the money
+     and countdown columns, cv11 (contextual alternates), and tightened
+     tracking that keeps Inter crisp at UI sizes. */
   body {
-    @apply bg-background text-foreground font-sans;
-    /* Inter opentype features: ss01/cv01 humanize the default forms (a
-       single-story a, clearer I vs l) — Linear's exact recipe. tnum keeps
-       every digit column-aligned so money tables stop jittering. */
-    font-feature-settings:
-      "ss01" on,
-      "cv01" on,
-      "tnum" on,
-      "cv11" on;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "ss01" on, "cv01" on, "tnum" on, "cv11" on;
     letter-spacing: -0.011em;
+    font-family:
+      Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     letter-spacing: -0.03em;
-  }
-
-  /* The display face applies to DATA figures, not headings — headings stay
-     Inter (text pages read calmer in the UI face); money/countdown figures
-     get the instrument-panel treatment. html[lang="am"] is exempt: Ethiopic
-     script has no Space Grotesk glyphs and would fall back mid-string. */
-  html:not([lang="am"]) .font-display {
-    font-family: var(--font-display);
-    letter-spacing: -0.01em;
   }
   button:not([disabled]),
   [role="button"]:not([disabled]) {
     cursor: pointer;
   }
   ::selection {
-    background: oklch(0.78 0.13 195 / 25%);
+    background: #1ad1d140; /* brand cyan at 25% — readable in both themes */
   }
 
-  /* ─── Mobile-first foundations ───────────────────────────────────────
-     Phones are the primary device in Ethiopia. These rules apply at every
-     breakpoint but are tuned for small screens. */
-
-  /* Respect notches/home indicators (viewport-fit=cover in index.html). */
   :root {
+    /* Safe-area insets for notched/home-indicator phones. */
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-top: env(safe-area-inset-top, 0px);
   }
 
+  /* Route-change stability: pages alternate between short (auth, 404) and
+     long (dashboard, landing). Without reserving the scrollbar's column,
+     every toggle reflows the whole viewport — the horizontal "shake" on
+     bottom-bar navigation. Goes on `html`, NOT body: the document scrollbar
+     belongs to the root scroller, and `stable` on body is inert — reserving
+     the gutter there does nothing, which is exactly the bug this fixes. */
+  html {
+    scrollbar-gutter: stable;
+  }
   body {
     /* Sticky headers + iOS rubber-band: keeps the page anchored and
        prevents the double-tap zoom jank on rapid bid taps. */
@@ -189,12 +193,6 @@
     -webkit-tap-highlight-color: transparent;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
-    /* Route-change stability: pages alternate between short (auth, 404) and
-       long (dashboard, landing). Without reserving the scrollbar's column,
-       every toggle reflows the whole viewport — the horizontal "shake" on
-       bottom-bar navigation. `stable` keeps a permanent gutter so page
-       content never shifts left/right between routes. */
-    scrollbar-gutter: stable;
   }
 
   /* Form controls must never trigger iOS's focus zoom (16px floor). */
@@ -204,39 +202,40 @@
     font-size: max(16px, 1em);
   }
 
-  /* Comfortable touch targets on coarse pointers — 44px Apple HIG floor.
-     Switches are exempt: their own component provides a 44px hit area via
-     an invisible halo, and inflating the 24px visual track to 44px would
-     deform it (the 32×44 pill bug). */
+  /* 44px touch floor on coarse pointers (WCAG 2.2 / Apple HIG) — switches
+     are exempt (their own hit area is generous). */
   @media (pointer: coarse) {
     button:not([disabled]):not([data-slot="switch"]),
     [role="button"]:not([disabled]):not([data-slot="switch"]),
     a[href] {
       min-height: 44px;
     }
-    /* Keep visual rhythm: min-height only on standalone controls, not
-       buttons inside dense rows — let padding govern those. */
+    /* Opt-out for dense clusters (tab bars contain their own 44px+ rows). */
     .no-touch-min > button,
     .no-touch-min > [role="button"] {
       min-height: 0;
     }
   }
 
-  /* Wide money/prize tables scroll within their card instead of blowing
-      out the page on phones. !important because Tailwind's overflow-hidden
-      utility sits in a higher layer and would otherwise win, silently
-      re-clipping the table (the exact bug where columns were unreachable). */
+  /* Horizontal table scroller (phones): touch momentum, hidden y-scroll. */
   .table-scroll {
+    -webkit-overflow-scrolling: touch;
     overflow-y: hidden;
     overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
   }
 
-  /* ─── Data tables: no clipped letters ─────────────────────────────────
-     Money tables must never truncate values. min-width per column keeps
-     content from being squeezed; long strings (descriptions, receipt
-     references, admin notes) wrap instead of overflowing under the card's
-     overflow-hidden; tabular figures stay column-aligned. */
+  /* Data tables: horizontal scroll wrapper that keeps every cell readable.
+     Column behavior (min/max width, wrapping, alignment) lives on the
+     th/td rules below. */
+  .data-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .data-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
   .data-table th,
   .data-table td {
     min-width: 88px;
