@@ -10,6 +10,7 @@ import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { smoothScrollTo } from "@/lib/scroll";
 import "./index.css";
 
 // Lazy load route components for better code splitting
@@ -22,11 +23,17 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Legal = lazy(() => import("./pages/Legal.tsx"));
 const Winners = lazy(() => import("./pages/Winners.tsx"));
 
-// Simple loading fallback for route transitions
+// Loading fallback for route transitions — the brand mark with a soft
+// breathing pulse (keeps the app's voice during chunk loads, no "Loading..."
+// text flash that reads as broken).
 function RouteLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
+    <div className="flex min-h-screen items-center justify-center">
+      <img
+        src="/logo.svg"
+        alt=""
+        className="size-10 animate-pulse opacity-70"
+      />
     </div>
   );
 }
@@ -134,8 +141,8 @@ function HashScroll() {
       let frames = 0;
       const tryScroll = () => {
         const el = document.querySelector(location.hash);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (el instanceof HTMLElement) {
+          smoothScrollTo(el);
         } else if (frames++ < 60) {
           requestAnimationFrame(tryScroll);
         }

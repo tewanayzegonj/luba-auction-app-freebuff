@@ -9,6 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { smoothScrollTo } from "@/lib/scroll";
+import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
@@ -437,9 +439,9 @@ function scrollToAnchor(e: React.MouseEvent<HTMLAnchorElement>) {
   const hash = e.currentTarget.hash;
   if (!hash) return;
   const target = document.querySelector(hash);
-  if (target) {
+  if (target instanceof HTMLElement) {
     e.preventDefault();
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    smoothScrollTo(target);
   }
 }
 
@@ -539,10 +541,12 @@ export function MobileTabBar() {
     if (dashTab !== tab) {
       setSearchParams({ tab }, { replace: true });
     }
+    // The panel needs a frame to mount after the tab switch; the scroll
+    // engine re-reads the target's position every frame, so content that
+    // loads mid-glide (skeletons → table) can't break the landing.
     requestAnimationFrame(() => {
-      document
-        .querySelector(`#section-${tab}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const el = document.querySelector<HTMLElement>(`#section-${tab}`);
+      if (el) smoothScrollTo(el);
     });
   };
 
@@ -553,9 +557,8 @@ export function MobileTabBar() {
       active: () => path === "/",
       go: () => {
         if (window.location.pathname === "/") {
-          document
-            .querySelector("#auctions")
-            ?.scrollIntoView({ behavior: "smooth" });
+          const el = document.querySelector<HTMLElement>("#auctions");
+          if (el) smoothScrollTo(el);
         } else {
           navigate("/#auctions");
         }
@@ -604,12 +607,32 @@ export function MobileTabBar() {
             <button
               key={tab.label}
               onClick={tab.go}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors no-touch-min",
+                "relative flex h-16 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors no-touch-min",
                 isActive ? "text-primary" : "text-muted-foreground",
               )}
             >
-              <tab.icon className="size-5" strokeWidth={isActive ? 2.25 : 2} />
+              {/* Gliding highlight — the pill physically slides between tabs
+                  (shared layout) instead of teleporting. layoutId animates
+                  position; the spring keeps it lively without bounce. */}
+              {isActive && (
+                <motion.span
+                  layoutId="luba-tab-glow"
+                  transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                  className="pointer-events-none absolute inset-x-2 top-0 h-0.5 rounded-full bg-primary"
+                />
+              )}
+              <motion.span
+                animate={{
+                  y: isActive ? -1 : 0,
+                  scale: isActive ? 1.06 : 1,
+                }}
+                transition={{ type: "spring", stiffness: 500, damping: 32 }}
+                className="flex"
+              >
+                <tab.icon className="size-5" strokeWidth={isActive ? 2.25 : 2} />
+              </motion.span>
               <span className="max-w-full truncate px-1">{tab.label}</span>
             </button>
           );

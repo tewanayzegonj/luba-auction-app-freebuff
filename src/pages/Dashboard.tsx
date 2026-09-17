@@ -39,6 +39,7 @@ import { OnboardingTour } from "@/components/onboarding-tour";
 import { PageFade } from "@/components/motion-primitives";
 import { cn } from "@/lib/utils";
 import { friendlyError } from "@/lib/errors";
+import { smoothScrollTo } from "@/lib/scroll";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   ArrowUpRight,
@@ -126,14 +127,16 @@ export default function Dashboard() {
 
   // Cross-page section landing: /dashboard?tab=X&scroll=1 scrolls to the
   // panel once it's mounted (retry ~1s for lazy content), then cleans the
-  // URL so back-navigation doesn't re-scroll.
+  // URL so back-navigation doesn't re-scroll. Uses the shared scroll engine
+  // (moving-target anchoring — skeletons loading mid-glide don't break the
+  // landing) instead of browser smooth scroll.
   useEffect(() => {
     if (searchParams.get("scroll") !== "1" || !requestedTab) return;
     let frames = 0;
     const tryScroll = () => {
       const el = document.getElementById(`section-${requestedTab}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (el instanceof HTMLElement) {
+        smoothScrollTo(el);
         searchParams.delete("scroll");
         setSearchParams(searchParams, { replace: true });
       } else if (frames++ < 60) {
