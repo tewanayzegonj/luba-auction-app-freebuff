@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { formatETB } from "@/lib/money";
 import { maskName } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { smoothScrollTo } from "@/lib/scroll";
 import { api } from "@/convex/_generated/api";
 import { useQuery, useMutation } from "convex/react";
 import { toast } from "sonner";
@@ -134,9 +135,7 @@ export default function Landing() {
                       document.querySelector<HTMLElement>("#how-it-works");
                     if (el) {
                       e.preventDefault();
-                      import("@/lib/scroll").then(({ smoothScrollTo }) =>
-                        smoothScrollTo(el),
-                      );
+                      smoothScrollTo(el);
                     }
                   }}
                 >
