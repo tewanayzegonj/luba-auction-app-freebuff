@@ -93,9 +93,8 @@ export const STRINGS = {
     // Hero / landing
     "hero.title.line1": "The lowest bid",
     "hero.title.line2": "nobody else",
-    "hero.title.line3": "submitted.",
-    "hero.subtitle":
-      "Luba awards each prize to the lowest amount placed exactly once - so strategy beats spending. Timing is server-authoritative, settlement is deterministic, and every fee is recorded on an append-only ledger.",
+    "hero.title.line3": "submitted.",      "hero.subtitle":
+        "Pick the amount nobody else will. The lowest unique bid wins - precision beats spending.",
     "hero.cta": "Create an account",
     "hero.ctaSignedIn": "Open dashboard",
     "hero.ctaSecondary": "See the mechanics",

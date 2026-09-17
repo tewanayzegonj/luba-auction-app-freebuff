@@ -15,22 +15,45 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useAuth } from "@/hooks/use-auth";
-import { smoothScrollTo } from "@/lib/scroll";
-import { formatETB, formatSantims } from "@/lib/money";
+import { formatETB } from "@/lib/money";
+import { maskName } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { api } from "@/convex/_generated/api";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import {
-  ArrowRight,
-  Search,
-  Smartphone,
-  Trophy,
-  TrendingDown,
-} from "lucide-react";
+import { ArrowRight, Search, Trophy, TrendingDown } from "lucide-react";
 import { Link } from "react-router";
 import { cn } from "@/lib/utils";
+
+/** Unified section header: one scale across the whole page (the old page
+ *  drifted text-xl/2xl/3xl per section, which reads as weak hierarchy).
+ *  Editorial pattern: headline + one sub-line stacked vertically - never a
+ *  split header (left headline + right floating paragraph is a banned tell). */
+function SectionHead({
+  title,
+  sub,
+  align = "left",
+}: {
+  title: string;
+  sub?: string;
+  align?: "left" | "center";
+}) {
+  return (
+    <div className={cn(align === "center" && "text-center")}>
+      <h2 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h2>
+      {sub && (
+        <p
+          className={cn(
+            "mt-1 text-sm text-muted-foreground md:text-base",
+            align === "center" && "mx-auto max-w-xl",
+          )}
+        >
+          {sub}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function Landing() {
   const { isAuthenticated } = useAuth();
@@ -58,19 +81,18 @@ export default function Landing() {
     <div className="flex min-h-svh flex-col">
       <SiteHeader />
 
-      {/* ─── Hero ─────────────────────────────────────────────────────────── */}
+      {/* - Hero ---------------------------------------------------------------- */
+      /*  Stack discipline (taste-skill §4.7): exactly 4 text elements -
+          eyebrow, 3-line headline, one-line subtext, CTAs. No trust strip,
+          no tagline, no feature bullets inside the hero. Left-aligned,
+          split layout with the product's own game rule as the visual. */}
       <section className="relative overflow-hidden">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_50%_at_50%_0%,oklch(0.62_0.11_195/0.12),transparent_70%)]"
         />
         <div className="mx-auto grid w-full max-w-6xl items-center gap-8 px-4 pb-14 pt-10 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:gap-10 md:pb-24 md:pt-20">
-          {/* Opacity-only hero entrance: route changes must not re-stage a
-              vertical move (the crossfade owns route motion; a rising hero
-              is what read as the page "shaking" open on tab presses). */}
-          {/* No local enter animation: the global route crossfade owns
-              page entry, and a second local fade competes with it. */}
-          <motion.div>
+          <div>
             <Badge
               variant="outline"
               className="mb-4 gap-1.5 border-primary/25 bg-primary/5 px-3 py-1 text-xs tabular-nums text-primary md:mb-5"
@@ -108,10 +130,13 @@ export default function Landing() {
                 <a
                   href="#how-it-works"
                   onClick={(e) => {
-                    const el = document.querySelector<HTMLElement>("#how-it-works");
+                    const el =
+                      document.querySelector<HTMLElement>("#how-it-works");
                     if (el) {
                       e.preventDefault();
-                      smoothScrollTo(el);
+                      import("@/lib/scroll").then(({ smoothScrollTo }) =>
+                        smoothScrollTo(el),
+                      );
                     }
                   }}
                 >
@@ -119,39 +144,26 @@ export default function Landing() {
                 </a>
               </Button>
             </div>
-            {/* Trust points live in the FAQ/CTA sections, not the hero:
-                max 4 text elements per hero (eyebrow, headline, subtext,
-                CTAs) - the trust micro-strip inside a hero is a listed
-                anti-pattern (taste skill §4.7). */}
-          </motion.div>
+          </div>
 
           {/* Hero mechanic - THE RULE, PLAYED. A self-running demonstration
-              of bid frequency (the product's ownable moment - no template
-              has a hero like this because no template has this game rule).
-              No fake prize name, no price, no countdown: nothing that could
-              be mistaken for a live listing by a new visitor (trust rule).
-              Real listings appear in the Open auctions section below. */}
-          <motion.div
-            className="relative mx-auto w-full max-w-sm"
-          >
+              of bid frequency (the product's ownable moment). No fake prize
+              name, no price, no countdown: nothing that could be mistaken
+              for a live listing by a new visitor (trust rule). */}
+          <div className="relative mx-auto w-full max-w-sm">
             <BidFrequencyDemo />
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* ─── Live auctions ────────────────────────────────────────────────── */}
+      {/* - Live auctions ------------------------------------------------------ */}
       <section id="auctions" className="scroll-mt-20 py-14 md:py-20">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
-                Open auctions
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground md:text-base">
-                Each closes on server time. Place your bid before the countdown
-                reaches zero.
-              </p>
-            </div>
+            <SectionHead
+              title="Open auctions"
+              sub="Each closes on server time. Place your bid before the countdown reaches zero."
+            />
             {isAuthenticated && (
               <Button variant="outline" asChild>
                 <Link to="/dashboard">My bids</Link>
@@ -168,8 +180,7 @@ export default function Landing() {
                   key={i}
                   className="h-28 animate-pulse rounded-xl border border-border bg-card sm:h-64"
                 />
-              ))
-              }
+              ))}
             </div>
           ) : liveAuctions.length === 0 ? (
             <div className="mt-8 rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center sm:p-12">
@@ -181,9 +192,8 @@ export default function Landing() {
               </p>
             </div>
           ) : (
-            /* Phones: single-column full-width row cards - thumb-sized
-               targets, no 160px cramping. sm+: proper 2-up media-top cards,
-               lg: the 3-col grid. */
+            /* Phones: single-column full-width row cards; sm+: 2-up media-top
+               cards; lg: the 3-col grid. */
             <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:grid sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
               {liveAuctions.map((a) => (
                 <AuctionCard
@@ -192,7 +202,7 @@ export default function Landing() {
                   watching={isAuthenticated ? watchingIds.has(a._id) : undefined}
                   onToggleWatch={
                     isAuthenticated
-                      ? (auctionId, next) => {
+                      ? (auctionId) => {
                           void toggleWatch({ auctionId }).then((r) => {
                             toast.success(
                               r.watching
@@ -202,7 +212,7 @@ export default function Landing() {
                           });
                         }
                       : undefined
-                    }
+                  }
                 />
               ))}
             </div>
@@ -210,58 +220,16 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Ending soon ──────────────────────────────────────────────────── */}
-      {endingSoon.length > 0 && (
-      <section className="border-y border-border/70 bg-card/40 py-12">
-        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          <h2 className="text-xl font-bold tracking-tight md:text-2xl">
-            Closing soon
-          </h2>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {endingSoon.map((a) => (
-                <Link
-                  key={a._id}
-                  to={`/auction/${a.auctionCode}`}
-                  className="group flex items-center gap-3.5 rounded-xl border border-border bg-card p-3 shadow-layered transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-layered-lg active:translate-y-0 sm:p-3.5"
-                >
-                  <div className="size-16 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
-                    <PrizeVisual
-                      emoji={a.prize?.emoji}
-                      imageUrl={a.prize?.imageUrl}
-                      seed={a.auctionCode}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold group-hover:text-primary">
-                      {a.prize?.title ?? a.title}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      Fee {formatETB(a.bidServiceFeeSantims)} ·{" "}
-                      {a.bidCount} bids
-                    </p>
-                    <div className="mt-1.5">
-                      <Countdown to={a.closesAt} compact />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ─── How it works ─────────────────────────────────────────────────── */}
+      {/* - The mechanics (editorial spec-sheet strip, not cards) -------------- */}
+      {/*  Layout family #2. Big muted figures, hairline dividers, no icon
+          chips. The winning step is the single accent-colored moment. */}
       <section id="how-it-works" className="scroll-mt-20 py-14 md:py-20">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
-              The mechanics
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground md:text-base">
-              Four steps between you and the prize. No luck, no hidden
-              rules - just game theory.
-            </p>
-          </div>
+          <SectionHead
+            align="center"
+            title="The mechanics"
+            sub="Four steps between you and the prize. No luck, no hidden rules - just game theory."
+          />
           <div className="mt-10 flex flex-col divide-y divide-border md:grid md:grid-cols-4 md:gap-0 md:divide-x md:divide-y-0">
             {[
               {
@@ -281,16 +249,10 @@ export default function Landing() {
                 body: "When the clock expires, the lowest amount submitted exactly once takes the prize.",
               },
             ].map((s, i) => (
-              <motion.div
+              <div
                 key={s.title}
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.4, delay: i * 0.07 }}
                 className="flex gap-5 py-6 md:block md:px-6 md:py-2 md:first:pl-0 md:last:pr-0"
               >
-                {/* Spec-sheet figures, not icon tiles: the numbers carry the
-                    hierarchy; the winning step is the single accent moment. */}
                 <span
                   className={cn(
                     "font-display w-12 shrink-0 text-2xl font-semibold tabular-nums md:w-auto",
@@ -305,11 +267,14 @@ export default function Landing() {
                     {s.body}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
 
-          <div className="mx-auto mt-10 max-w-2xl rounded-2xl border border-primary/20 bg-primary/5 p-6 text-center">
+          {/* The catch - set as editorial text with a hairline, not a card.
+              A bordered box around one paragraph is the card-as-grouping
+              anti-pattern: whitespace is the structural tool. */}
+          <div className="mx-auto mt-10 max-w-2xl border-t border-border pt-6 text-center">
             <p className="text-sm leading-6 text-foreground/90">
               <span className="font-semibold">The catch:</span> everyone pays
               the same fee, but nobody sees anyone else's amounts. The lowest
@@ -320,29 +285,30 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── Winners (social proof + settlement record, consolidated) ────── */}
-      <section className="border-y border-border/70 bg-card/50 py-12">
+      {/* - Settlement record (ledger table, not cards) ------------------------- */}
+      {/*  Layout family #3. Winners are financial records: a settlement
+          ledger reads true to the product; winner cards read as a template.
+          Names masked (privacy) via the shared maskName rule. */}
+      <section className="border-y border-border/70 bg-card/40 py-12 md:py-16">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          <h2 className="text-xl font-bold tracking-tight md:text-2xl">
-            Winners & settlement record
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Every closed auction resolves deterministically and is published
-            here - permanently and independently verifiable.
-          </p>
+          <SectionHead
+            title="Settlement record"
+            sub="Every closed auction resolves deterministically and is published here - permanently and independently verifiable."
+          />
           <RecentWinners />
         </div>
       </section>
 
-      {/* ─── FAQ ──────────────────────────────────────────────────────────── */}
+      {/* - FAQ ----------------------------------------------------------------- */}
       <section id="faq" className="scroll-mt-20 py-14 md:py-20">
         <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-          <h2 className="text-center text-2xl font-bold tracking-tight md:text-3xl">
-            Questions, answered precisely
-          </h2>
+          <SectionHead
+            align="center"
+            title="Questions, answered precisely"
+          />
           <Accordion type="single" collapsible className="mt-8">
             <AccordionItem value="q1">
-              <AccordionTrigger>What exactly is a “unique bid”?</AccordionTrigger>
+              <AccordionTrigger>What exactly is a "unique bid"?</AccordionTrigger>
               <AccordionContent>
                 A bid amount that only one participant submitted. If 1.00 ETB was
                 placed by two people and 2.00 ETB by exactly one, then 2.00 ETB is
@@ -373,17 +339,18 @@ export default function Landing() {
               </AccordionTrigger>
               <AccordionContent>
                 Yes - each auction shows the maximum bids per participant
-                (typically up to 100). Each bid pays its own service fee. Back-to-back
-                amounts may be limited by the auction’s consecutive-bid rule.
+                (typically up to 100). Each bid pays its own service fee.
+                Back-to-back amounts may be limited by the auction's
+                consecutive-bid rule.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="q5">
               <AccordionTrigger>What if nobody wins?</AccordionTrigger>
               <AccordionContent>
-                If no bid value is unique, the auction’s published no-winner policy
-                applies - for example, all bid service fees are refunded and the
-                auction is cancelled. The policy is locked in before the auction
-                opens.
+                If no bid value is unique, the auction's published no-winner
+                policy applies - for example, all bid service fees are refunded
+                and the auction is cancelled. The policy is locked in before the
+                auction opens.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="q6">
@@ -399,14 +366,56 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── CTA ──────────────────────────────────────────────────────────── */}
+      {/* - Closing soon (countdown rows, a third distinct layout family) ------- */}
+      {/*  NOT a card grid - the winners grid below already uses cards' slot.
+          Full-width rows with the countdown as the dominant figure: urgency
+          is the content, so urgency owns the layout. */}
+      {endingSoon.length > 0 && (
+        <section className="py-14 md:py-16">
+          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+            <SectionHead
+              title="Closing soon"
+              sub="Final minutes decide everything. One unique amount changes the outcome."
+            />
+            <div className="mt-8 divide-y divide-border border-y border-border">
+              {endingSoon.map((a) => (
+                <Link
+                  key={a._id}
+                  to={`/auction/${a.auctionCode}`}
+                  className="group flex items-center gap-4 py-4 transition-colors hover:bg-secondary/40"
+                >
+                  <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
+                    <PrizeVisual
+                      emoji={a.prize?.emoji}
+                      imageUrl={a.prize?.imageUrl}
+                      seed={a.auctionCode}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold group-hover:text-primary">
+                      {a.prize?.title ?? a.title}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      Fee {formatETB(a.bidServiceFeeSantims)} · {a.bidCount} bids
+                    </p>
+                  </div>
+                  {/* Countdown as the row's dominant figure. */}
+                  <div className="shrink-0 text-right">
+                    <Countdown to={a.closesAt} compact />
+                  </div>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* - Final CTA (the page's one loud moment) ------------------------------ */}
+      {/*  CTA intent is "start bidding" here; the hero's is "create account" -
+          one label per intent (no duplicates). Elevated card panel lit by
+          the brand's cyan rim-glow, one cyan signal: the button. */}
       <section className="px-4 pb-16 sm:px-6 md:pb-24">
-        {/* The page's one loud moment - an elevated panel lit by the brand's
-            cyan rim-glow (the hero's own lighting pattern, so the page reads
-            as one object). NEVER a filled slab: bg-foreground inverts to
-            near-white under the dark theme (the "too white" report) - the
-            surface must come from tokens that stay dark when the theme is
-            dark. Exactly one cyan signal: the button. */}
         <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-primary/25 bg-card shadow-layered-lg">
           <div
             aria-hidden
@@ -429,7 +438,7 @@ export default function Landing() {
                 asChild
               >
                 <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
-                  {isAuthenticated ? "Browse open auctions" : "Create your account"}
+                  {isAuthenticated ? t("hero.ctaSignedIn") : t("hero.cta")}
                   <ArrowRight className="ml-1.5 size-4" />
                 </Link>
               </Button>
@@ -443,14 +452,15 @@ export default function Landing() {
   );
 }
 
+/** Settlement ledger rows - full-width records, not winner cards. */
 function RecentWinners() {
   const winners = useQuery(api.auctions.recentWinners, {}) ?? [];
 
   // No settled auctions yet - an honest empty state only. No fake winner
-  // cards: invented names/prizes read as phantom listings to new visitors.
+  // rows: invented names/prizes read as phantom listings to new visitors.
   if (winners.length === 0) {
     return (
-      <div className="mt-6 rounded-xl border border-dashed border-border bg-card/60 p-6 text-center">
+      <div className="mt-8 rounded-xl border border-dashed border-border bg-card/60 p-6 text-center">
         <Trophy className="mx-auto size-8 text-muted-foreground/50" />
         <h3 className="mt-3 font-semibold">No settled auctions yet</h3>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
@@ -462,31 +472,36 @@ function RecentWinners() {
   }
 
   return (
-    <div className="mt-6 grid gap-4 sm:grid-cols-3">
+    <div className="mt-8 divide-y divide-border border-y border-border">
       {winners.slice(0, 6).map((w) => (
-        <div
+        <Link
           key={w.resultId}
-          className="rounded-xl border border-border bg-card p-4 shadow-layered"
+          to={`/auction/${w.auctionCode}`}
+          className="group flex items-center gap-4 py-4 transition-colors hover:bg-secondary/40"
         >
-          <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-              <Trophy className="size-4.5" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{w.prizeTitle}</p>
-              <p className="text-xs text-muted-foreground">
-                {w.winnerName ?? "Winner"} ·{" "}
-                <Smartphone className="inline size-3" /> notified
-              </p>
-            </div>
+          <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-secondary/60">
+            <PrizeVisual
+              emoji={w.prizeEmoji}
+              imageUrl={w.prizeImageUrl}
+              seed={w.auctionCode}
+            />
           </div>
-          <p className="mt-3 text-sm font-semibold tabular-nums text-primary">
-            Winning bid {formatSantims(w.winningBidValueSantims ?? 0)} ETB
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {w.bidCount} bids · {w.auctionCode}
-          </p>
-        </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold group-hover:text-primary">
+              {w.prizeTitle}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+              {w.winnerName ? `${maskName(w.winnerName)} won with ` : "Won with "}
+              <span className="font-semibold tabular-nums text-primary">
+                {formatETB(w.winningBidValueSantims)}
+              </span>
+            </p>
+          </div>
+          <div className="shrink-0 text-right text-[11px] text-muted-foreground">
+            <p className="font-mono uppercase tracking-wider">{w.auctionCode}</p>
+            <p className="mt-0.5">{w.bidCount} bids</p>
+          </div>
+        </Link>
       ))}
     </div>
   );
