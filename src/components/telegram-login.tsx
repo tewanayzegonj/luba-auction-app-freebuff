@@ -114,13 +114,16 @@ function loadTelegramLoginScript(): Promise<void> {
   return loginScriptPromise;
 }
 
-/** Build the hosted login URL with the origin param Telegram requires. */
+/** Build the hosted login URL with the parameters Telegram's OIDC system requires. */
 function buildAuthUrl(clientId: number, lang: string): string {
+  // Standard OIDC redirect_uri: exact origin + current path (/auth). It must
+  // match an Allowed URL registered in BotFather EXACTLY (including the
+  // /auth path), otherwise Telegram answers "redirect_uri required".
+  const redirectUri = window.location.origin + window.location.pathname;
   const params = new URLSearchParams({
     response_type: "post_message",
     client_id: String(clientId),
-    // The server rejects the login page without this ("origin required").
-    // It must match a domain whitelisted via @BotFather /setdomain.
+    redirect_uri: redirectUri,
     origin: window.location.origin,
     scope: SCOPES.join(" "),
     lang,
