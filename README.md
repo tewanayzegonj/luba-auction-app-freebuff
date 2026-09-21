@@ -161,6 +161,12 @@ Seed data (6 prizes, 6 auctions incl. one already closed to demo settlement):
 `bunx convex run lifecycle:seedIfEmpty '{}'` then
 `bunx convex run lifecycle:tickLifecycle '{}'`.
 
+## Telegram login
+
+One-tap Telegram sign-in (popup widget, HMAC-verified server-side). Setup,
+architecture, the bugs we hit, and troubleshooting are documented in
+[`docs/telegram-login.md`](docs/telegram-login.md).
+
 ## Before real launch (not code — decisions)
 
 The blueprint (§69) correctly flags these as **external business/legal
