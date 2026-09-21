@@ -182,26 +182,53 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 - The bot ID arrives from the server (`authConfig.getAuthMethods`) — the
   client never parses the token. (`telegramWidget` is the flag's historical
   name; it simply means "a bot token is configured".)
-**Three completion paths, one handler.** However Telegram's page finishes,
-the result reaches `handleTelegramAuth` in `Auth.tsx`, which routes by
-payload shape: `id_token` → `telegram-oidc` provider (JWKS-verified JWT);
-`{id, auth_date, hash, ...}` → `telegram-widget` provider (HMAC-verified
-classic payload). The paths:
+**FINAL ARCHITECTURE (after switching the bot to OpenID Connect):** the
+button uses the **standard Authorization Code flow with PKCE** — the only
+flow the switched-on system serves with the modern login page. Click →
+full-page navigation to `oauth.telegram.org/auth` with
+`response_type=code`, `code_challenge` (S256), `state`, and `redirect_uri`
+(origin + `/auth`, which must be registered in BotFather **exactly**).
+Telegram redirects back to `/auth?code=…&state=…`; the page validates
+`state` against sessionStorage, strips the URL, and calls the Convex action
+`auth/telegramExchange.exchangeTelegramCode`, which POSTs to
+`https://oauth.telegram.org/token` with **Basic auth (client_id:
+client_secret)** and the PKCE verifier. The returned `id_token` is verified
+by the `telegram-oidc` provider (JWKS) and the session starts — same as
+every other path.
+
+**Keys:**
+- `TELEGRAM_BOT_TOKEN` — bot identity (its numeric prefix is the default
+  client_id).
+- `TELEGRAM_OIDC_CLIENT_SECRET` — **required after the OIDC switch**: the
+  Client Secret shown in BotFather → Login Widget. The code-for-token
+  exchange cannot work without it.
+- `TELEGRAM_OIDC_CLIENT_ID` — only if the shown Client ID differs from the
+  bot token's numeric prefix.
+
+**BotFather → Login Widget fields:** Redirect URIs = the exact origin +
+`/auth`; Trusted origins = the bare origin. A mismatch on either produces
+misleading errors ("redirect_uri required", "bot domain invalid").
+
+**Completion paths, one handler.** However Telegram's page finishes,
+the result reaches `handleTelegramAuth` (or the code exchange) in
+`Auth.tsx`, which routes by payload shape: `id_token` → `telegram-oidc`
+provider (JWKS-verified JWT); `{id, auth_date, hash, ...}` →
+`telegram-widget` provider (HMAC-verified classic payload); `?code=` →
+exchange action first. The paths:
 
 1. **In-app (Telegram's own browser):** the official library drives the
    native sheet and returns the `id_token` via its callback.
-2. **Popup postMessage / popup return:** the popup completes, Telegram posts
-   `auth_result` to the opener (library contract), OR Telegram **redirects
-   the popup itself** back to `/auth` with `#tgAuthResult=<base64>` (classic
-   contract). The redirect consumer detects it's inside a popup, forwards
-   the result to the opener via `postMessage({type:'luba-telegram-auth'})`
-   (same-origin checked), and closes itself. The opener's listener hands it
-   to the same handler. This popup-redirects-back behavior is exactly what
-   the user's environment exercises — it is why accepting the login used to
-   "reload the sign-in page" (the popup loading /auth with the result in its
-   URL, previously ignored).
-3. **Top-level redirect:** when the page itself was navigated (no popup),
-   the consumer signs in directly in that window.
+2. **Code redirect (primary):** Telegram redirects the same tab back to
+   `/auth?code=…&state=…`; the consumer in `Auth.tsx` validates state,
+   strips the URL, exchanges the code server-side, signs in. Works in
+   tabs, iframes, and Telegram's in-app browser alike - no popups, no
+   cross-window messaging at all.
+3. **Popup postMessage / classic fragment:** legacy paths kept for the
+   classic-widget format (`#tgAuthResult=<base64>`): a popup forwards the
+   payload to its opener via `postMessage({type:'luba-telegram-auth'})`
+   (same-origin checked) and closes itself; the opener's listener hands it
+   to the same handler. Kept because the widget provider still exists
+   server-side.
 
 The consumer strips the credential from the URL **before** sign-in
 (single-use; refresh/re-share must not re-consume) and is ref-guarded

@@ -84,7 +84,35 @@ declare global {
 
 const LOGIN_SCRIPT_SRC = "https://oauth.telegram.org/js/telegram-login.js";
 const TELEGRAM_OAUTH_ORIGIN = "https://oauth.telegram.org";
-const SCOPES = ["openid", "profile", "phone", "telegram:bot_access"];
+const SCOPES = "openid profile phone";
+/** sessionStorage key for the PKCE verifier awaiting the redirect return. */
+export const TG_PKCE_KEY = "luba.tgOidcVerifier";
+/** sessionStorage key for the CSRF state awaiting the redirect return. */
+export const TG_STATE_KEY = "luba.tgOidcState";
+
+/** base64url helpers for the PKCE challenge pair. */
+function base64UrlEncode(bytes: Uint8Array): string {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function createPkcePair(): Promise<{ verifier: string; challenge: string }> {
+  const random = new Uint8Array(32);
+  crypto.getRandomValues(random);
+  const verifier = base64UrlEncode(random);
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier),
+  );
+  return { verifier, challenge: base64UrlEncode(new Uint8Array(digest)) };
+}
+
+function randomState(): string {
+  const random = new Uint8Array(16);
+  crypto.getRandomValues(random);
+  return base64UrlEncode(random);
+}
 
 let loginScriptPromise: Promise<void> | null = null;
 
@@ -114,106 +142,39 @@ function loadTelegramLoginScript(): Promise<void> {
   return loginScriptPromise;
 }
 
-/** Build the hosted login URL with the parameters Telegram's OIDC system requires. */
-function buildAuthUrl(clientId: number, lang: string): string {
-  // Standard OIDC redirect_uri: exact origin + current path (/auth). It must
-  // match an Allowed URL registered in BotFather EXACTLY (including the
-  // /auth path), otherwise Telegram answers "redirect_uri required".
+/**
+ * Build the hosted login URL for the standard Authorization Code flow with
+ * PKCE — the flow Telegram's switched-on OIDC system serves with the modern
+ * login page. `redirect_uri` must match a Redirect URI registered in
+ * BotFather EXACTLY, otherwise Telegram answers "redirect_uri required".
+ */
+async function buildAuthUrl(clientId: number, lang: string): Promise<string> {
+  const { verifier, challenge } = await createPkcePair();
+  const state = randomState();
+  try {
+    sessionStorage.setItem(TG_PKCE_KEY, verifier);
+    sessionStorage.setItem(TG_STATE_KEY, state);
+  } catch {
+    // Storage disabled: the redirect return will fail - report clearly.
+  }
   const redirectUri = window.location.origin + window.location.pathname;
   const params = new URLSearchParams({
-    response_type: "post_message",
+    response_type: "code",
     client_id: String(clientId),
     redirect_uri: redirectUri,
-    origin: window.location.origin,
-    scope: SCOPES.join(" "),
+    scope: SCOPES,
+    state,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
     lang,
   });
   return `${TELEGRAM_OAUTH_ORIGIN}/auth?${params.toString()}`;
 }
 
-interface AuthResultMessage {
-  event?: unknown;
-  result?: unknown;
-  error?: unknown;
-}
+
 
 function isUsableIdToken(value: unknown): value is string {
   return typeof value === "string" && value.split(".").length === 3;
-}
-
-/** Outcome of opening the hosted login popup. */
-type PopupOutcome =
-  | { kind: "token"; token: string }
-  | { kind: "closed" }
-  | { kind: "blocked" };
-
-/**
- * Popup path: open the hosted login ourselves and resolve with the id_token
- * posted back by the popup (same contract as the official library), a
- * "closed" outcome when the user dismissed it without confirming, or
- * "blocked" when the browser refused to open the window at all.
- */
-function openTelegramAuthPopup(
-  clientId: number,
-  lang: string,
-): Promise<PopupOutcome> {
-  return new Promise((resolve) => {
-    let settled = false;
-    // Declared before `finish` uses them: when the popup is blocked,
-    // finish() runs before the timers below are ever created.
-    let closeCheck: ReturnType<typeof setInterval> | undefined;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-
-    const finish = (outcome: PopupOutcome) => {
-      if (settled) return;
-      settled = true;
-      window.removeEventListener("message", onMessage);
-      if (closeCheck !== undefined) clearInterval(closeCheck);
-      if (timeout !== undefined) clearTimeout(timeout);
-      resolve(outcome);
-    };
-
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== TELEGRAM_OAUTH_ORIGIN) return;
-      let data: AuthResultMessage;
-      try {
-        data =
-          typeof event.data === "string"
-            ? (JSON.parse(event.data) as AuthResultMessage)
-            : (event.data as AuthResultMessage);
-      } catch {
-        return;
-      }
-      if (!data || data.event !== "auth_result") return;
-      finish(
-        isUsableIdToken(data.result)
-          ? { kind: "token", token: data.result }
-          : { kind: "closed" },
-      );
-    };
-    window.addEventListener("message", onMessage);
-
-    const popup = window.open(
-      buildAuthUrl(clientId, lang),
-      "telegram_oidc_login",
-      "width=550,height=650",
-    );
-    if (!popup) {
-      // Popup blocked (browser setting or embedding shell) - report it so
-      // the user isn't left staring at a button that appears dead.
-      finish({ kind: "blocked" });
-      return;
-    }
-    popup.focus();
-
-    // The popup may also navigate to a redirect-style completion; when it
-    // closes without posting a result, treat it as cancelled.
-    closeCheck = setInterval(() => {
-      if (popup.closed) finish({ kind: "closed" });
-    }, 300);
-    // Safety net: never leave listeners behind forever.
-    timeout = setTimeout(() => finish({ kind: "closed" }), 5 * 60 * 1000);
-  });
 }
 
 interface TelegramLoginModuleProps {
@@ -287,7 +248,14 @@ export function TelegramLoginModule({
         .then(() => {
           const auth = window.Telegram?.Login?.auth;
           if (!auth) throw new Error("script-load-failed");
-          auth({ client_id: clientId, scope: SCOPES, lang: "en" }, forward);
+          auth(
+            {
+              client_id: clientId,
+              scope: ["openid", "profile", "phone", "telegram:bot_access"],
+              lang: "en",
+            },
+            forward,
+          );
         })
         .catch(() => {
           resetBusy();
@@ -298,19 +266,20 @@ export function TelegramLoginModule({
       return;
     }
 
-    // Regular browser: open the hosted login ourselves with the required
-    // origin parameter (the official library's popup branch omits it and
-    // Telegram answers "origin required").
-    void openTelegramAuthPopup(clientId, "en").then((outcome) => {
-      if (outcome.kind === "blocked") {
+    // Regular browser: standard OIDC code flow — navigate to Telegram's
+    // login, and Telegram redirects back with ?code= which Auth.tsx
+    // exchanges for the signed token (server-side, with the PKCE verifier
+    // stored above).
+    void buildAuthUrl(clientId, "en")
+      .then((authUrl) => {
+        window.location.href = authUrl;
+      })
+      .catch(() => {
         resetBusy();
         onErrorRef.current(
-          "Your browser blocked the sign-in window. Allow popups for this site - or open this page in its own browser tab - and try again.",
+          "Couldn't start Telegram sign-in just now. Please try again.",
         );
-        return;
-      }
-      forward(outcome.kind === "token" ? { id_token: outcome.token } : null);
-    });
+      });
   }, [clientId, disabled]);
 
   return (

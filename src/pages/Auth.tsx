@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/input-otp";
 import {
   TelegramLoginModule,
+  TG_PKCE_KEY,
+  TG_STATE_KEY,
   type TelegramOidcPayload,
   type TelegramWidgetPayload,
 } from "@/components/telegram-login";
@@ -38,7 +40,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useNavigate, useSearchParams } from "react-router";
 import { cn } from "@/lib/utils";
 import { friendlyError } from "@/lib/errors";
@@ -145,6 +147,48 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   );
 
   const applyReferral = useMutation(api.growth.applyReferralCode);
+  const exchangeCode = useAction(
+    api.auth.telegramExchange.exchangeTelegramCode,
+  );
+
+  /**
+   * Standard OIDC code exchange: the ?code= Telegram redirected back with is
+   * traded for the signed id_token server-side (Client Secret + PKCE
+   * verifier stay off the client), then sign-in proceeds exactly like the
+   * token path.
+   */
+  const completeCodeExchange = useCallback(
+    async (code: string): Promise<void> => {
+      let verifier = "";
+      try {
+        verifier = sessionStorage.getItem(TG_PKCE_KEY) ?? "";
+        sessionStorage.removeItem(TG_PKCE_KEY);
+        sessionStorage.removeItem(TG_STATE_KEY);
+      } catch {
+        verifier = "";
+      }
+      setWidgetBusy(true);
+      setError(null);
+      try {
+        const { idToken } = await exchangeCode({
+          code,
+          redirectUri: window.location.origin + window.location.pathname,
+          codeVerifier: verifier,
+        });
+        await signIn("telegram-oidc", { id_token: idToken });
+        setHandoff(true);
+        setTimeout(() => setHandoff(false), 8000);
+      } catch (err) {
+        setError(
+          friendlyError(err) ||
+            "Telegram sign-in could not be completed. Please try again in a moment.",
+        );
+      } finally {
+        setWidgetBusy(false);
+      }
+    },
+    [exchangeCode, signIn],
+  );
 
   // Telegram redirect return: after the user accepts on Telegram's page,
   // Telegram bounces back to this URL with the signed result in the
@@ -157,10 +201,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   // mode and a double-consume would trip the single-use replay guard.
   const tgReturnConsumed = useRef(false);
   useEffect(() => {
+    const runConsumer = async () => {
     if (tgReturnConsumed.current) return;
     const readReturn = ():
       | { kind: "widget"; payload: TelegramWidgetPayload }
       | { kind: "oidc"; token: string }
+      | { kind: "code"; code: string }
+      | { kind: "stale-code" }
       | null => {
       // Classic widget: `#tgAuthResult=<base64(JSON payload)>`.
       const hash = window.location.hash;
@@ -186,51 +233,67 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           return null;
         }
       }
-      // OIDC redirect: `?code=` or `?token=` as query params.
+      // New OIDC system: `?code=` (authorization code) + `?state=` per the
+      // standard flow. State must match what we stored when starting the
+      // flow; the code is exchanged server-side for the signed id_token.
       const qp = new URLSearchParams(window.location.search);
-      const code = qp.get("code") ?? qp.get("token");
-      if (code && code.split(".").length === 3) {
-        return { kind: "oidc", token: code };
+      const code = qp.get("code");
+      const state = qp.get("state");
+      let storedState: string | null = null;
+      try {
+        storedState = sessionStorage.getItem(TG_STATE_KEY);
+      } catch {
+        storedState = null;
+      }
+      if (code && state && storedState && state === storedState) {
+        return { kind: "code", code };
+      }
+      if (code) {
+        // A code without a matching state is either a very old link or a
+        // forged one - refuse rather than guess.
+        return { kind: "stale-code" };
       }
       return null;
-    };    const found = readReturn();
+    };
+
+    const found = readReturn();
     if (!found) return;
     tgReturnConsumed.current = true;
     // Strip the credential from the address bar immediately: it is
     // single-use, and a refresh/re-share must not re-consume it.
-    const cleanUrl =
-      window.location.pathname +
-      window.location.search
-        .replace(/([?&])(code|token)=[^&]*/g, "$1")
-        .replace(/[?&]$/, "");
-    window.history.replaceState(null, "", cleanUrl);
+    window.history.replaceState(null, "", window.location.pathname);
 
-    // When the redirect landed in the POPUP (button-opened flow), hand the
-    // result to the opener window and close ourselves - the opener runs the
-    // same consumer there. When this page IS the opener (top-level tab or
-    // Telegram's in-app browser), sign in directly.
-    if (window.opener && !window.opener.closed) {
-      try {
-        window.opener.postMessage(
-          { type: "luba-telegram-auth", payload: found },
-          window.location.origin,
-        );
-        window.close();
-        return;
-      } catch {
-        // postMessage refused (cross-origin opener) - fall through and
-        // complete sign-in in this window instead.
-      }
+    // Note: unlike the token/widget paths, a code return is NOT forwarded
+    // to an opener window - the PKCE verifier lives in this window's
+    // sessionStorage, so the exchange must happen right here. The popup
+    // therefore completes sign-in itself; the opener refresh bridge below
+    // brings the main page along.
+    if (found.kind === "stale-code") {
+      setError(
+        "That Telegram confirmation link is stale or incomplete. Please tap Continue with Telegram again.",
+      );
+      return;
+    }
+    // The PKCE verifier lives in THIS window's sessionStorage (it started
+    // the flow), so the exchange happens here even if we're the popup.
+    if (found.kind === "code") {
+      await completeCodeExchange(found.code);
+      return;
     }
     void handleTelegramAuth(
       found.kind === "widget" ? found.payload : { id_token: found.token },
     );
+    };
+    void runConsumer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Popup return bridge: when the sign-in flow ran in a popup opened by
-  // THIS page, the popup posts its result here (see the redirect consumer
-  // above) and closes itself. Same-origin sender + message type check.
+  // Popup return bridge (token/widget paths): when a Telegram flow completes
+  // inside a popup opened by THIS page, the popup posts its result here and
+  // closes itself. Same-origin sender + message type check. (The OIDC code
+  // path is NOT bridged: the PKCE verifier lives in whichever window started
+  // the flow, and that window is the one Telegram redirects back to - so it
+  // always completes its own exchange.)
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
