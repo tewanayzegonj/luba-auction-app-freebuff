@@ -1,0 +1,1 @@
+import{c as t}from"./index-DHwtzrFu.js";const e=[["path",{d:"m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7",key:"132q7q"}],["rect",{x:"2",y:"4",width:"20",height:"16",rx:"2",key:"izxlao"}]],c=t("mail",e);const o=[["rect",{width:"14",height:"20",x:"5",y:"2",rx:"2",ry:"2",key:"1yt0o3"}],["path",{d:"M12 18h.01",key:"mhygvu"}]],h=t("smartphone",o);export{c as M,h as S};

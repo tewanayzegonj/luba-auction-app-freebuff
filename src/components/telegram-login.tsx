@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
@@ -9,22 +9,22 @@ import { cn } from "@/lib/utils";
  * "Log in to <site>" page, phone-number option, and QR code — see
  * https://core.telegram.org/bots/telegram-login).
  *
- * How it works:
- * - We load Telegram's official library (telegram-login.js) and call
- *   Telegram.Login.auth({ client_id, scope }, cb).
- * - client_id is the bot's NUMERIC ID (same number as the classic widget's
- *   bot_id) — the popup throws "client_id is required" otherwise.
- * - scope "openid profile" returns name/username/photo; "phone" additionally
- *   asks the user's consent for the phone number; "telegram:bot_access"
- *   lets our bot message the user (enables outbid/winner alerts).
- * - Telegram hosts the whole experience on oauth.telegram.org (or natively
- *   inside the Telegram app browser). On success we receive an OIDC
- *   **id_token** (JWT) plus its decoded `user` claims.
- * - The JWT is verified SERVER-SIDE (convex/auth/telegramOidc.ts) against
- *   Telegram's published JWKS. The client forwards it verbatim.
+ * Two environments, two paths (mirrors the official library's own split):
  *
- * Values are normalized to strings because the Convex credentials contract
- * carries string fields only.
+ * 1. Telegram's in-app browser (window.TelegramWebviewProxy exists):
+ *    we load the official library and let it drive the native flow. Its
+ *    in-app branch DOES send `origin` and Telegram hands back the token.
+ *
+ * 2. Any normal browser (popup): we open `oauth.telegram.org/auth` OURSELVES
+ *    with the `origin` parameter — as of 2026 the server rejects the login
+ *    page without it ("origin required"), while the official library's
+ *    popup branch only sends `redirect_uri` and triggers exactly that error.
+ *    The completion contract is identical to the library's: the popup posts
+ *    `{ event: 'auth_result', result: <id_token JWT> }` to its opener from
+ *    origin https://oauth.telegram.org, which we listen for and forward.
+ *
+ * The JWT is verified SERVER-SIDE (convex/auth/telegramOidc.ts) against
+ * Telegram's published JWKS. The client forwards it verbatim.
  */
 
 export interface TelegramOidcPayload {
@@ -58,16 +58,6 @@ declare global {
   interface Window {
     Telegram?: {
       Login?: {
-        init?: (
-          options: {
-            client_id: number | string;
-            scope?: string[];
-            lang?: string;
-            nonce?: string;
-          },
-          callback?: (result: TelegramLoginResult) => void,
-        ) => void;
-        open?: (callback?: (result: TelegramLoginResult) => void) => void;
         auth?: (
           options: {
             client_id: number | string;
@@ -77,15 +67,21 @@ declare global {
           },
           callback: (result: TelegramLoginResult) => void,
         ) => void;
-        close?: () => void;
       };
     };
+    TelegramWebviewProxy?: { postEvent: (type: string, data: string) => void };
   }
 }
 
 const LOGIN_SCRIPT_SRC = "https://oauth.telegram.org/js/telegram-login.js";
+const TELEGRAM_OAUTH_ORIGIN = "https://oauth.telegram.org";
+const SCOPES = ["openid", "profile", "phone", "telegram:bot_access"];
 
 let loginScriptPromise: Promise<void> | null = null;
+
+function isInTelegramInAppBrowser(): boolean {
+  return typeof window !== "undefined" && !!window.TelegramWebviewProxy;
+}
 
 function loadTelegramLoginScript(): Promise<void> {
   if (typeof document === "undefined") {
@@ -109,9 +105,86 @@ function loadTelegramLoginScript(): Promise<void> {
   return loginScriptPromise;
 }
 
-/** The callback result can be a result object or an error object; normalize. */
+/** Build the hosted login URL with the origin param Telegram requires. */
+function buildAuthUrl(clientId: number, lang: string): string {
+  const params = new URLSearchParams({
+    response_type: "post_message",
+    client_id: String(clientId),
+    // The server rejects the login page without this ("origin required").
+    // It must match a domain whitelisted via @BotFather /setdomain.
+    origin: window.location.origin,
+    scope: SCOPES.join(" "),
+    lang,
+  });
+  return `${TELEGRAM_OAUTH_ORIGIN}/auth?${params.toString()}`;
+}
+
+interface AuthResultMessage {
+  event?: unknown;
+  result?: unknown;
+  error?: unknown;
+}
+
 function isUsableIdToken(value: unknown): value is string {
   return typeof value === "string" && value.split(".").length === 3;
+}
+
+/**
+ * Popup path: open the hosted login ourselves and resolve with the id_token
+ * posted back by the popup (same contract as the official library), or null
+ * if the user closed it without confirming.
+ */
+function openTelegramAuthPopup(
+  clientId: number,
+  lang: string,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (token: string | null) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("message", onMessage);
+      clearInterval(closeCheck);
+      clearTimeout(timeout);
+      resolve(token);
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== TELEGRAM_OAUTH_ORIGIN) return;
+      let data: AuthResultMessage;
+      try {
+        data =
+          typeof event.data === "string"
+            ? (JSON.parse(event.data) as AuthResultMessage)
+            : (event.data as AuthResultMessage);
+      } catch {
+        return;
+      }
+      if (!data || data.event !== "auth_result") return;
+      finish(isUsableIdToken(data.result) ? data.result : null);
+    };
+    window.addEventListener("message", onMessage);
+
+    const popup = window.open(
+      buildAuthUrl(clientId, lang),
+      "telegram_oidc_login",
+      "width=550,height=650",
+    );
+    if (!popup) {
+      // Popup blocked: nothing we can do except report it.
+      finish(null);
+      return;
+    }
+    popup.focus();
+
+    // The popup may also navigate to a redirect-style completion; when it
+    // closes without posting a result, treat it as cancelled.
+    const closeCheck = setInterval(() => {
+      if (popup.closed) finish(null);
+    }, 300);
+    // Safety net: never leave listeners behind forever.
+    const timeout = setTimeout(() => finish(null), 5 * 60 * 1000);
+  });
 }
 
 interface TelegramLoginModuleProps {
@@ -133,6 +206,13 @@ export function TelegramLoginModule({
   const [opening, setOpening] = useState(false);
   // Guards against the user double-tapping before the popup opens.
   const busyRef = useRef(false);
+  // Keep the latest callbacks without re-creating the message listener.
+  const onAuthRef = useRef(onAuth);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onAuthRef.current = onAuth;
+    onErrorRef.current = onError;
+  }, [onAuth, onError]);
 
   const handleOneTap = useCallback(() => {
     if (disabled || busyRef.current) return;
@@ -146,51 +226,56 @@ export function TelegramLoginModule({
       busyRef.current = false;
       setOpening(false);
     };
-    void loadTelegramLoginScript()
-      .then(() => {
-        const auth = window.Telegram?.Login?.auth;
-        if (!auth) throw new Error("script-load-failed");
-        auth(
-          {
-            client_id: clientId,
-            // Matches Telegram's own login page: name/username/photo, the
-            // phone number (with explicit consent), and permission for our
-            // bot to message the user (notification bridge).
-            scope: ["openid", "profile", "phone", "telegram:bot_access"],
-            lang: "en",
-          },
-          (result) => {
-            resetBusy();
-            if (!result || typeof result !== "object") {
-              onAuth(null);
-              return;
-            }
-            if (result.error) {
-              if (result.error !== "popup_closed") {
-                onError(
-                  `Telegram sign-in failed: ${String(result.error)}. Please try again.`,
-                );
-              }
-              onAuth(null);
-              return;
-            }
-            if (!isUsableIdToken(result.id_token)) {
-              onError(
-                "Telegram's confirmation arrived in an unreadable form. Please try again.",
-              );
-              return;
-            }
-            onAuth({ id_token: result.id_token });
-          },
+
+    const forward = (result: TelegramLoginRawResult | null) => {
+      resetBusy();
+      if (!result || typeof result !== "object") {
+        onAuthRef.current(null);
+        return;
+      }
+      if (result.error) {
+        if (result.error !== "popup_closed") {
+          onErrorRef.current(
+            `Telegram sign-in failed: ${String(result.error)}. Please try again.`,
+          );
+        }
+        onAuthRef.current(null);
+        return;
+      }
+      if (!isUsableIdToken(result.id_token)) {
+        onErrorRef.current(
+          "Telegram's confirmation arrived in an unreadable form. Please try again.",
         );
-      })
-      .catch(() => {
-        resetBusy();
-        onError(
-          "Couldn't reach Telegram just now. Check your connection and try again.",
-        );
-      });
-  }, [clientId, disabled, onAuth, onError]);
+        return;
+      }
+      onAuthRef.current({ id_token: result.id_token });
+    };
+
+    if (isInTelegramInAppBrowser()) {
+      // Telegram's own browser: the official library drives the native flow
+      // (its in-app branch sends the required origin automatically).
+      void loadTelegramLoginScript()
+        .then(() => {
+          const auth = window.Telegram?.Login?.auth;
+          if (!auth) throw new Error("script-load-failed");
+          auth({ client_id: clientId, scope: SCOPES, lang: "en" }, forward);
+        })
+        .catch(() => {
+          resetBusy();
+          onErrorRef.current(
+            "Couldn't reach Telegram just now. Check your connection and try again.",
+          );
+        });
+      return;
+    }
+
+    // Regular browser: open the hosted login ourselves with the required
+    // origin parameter (the official library's popup branch omits it and
+    // Telegram answers "origin required").
+    void openTelegramAuthPopup(clientId, "en").then((idToken) => {
+      forward(idToken ? { id_token: idToken } : null);
+    });
+  }, [clientId, disabled]);
 
   return (
     <button

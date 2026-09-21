@@ -60,37 +60,49 @@ fields; only the allowed-URLs list matters.
 
 ## 3. Frontend: `src/components/telegram-login.tsx`
 
-Design points (kept deliberately):
+Two environments, two paths (mirroring the official library's own split):
 
-- **Official library, programmatic open.** We inject
-  `https://oauth.telegram.org/js/telegram-login.js` once per page load
-  (module-level promise; failures are not cached so a retry can succeed) and
-  call `Telegram.Login.auth({ client_id, scope }, cb)`. Keeps the button
-  fully branded instead of Telegram's default embed.
+- **Telegram's in-app browser** (`window.TelegramWebviewProxy` exists): load
+  the official library (`oauth.telegram.org/js/telegram-login.js`) and call
+  `Telegram.Login.auth({ client_id, scope }, cb)`. Its in-app branch drives
+  the native flow (that's the "Log in to <site>" sheet with Device/IP
+  details) and sends the required `origin` automatically.
+- **Any normal browser (popup): open the login URL OURSELVES.** The official
+  library's popup branch is broken for us (see §6.3): it sends
+  `redirect_uri` but no `origin`, and Telegram's server now answers
+  "origin required". We build the URL directly:
+
+```tsx
+const params = new URLSearchParams({
+  response_type: "post_message",
+  client_id: String(botId),          // NUMERIC bot ID, always
+  origin: window.location.origin,    // REQUIRED - whitelisted via /setdomain
+  scope: "openid profile phone telegram:bot_access",
+  lang: "en",
+});
+window.open(`https://oauth.telegram.org/auth?${params}`, "telegram_oidc_login",
+            "width=550,height=650");
+```
+
+  and listen for the completion message, which is the same contract the
+  library uses: the popup posts
+  `{ event: 'auth_result', result: '<id_token JWT>' }` from origin
+  `https://oauth.telegram.org`. Popup-blocked / closed-without-confirm
+  resolve as `null` (no-op); a 5-minute timeout guarantees cleanup.
+
+Other design points (kept deliberately):
+
 - **`client_id` is the NUMERIC bot ID.** Same number as the classic widget's
   `bot_id`. The earlier dead-button bug was exactly this class of mistake —
-  see §6.
+  see §6.1.
 - **Scopes:** `openid profile` → name/username/photo; `phone` → phone number
   *with explicit consent in Telegram's UI*; `telegram:bot_access` → our bot
   may message the user (outbid/winner alerts work with zero extra setup).
-- **Trust nothing locally.** The callback result is checked structurally
-  (three-segment JWT) before being forwarded; the server decides validity.
+- **Trust nothing locally.** The result is checked structurally
+  (three-segment JWT, `event === 'auth_result'`, sender origin equal to
+  `https://oauth.telegram.org`) before being forwarded; the server decides
+  validity.
 - **Busy state guards double taps.** A cancelled popup resets the button.
-
-```tsx
-// The essential call, after the script loads:
-Telegram.Login.auth(
-  {
-    client_id: 7123456789,
-    scope: ["openid", "profile", "phone", "telegram:bot_access"],
-    lang: "en",
-  },
-  (result) => {
-    if (!result?.id_token) return; // closed or unreadable → no-op / error
-    signIn("telegram-oidc", { id_token: result.id_token });
-  },
-);
-```
 
 ## 4. Backend: `src/convex/auth/telegramOidc.ts`
 
@@ -185,6 +197,15 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
    was dropped by the shell — no code of ours ever failed, so no error
    appeared. Mitigation: the embedded "open in own tab" tip. If it recurs in
    a new embedding context, prefer top-level testing first.
+4. **"origin required" — Telegram's error page instead of the login page
+   (2026).** The official library's popup branch sends `redirect_uri` but no
+   `origin`; Telegram's server now hard-requires `origin` (verified by
+   probing `oauth.telegram.org/auth`: no `origin` → "origin required", a
+   non-whitelisted `origin` → "bot domain invalid", whitelisted `origin` →
+   real login page). Fix: open the auth URL ourselves with `origin=` set
+   (implemented in `telegram-login.tsx`); keep the official library only for
+   Telegram's in-app browser, whose branch sends `origin` correctly. The
+   result contract (`auth_result` postMessage) is identical either way.
 
 ## 7. Troubleshooting
 
@@ -192,6 +213,7 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 |---|---|---|
 | Button click does nothing | `clientId` missing/invalid (prop mismatch class of bug) | Pass the numeric ID from `getAuthMethods`; check console for "client_id is required" |
 | Login page shows "bot domain invalid" | Current URL not whitelisted on the bot | `/setdomain` in @BotFather with the exact URL you're on |
+| Login page shows "origin required" | Login URL opened without the `origin` parameter (official library's popup branch does this) | Fixed in `telegram-login.tsx` — the popup path builds the URL itself with `origin=window.location.origin` |
 | "This Telegram confirmation expired…" | More than 10 min between confirm and sign-in | Tap the button again |
 | "…already used" | Token replay (double-submit or stale retry) | Expected single-use guard; sign in again |
 | "Telegram sign-in is not configured" | `TELEGRAM_BOT_TOKEN` missing server-side | Add it in the Keys tab |
