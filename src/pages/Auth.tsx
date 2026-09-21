@@ -49,11 +49,6 @@ const TELEGRAM_BOT_URL =
     ? `https://t.me/${(import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string).trim()}`
     : "https://t.me/luba_auction_bot";
 
-// The widget script addresses the bot by username, not URL.
-const TELEGRAM_BOT_USERNAME =
-  (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
-  "luba_auction_bot";
-
 type Provider = "email-otp" | "telegram-otp" | "sms-otp" | "telegram-widget";
 type Step = "method" | "identifier" | "verify";
 
@@ -126,7 +121,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState(false);
-  const widgetEnabled = authMethods?.telegramWidget === true;
+  // The widget popup API addresses the bot by its NUMERIC ID (bot_id), not
+  // its username - the server derives it from the token's public prefix.
+  // Without it the popup API throws "Bot id required", so the button only
+  // renders when the ID is actually available.
+  const widgetBotId = authMethods?.telegramBotId ?? null;
+  const widgetEnabled =
+    authMethods?.telegramWidget === true && widgetBotId !== null;
   const [widgetBusy, setWidgetBusy] = useState(false);
 
   const applyReferral = useMutation(api.growth.applyReferralCode);
@@ -412,7 +413,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   {widgetEnabled && (
                     <div className="flex flex-col gap-3">
                       <TelegramLoginModule
-                        botUsername={TELEGRAM_BOT_USERNAME}
+                        botId={widgetBotId ?? 0}
                         onAuth={(payload) => void handleWidgetAuth(payload)}
                         onError={(message) => setError(message)}
                         disabled={widgetBusy || isLoading}
@@ -420,6 +421,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       {widgetBusy && (
                         <p className="text-center text-xs text-muted-foreground">
                           Verifying your Telegram confirmation…
+                        </p>
+                      )}
+                      {/* Method-step errors were previously invisible - the
+                          widget's failure copy only existed below the form
+                          steps. Surface them where the user actually is. */}
+                      {error && (
+                        <p role="alert" className="text-center text-sm text-destructive">
+                          {error}
                         </p>
                       )}
                       <div className="flex items-center gap-3" aria-hidden>
