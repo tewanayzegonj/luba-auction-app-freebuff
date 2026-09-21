@@ -14,12 +14,22 @@ export const getAuthMethods = query({
     // bots in Telegram's UI, so it is public, not a secret. The client-side
     // Login widget REQUIRES this numeric id ("Bot id required" otherwise).
     const telegramBotId = Number.parseInt(botToken?.split(":")[0] ?? "", 10);
+    // Telegram's NEW OIDC login system issues its own Client ID (shown in
+    // BotFather's Login Widget screen). It may differ from the bot's numeric
+    // ID; when the user has configured it, it takes precedence for the new
+    // login flow.
+    const oidcClientId = Number.parseInt(
+      process.env.TELEGRAM_OIDC_CLIENT_ID ?? "",
+      10,
+    );
     return {
       emailOtp: true, // always available (Freebuff-managed sender)
       telegramWidget: Boolean(botToken),
       telegramOtp: Boolean(botToken),
       telegramBotId:
         Number.isFinite(telegramBotId) && telegramBotId > 0 ? telegramBotId : null,
+      telegramOidcClientId:
+        Number.isFinite(oidcClientId) && oidcClientId > 0 ? oidcClientId : null,
       smsOtp:
         process.env.ENABLE_SMS_GATEWAY === "true" &&
         Boolean(process.env.AFROMESSAGE_API_KEY) &&

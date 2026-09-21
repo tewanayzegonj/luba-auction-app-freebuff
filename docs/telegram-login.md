@@ -52,11 +52,25 @@ token verbatim.
    domain. This applies to dev previews too — not just production.
 3. **Reload** the app. The login page should open.
 
-The newer BotFather mini-app also has a **Login Widget** screen with a
-*Client ID / Client Secret*. We don't need the secret: our popup flow
-(`response_type=post_message`) delivers the signed token directly to the
-page, so verification is by public key, not client secret. Ignore those
-fields; only the allowed-URLs list matters.
+**Which login page Telegram serves is decided server-side, per bot.**
+Verified by probing `oauth.telegram.org/auth` with every documented
+parameter combination (`client_id`/`bot_id`, `response_type`
+code/id_token/post_message, PKCE, old-style `request_access`): a bot
+registered only via the old `/setdomain` command always gets the LEGACY
+phone-number page, no matter what the URL contains. The modern experience
+(`Log in with Telegram` hero, `Or log in with a phone number`, Login
+options with QR) is what Telegram serves to bots **enrolled in the new
+Login Widget system**.
+
+To enroll: **@BotFather → open the mini app → select your bot → Login
+Widget** → add your Allowed URLs there (this is the flow the official docs
+describe: "Register your Allowed URLs via @BotFather and obtain your Client
+ID and Secret"). That screen shows a **Client ID** (may differ from the
+bot's numeric token prefix). The Client Secret is still not needed for the
+popup flow — but if the issued Client ID differs from the bot ID, put it in
+the Keys tab as `TELEGRAM_OIDC_CLIENT_ID`; the app sends it as `client_id`
+and the backend accepts tokens for either identifier
+(`authConfig.getAuthMethods.telegramOidcClientId`).
 
 ## 3. Frontend: `src/components/telegram-login.tsx`
 
@@ -214,6 +228,7 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 | Button click does nothing | `clientId` missing/invalid (prop mismatch class of bug) | Pass the numeric ID from `getAuthMethods`; check console for "client_id is required" |
 | Login page shows "bot domain invalid" | Current URL not whitelisted on the bot | `/setdomain` in @BotFather with the exact URL you're on |
 | Login page shows "origin required" | Login URL opened without the `origin` parameter (official library's popup branch does this) | Fixed in `telegram-login.tsx` — the popup path builds the URL itself with `origin=window.location.origin` |
+| Login page is the OLD phone-number-only page, not the new "Log in with Telegram" screen | Bot not enrolled in the new Login Widget system (`/setdomain` alone registers it in the legacy system; page choice is server-side per bot) | @BotFather → mini app → select bot → **Login Widget** → add Allowed URLs; optionally set `TELEGRAM_OIDC_CLIENT_ID` if the shown Client ID differs |
 | "This Telegram confirmation expired…" | More than 10 min between confirm and sign-in | Tap the button again |
 | "…already used" | Token replay (double-submit or stale retry) | Expected single-use guard; sign in again |
 | "Telegram sign-in is not configured" | `TELEGRAM_BOT_TOKEN` missing server-side | Add it in the Keys tab |

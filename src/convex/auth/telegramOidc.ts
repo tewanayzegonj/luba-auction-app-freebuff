@@ -162,6 +162,19 @@ export const telegramOidc = ConvexCredentials({
     if (!Number.isFinite(botId) || botId <= 0) {
       throw new Error("Telegram sign-in is misconfigured (bot ID).");
     }
+    // The new OIDC system may issue its own Client ID (BotFather → Login
+    // Widget). Tokens will carry it in `aud` when configured; accept either
+    // identifier so switching to the issued Client ID needs no code change.
+    const oidcClientId = Number.parseInt(
+      process.env.TELEGRAM_OIDC_CLIENT_ID ?? "",
+      10,
+    );
+    const validAudiences = new Set<string>([
+      String(botId),
+      ...(Number.isFinite(oidcClientId) && oidcClientId > 0
+        ? [String(oidcClientId)]
+        : []),
+    ]);
 
     const idToken =
       typeof params.id_token === "string" ? params.id_token : undefined;
@@ -196,7 +209,8 @@ export const telegramOidc = ConvexCredentials({
     if (
       sub === undefined ||
       issuer !== OIDC_ISSUER ||
-      aud !== String(botId) ||
+      typeof aud !== "string" ||
+      !validAudiences.has(aud) ||
       exp === undefined ||
       iat === undefined
     ) {

@@ -122,13 +122,16 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState(false);
-  // The widget popup API addresses the bot by its NUMERIC ID (bot_id), not
-  // its username - the server derives it from the token's public prefix.
-  // Without it the popup API throws "Bot id required", so the button only
-  // renders when the ID is actually available.
-  const widgetBotId = authMethods?.telegramBotId ?? null;
+  // Telegram's login popup addresses the app by a NUMERIC client id. For
+  // the new OIDC system that's the Client ID BotFather shows in the Login
+  // Widget screen (TELEGRAM_OIDC_CLIENT_ID), falling back to the bot's
+  // numeric token prefix. Without it the popup fails ("client_id is
+  // required" / "origin required"), so the button only renders when the id
+  // is actually available.
+  const telegramClientId =
+    authMethods?.telegramOidcClientId ?? authMethods?.telegramBotId ?? null;
   const widgetEnabled =
-    authMethods?.telegramWidget === true && widgetBotId !== null;
+    authMethods?.telegramWidget === true && telegramClientId !== null;
   const [widgetBusy, setWidgetBusy] = useState(false);
   // Telegram's popup hands its result back to the window that opened it;
   // embedding shells (like a preview iframe) can drop that hand-off. When
@@ -424,7 +427,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   {widgetEnabled && (
                     <div className="flex flex-col gap-3">
                       <TelegramLoginModule
-                        clientId={widgetBotId ?? 0}
+                        clientId={telegramClientId ?? 0}
                         onAuth={(payload) => void handleWidgetAuth(payload)}
                         onError={(message) => setError(message)}
                         disabled={widgetBusy || isLoading}
