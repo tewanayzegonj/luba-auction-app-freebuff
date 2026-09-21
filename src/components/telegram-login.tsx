@@ -129,24 +129,36 @@ function isUsableIdToken(value: unknown): value is string {
   return typeof value === "string" && value.split(".").length === 3;
 }
 
+/** Outcome of opening the hosted login popup. */
+type PopupOutcome =
+  | { kind: "token"; token: string }
+  | { kind: "closed" }
+  | { kind: "blocked" };
+
 /**
  * Popup path: open the hosted login ourselves and resolve with the id_token
- * posted back by the popup (same contract as the official library), or null
- * if the user closed it without confirming.
+ * posted back by the popup (same contract as the official library), a
+ * "closed" outcome when the user dismissed it without confirming, or
+ * "blocked" when the browser refused to open the window at all.
  */
 function openTelegramAuthPopup(
   clientId: number,
   lang: string,
-): Promise<string | null> {
+): Promise<PopupOutcome> {
   return new Promise((resolve) => {
     let settled = false;
-    const finish = (token: string | null) => {
+    // Declared before `finish` uses them: when the popup is blocked,
+    // finish() runs before the timers below are ever created.
+    let closeCheck: ReturnType<typeof setInterval> | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = (outcome: PopupOutcome) => {
       if (settled) return;
       settled = true;
       window.removeEventListener("message", onMessage);
-      clearInterval(closeCheck);
-      clearTimeout(timeout);
-      resolve(token);
+      if (closeCheck !== undefined) clearInterval(closeCheck);
+      if (timeout !== undefined) clearTimeout(timeout);
+      resolve(outcome);
     };
 
     const onMessage = (event: MessageEvent) => {
@@ -161,7 +173,11 @@ function openTelegramAuthPopup(
         return;
       }
       if (!data || data.event !== "auth_result") return;
-      finish(isUsableIdToken(data.result) ? data.result : null);
+      finish(
+        isUsableIdToken(data.result)
+          ? { kind: "token", token: data.result }
+          : { kind: "closed" },
+      );
     };
     window.addEventListener("message", onMessage);
 
@@ -171,19 +187,20 @@ function openTelegramAuthPopup(
       "width=550,height=650",
     );
     if (!popup) {
-      // Popup blocked: nothing we can do except report it.
-      finish(null);
+      // Popup blocked (browser setting or embedding shell) - report it so
+      // the user isn't left staring at a button that appears dead.
+      finish({ kind: "blocked" });
       return;
     }
     popup.focus();
 
     // The popup may also navigate to a redirect-style completion; when it
     // closes without posting a result, treat it as cancelled.
-    const closeCheck = setInterval(() => {
-      if (popup.closed) finish(null);
+    closeCheck = setInterval(() => {
+      if (popup.closed) finish({ kind: "closed" });
     }, 300);
     // Safety net: never leave listeners behind forever.
-    const timeout = setTimeout(() => finish(null), 5 * 60 * 1000);
+    timeout = setTimeout(() => finish({ kind: "closed" }), 5 * 60 * 1000);
   });
 }
 
@@ -272,8 +289,15 @@ export function TelegramLoginModule({
     // Regular browser: open the hosted login ourselves with the required
     // origin parameter (the official library's popup branch omits it and
     // Telegram answers "origin required").
-    void openTelegramAuthPopup(clientId, "en").then((idToken) => {
-      forward(idToken ? { id_token: idToken } : null);
+    void openTelegramAuthPopup(clientId, "en").then((outcome) => {
+      if (outcome.kind === "blocked") {
+        resetBusy();
+        onErrorRef.current(
+          "Your browser blocked the sign-in window. Allow popups for this site - or open this page in its own browser tab - and try again.",
+        );
+        return;
+      }
+      forward(outcome.kind === "token" ? { id_token: outcome.token } : null);
     });
   }, [clientId, disabled]);
 
