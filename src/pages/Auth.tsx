@@ -14,6 +14,10 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import {
+  TelegramLoginModule,
+  type TelegramWidgetPayload,
+} from "@/components/telegram-login";
 
 import { useAuth } from "@/hooks/use-auth";
 import { LubaWordmark } from "@/components/luba";
@@ -37,6 +41,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { cn } from "@/lib/utils";
 import { friendlyError } from "@/lib/errors";
 import { useLang } from "@/lib/i18n";
+import { useCallback } from "react";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 const TELEGRAM_BOT_URL =
@@ -44,7 +49,12 @@ const TELEGRAM_BOT_URL =
     ? `https://t.me/${(import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string).trim()}`
     : "https://t.me/luba_auction_bot";
 
-type Provider = "email-otp" | "telegram-otp" | "sms-otp";
+// The widget script addresses the bot by username, not URL.
+const TELEGRAM_BOT_USERNAME =
+  (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() ||
+  "luba_auction_bot";
+
+type Provider = "email-otp" | "telegram-otp" | "sms-otp" | "telegram-widget";
 type Step = "method" | "identifier" | "verify";
 
 interface AuthProps {
@@ -55,6 +65,9 @@ const PROVIDER_LABEL: Record<Provider, string> = {
   "email-otp": "email",
   "telegram-otp": "Telegram",
   "sms-otp": "SMS",
+  // The widget signs in directly, so this label is only ever read by the
+  // type system - the provider never enters the step machine.
+  "telegram-widget": "Telegram",
 };
 
 function resolveRedirectAfterAuth(
@@ -113,6 +126,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [handoff, setHandoff] = useState(false);
+  const widgetEnabled = authMethods?.telegramWidget === true;
+  const [widgetBusy, setWidgetBusy] = useState(false);
 
   const applyReferral = useMutation(api.growth.applyReferralCode);
 
@@ -244,6 +259,54 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
   };
 
+  /**
+   * One-tap widget sign-in: Telegram collects the confirmation in its own
+   * popup and hands us the signed payload; the ConvexCredentials provider
+   * verifies the HMAC server-side. On success we land on the same hand-off
+   * screen as the OTP flows - isAuthenticated performs the redirect once the
+   * session is real (navigating earlier makes RequireAuth bounce to /auth).
+   */
+  const handleWidgetAuth = useCallback(
+    async (payload: TelegramWidgetPayload | null) => {
+      if (payload === null) {
+        // The user closed Telegram's popup - not an error, just a no-op.
+        return;
+      }
+      setWidgetBusy(true);
+      setError(null);
+      try {
+        await signIn("telegram-widget", {
+          id: payload.id,
+          first_name: payload.first_name,
+          ...(payload.last_name !== undefined ? { last_name: payload.last_name } : {}),
+          ...(payload.username !== undefined ? { username: payload.username } : {}),
+          ...(payload.photo_url !== undefined ? { photo_url: payload.photo_url } : {}),
+          auth_date: payload.auth_date,
+          hash: payload.hash,
+        });
+        setHandoff(true);
+        setTimeout(() => setHandoff(false), 8000);
+      } catch (err) {
+        const msg = (err instanceof Error ? err.message : "").toLowerCase();
+        if (/rate|too many|flood|throttl/.test(msg)) {
+          setError("Too many attempts - wait a minute, then try again.");
+        } else if (/already used|expired/.test(msg)) {
+          setError(
+            "That Telegram confirmation is single-use and has already been consumed. Tap the button once more and confirm again.",
+          );
+        } else {
+          setError(
+            friendlyError(err) ||
+              "Telegram sign-in failed just now. Please try again in a moment.",
+          );
+        }
+      } finally {
+        setWidgetBusy(false);
+      }
+    },
+    [signIn],
+  );
+
   const telegramEnabled = authMethods?.telegramOtp === true;
   const smsEnabled = authMethods?.smsOtp === true;
   const anyMethodEnabled =
@@ -346,6 +409,28 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   <CardDescription>{t("auth.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-3">
+                  {widgetEnabled && (
+                    <div className="flex flex-col gap-3">
+                      <TelegramLoginModule
+                        botUsername={TELEGRAM_BOT_USERNAME}
+                        onAuth={(payload) => void handleWidgetAuth(payload)}
+                        onError={(message) => setError(message)}
+                        disabled={widgetBusy || isLoading}
+                      />
+                      {widgetBusy && (
+                        <p className="text-center text-xs text-muted-foreground">
+                          Verifying your Telegram confirmation…
+                        </p>
+                      )}
+                      <div className="flex items-center gap-3" aria-hidden>
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                          or use another method
+                        </span>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+                    </div>
+                  )}
                   <Button
                     variant="outline"
                     className="h-auto justify-start gap-3 py-3"

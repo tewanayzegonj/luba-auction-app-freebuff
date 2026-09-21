@@ -10,6 +10,7 @@ export const getAuthMethods = query({
   handler: () => {
     return {
       emailOtp: true, // always available (Freebuff-managed sender)
+      telegramWidget: Boolean(process.env.TELEGRAM_BOT_TOKEN),
       telegramOtp: Boolean(process.env.TELEGRAM_BOT_TOKEN),
       smsOtp:
         process.env.ENABLE_SMS_GATEWAY === "true" &&
