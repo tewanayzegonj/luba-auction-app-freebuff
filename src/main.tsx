@@ -22,6 +22,44 @@ import {
 } from "@/lib/scroll";
 import "./index.css";
 
+/** Self-heal stale module graphs: the dev server can restart (dep install,
+    platform sync) while a tab is open, and in-flight page-chunk imports then
+    fail with "Failed to fetch dynamically imported module". Strategy:
+    1. withRetry() re-attempts the import once after a short delay - most
+       restart blips recover without any visible reload.
+    2. If the retry also fails, vite:preloadError fires and we reload the page
+       ONCE (5s cooldown in sessionStorage) to pick up the fresh graph. The
+       cooldown makes an infinite reload loop structurally impossible. */
+function withRetry<M>(load: () => Promise<M>): () => Promise<M> {
+  return () =>
+    load().catch(() =>
+      new Promise<M>((resolve, reject) => {
+        window.setTimeout(() => {
+          load().then(resolve, reject);
+        }, 250);
+      }),
+    );
+}
+
+const CHUNK_RELOAD_KEY = "luba.chunkReloadAt";
+let chunkReloadArmed = false;
+function reloadOnChunkFailure() {
+  if (chunkReloadArmed) return;
+  const now = Date.now();
+  try {
+    const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) ?? 0);
+    if (now - last < 5000) return; // Already recovered once - stop here.
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, String(now));
+  } catch {
+    // Storage unavailable (private mode) - the armed flag alone prevents loops.
+  }
+  chunkReloadArmed = true;
+  window.location.reload();
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("vite:preloadError", reloadOnChunkFailure);
+}
+
 // Lazy load route components for better code splitting
 /** Route chunks live in one map so lazy() and the idle preloader share the
     exact same import paths - prefetching can never drift from the routes. */
@@ -36,14 +74,14 @@ const routeImports = {
   Winners: () => import("./pages/Winners.tsx"),
 } as const;
 
-const Landing = lazy(routeImports.Landing);
-const AuthPage = lazy(routeImports.Auth);
-const Dashboard = lazy(routeImports.Dashboard);
-const AuctionPage = lazy(routeImports.Auction);
-const AdminPage = lazy(routeImports.Admin);
-const NotFound = lazy(routeImports.NotFound);
-const Legal = lazy(routeImports.Legal);
-const Winners = lazy(routeImports.Winners);
+const Landing = lazy(withRetry(routeImports.Landing));
+const AuthPage = lazy(withRetry(routeImports.Auth));
+const Dashboard = lazy(withRetry(routeImports.Dashboard));
+const AuctionPage = lazy(withRetry(routeImports.Auction));
+const AdminPage = lazy(withRetry(routeImports.Admin));
+const NotFound = lazy(withRetry(routeImports.NotFound));
+const Legal = lazy(withRetry(routeImports.Legal));
+const Winners = lazy(withRetry(routeImports.Winners));
 
 /** Kill first-tap lag: after the initial paint, warm every consumer route
     chunk in the idle window. First navigation then renders instantly instead
@@ -56,7 +94,12 @@ function usePrefetchRoutes() {
       window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500));
     const id = idle(() => {
       const { Admin: _admin, ...consumer } = routeImports;
-      for (const load of Object.values(consumer)) void load();
+      // Failures are benign here (dev-server restart mid-prefetch): swallow
+      // them so they never surface as unhandled-rejection error dialogs.
+      // The real navigation path retries via withRetry().
+      for (const load of Object.values(consumer)) {
+        load().catch(() => undefined);
+      }
     });
     return () => {
       window.cancelIdleCallback?.(id as number);
