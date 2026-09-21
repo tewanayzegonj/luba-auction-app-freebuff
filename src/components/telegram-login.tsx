@@ -5,17 +5,19 @@ import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /**
- * Telegram Login Widget - the one-tap popup sign-in.
+ * Telegram Login - the one-tap popup sign-in.
  *
- * Loads Telegram's official widget script (once per page load) and uses its
- * documented programmatic entry point, Telegram.Login.Widget.open(), with a
- * branded button of our own. Telegram renders the confirmation popup itself;
- * the script receives the signed payload and hands it to our callback. The
- * payload's hash is verified SERVER-SIDE (convex/auth/telegramWidget.ts) -
+ * Loads Telegram's official widget script (once per page load) and calls its
+ * programmatic API, Telegram.Login.auth({ bot_id, request_access }, cb),
+ * behind a branded button of our own. The script opens oauth.telegram.org in
+ * a popup, collects the user's confirmation, and hands us the signed payload.
+ * The payload's hash is verified SERVER-SIDE (convex/auth/telegramWidget.ts) -
  * this module trusts nothing and forwards exactly what Telegram sent.
  *
+ * The API takes the bot's NUMERIC ID (the public part of the bot token before
+ * the colon), not its username - "Bot id required" is thrown otherwise.
  * Values are normalized to strings because the Convex credentials contract
- * (and our provider's authorize params) carry string fields only.
+ * carries string fields only.
  */
 
 export interface TelegramWidgetPayload {
@@ -42,13 +44,10 @@ declare global {
   interface Window {
     Telegram?: {
       Login?: {
-        Widget?: {
-          open?: (
-            botName: string,
-            options: { request_access?: boolean; size?: string },
-            callback: (user: TelegramLoginRawUser | false) => void,
-          ) => void;
-        };
+        auth?: (
+          options: { bot_id: number; request_access?: boolean },
+          callback: (user: TelegramLoginRawUser | false) => void,
+        ) => void;
       };
     };
   }
@@ -62,7 +61,7 @@ function loadTelegramWidgetScript(): Promise<void> {
   if (typeof document === "undefined") {
     return Promise.reject(new Error("script-load-failed"));
   }
-  if (window.Telegram?.Login?.Widget?.open) return Promise.resolve();
+  if (window.Telegram?.Login?.auth) return Promise.resolve();
   if (widgetScriptPromise === null) {
     widgetScriptPromise = new Promise<void>((resolve, reject) => {
       const script = document.createElement("script");
@@ -101,7 +100,8 @@ function normalizePayload(
 }
 
 interface TelegramLoginModuleProps {
-  botUsername: string;
+  /** The bot's numeric ID - exposed publicly by authConfig.getAuthMethods. */
+  botId: number;
   /** Signed payload on success; null when the popup was closed without signing in. */
   onAuth: (payload: TelegramWidgetPayload | null) => void;
   onError: (message: string) => void;
@@ -109,7 +109,7 @@ interface TelegramLoginModuleProps {
 }
 
 export function TelegramLoginModule({
-  botUsername,
+  botId,
   onAuth,
   onError,
   disabled = false,
@@ -121,31 +121,31 @@ export function TelegramLoginModule({
 
   const handleOneTap = useCallback(() => {
     if (disabled || busyRef.current) return;
+    if (!Number.isFinite(botId) || botId <= 0) {
+      onError("Telegram sign-in is not configured right now.");
+      return;
+    }
     busyRef.current = true;
     setOpening(true);
     void loadTelegramWidgetScript()
       .then(() => {
-        const open = window.Telegram?.Login?.Widget?.open;
-        if (!open) throw new Error("script-load-failed");
-        open(
-          botUsername,
-          { request_access: true },
-          (user) => {
-            busyRef.current = false;
-            setOpening(false);
-            if (user === false) {
-              onAuth(null);
-              return;
-            }
-            onAuth(normalizePayload(user));
-          },
-        );
-        // The popup is Telegram's own window from here - restore the button
-        // so a cancelled popup leaves the UI in a clean state.
-        window.setTimeout(() => {
+        const auth = window.Telegram?.Login?.auth;
+        if (!auth) throw new Error("script-load-failed");
+        // Restores the button so a cancelled popup leaves the UI clean; the
+        // callback still fires later if the user goes on to confirm.
+        const resetBusy = () => {
           busyRef.current = false;
           setOpening(false);
-        }, 1500);
+        };
+        auth({ bot_id: botId, request_access: true }, (user) => {
+          resetBusy();
+          if (user === false) {
+            onAuth(null);
+            return;
+          }
+          onAuth(normalizePayload(user));
+        });
+        window.setTimeout(resetBusy, 1500);
       })
       .catch(() => {
         busyRef.current = false;
@@ -154,7 +154,7 @@ export function TelegramLoginModule({
           "Couldn't reach Telegram just now. Check your connection and try again.",
         );
       });
-  }, [botUsername, disabled, onAuth, onError]);
+  }, [botId, disabled, onAuth, onError]);
 
   return (
     <button

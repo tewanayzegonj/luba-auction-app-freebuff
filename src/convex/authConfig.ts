@@ -8,10 +8,18 @@ import { query } from "./_generated/server";
 export const getAuthMethods = query({
   args: {},
   handler: () => {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    // The numeric part before the colon in the bot token is the bot's ID -
+    // it appears in every oauth.telegram.org URL and is how users identify
+    // bots in Telegram's UI, so it is public, not a secret. The client-side
+    // Login widget REQUIRES this numeric id ("Bot id required" otherwise).
+    const telegramBotId = Number.parseInt(botToken?.split(":")[0] ?? "", 10);
     return {
       emailOtp: true, // always available (Freebuff-managed sender)
-      telegramWidget: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-      telegramOtp: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+      telegramWidget: Boolean(botToken),
+      telegramOtp: Boolean(botToken),
+      telegramBotId:
+        Number.isFinite(telegramBotId) && telegramBotId > 0 ? telegramBotId : null,
       smsOtp:
         process.env.ENABLE_SMS_GATEWAY === "true" &&
         Boolean(process.env.AFROMESSAGE_API_KEY) &&
