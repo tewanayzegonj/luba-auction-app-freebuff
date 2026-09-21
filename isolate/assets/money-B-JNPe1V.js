@@ -1,1 +1,0 @@
-function a(t){const n=t<0?"-":"",r=Math.abs(Math.trunc(t)),o=Math.floor(r/100),s=r%100;return`${n}${o}.${String(s).padStart(2,"0")}`}function e(t){return`${a(t)} ETB`}function c(t){const n=t.trim();if(!/^\d+(\.\d{1,2})?$/.test(n))return null;const[r,o=""]=n.split("."),s=Number(r)*100+Number((o+"00").slice(0,2));return Number.isInteger(s)?s:null}export{a,e as f,c as p};

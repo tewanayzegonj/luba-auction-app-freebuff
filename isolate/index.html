@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap"
   />
   <meta name="description" content="Luba — lowest unique bid auctions. Deterministic settlement, private bid amounts, auditable ledger." />
   <title>Luba — Lowest Unique Bid Auctions</title>
@@ -23,12 +23,12 @@
   <meta property="og:description" content="The lowest UNIQUE bid wins. Bid fees from a few Birr — win prizes worth thousands. Provably fair, wallet-fast." />
   <meta property="og:image" content="/og-default.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <script type="module" crossorigin src="/assets/index-5ItyoiEd.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/radix-ui-pB8SJ_35.js">
-  <link rel="modulepreload" crossorigin href="/assets/charts-CV9DsEr2.js">
-  <link rel="modulepreload" crossorigin href="/assets/react-vendor-Ce4wcZhg.js">
-  <link rel="modulepreload" crossorigin href="/assets/framer-motion-YAGJPIMK.js">
-  <link rel="stylesheet" crossorigin href="/assets/index-U_QXXyLF.css">
+  <script type="module" crossorigin src="/assets/index-C4060iVh.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/radix-ui-DpD6Ig2T.js">
+  <link rel="modulepreload" crossorigin href="/assets/charts-cASCsmG4.js">
+  <link rel="modulepreload" crossorigin href="/assets/react-vendor-C0PIj6jx.js">
+  <link rel="modulepreload" crossorigin href="/assets/framer-motion-DHWPFpZo.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-ejMZTCi_.css">
 </head>  <body>
     <script>
       // Apply the persisted theme before first paint to avoid a flash.
@@ -36,6 +36,20 @@
         if (localStorage.getItem("luba.theme") === "light") {
           document.documentElement.classList.add("light");
         }
+      } catch (e) {}
+      // Scroll + layout stability, established BEFORE first paint:
+      // 1) Reserve the scrollbar column up front — pages alternate short
+      //    (auth) and long (dashboard), and a scrollbar appearing later
+      //    reflowed the whole viewport sideways (the navigation "shake").
+      //    (Also on `html` in index.css; this covers the very first paint
+      //    while the bundle is still loading.)
+      // 2) Take manual ownership of scroll restoration: react-router never
+      //    restores scroll, and the app's old post-paint scrollTo(0,0)
+      //    painted each new page at the previous offset for a frame before
+      //    snapping to top — a visible jerk on every navigation.
+      try {
+        document.documentElement.style.scrollbarGutter = "stable";
+        history.scrollRestoration = "manual";
       } catch (e) {}
     </script>
   <div id="root"></div>

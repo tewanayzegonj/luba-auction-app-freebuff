@@ -1,1 +1,0 @@
-import{j as a}from"./radix-ui-pB8SJ_35.js";import{u as e,m as n}from"./framer-motion-YAGJPIMK.js";const s=[.22,1,.36,1];function m({children:o,className:i}){const t=e();return a.jsx(n.div,{initial:t?{opacity:0}:{opacity:0,y:10},animate:{opacity:1,y:0},transition:{duration:t?.15:.35,ease:s},className:i,children:o})}export{m as P};
