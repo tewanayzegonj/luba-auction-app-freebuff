@@ -18,6 +18,14 @@ import { cn } from "@/lib/utils";
  * the colon), not its username - "Bot id required" is thrown otherwise.
  * Values are normalized to strings because the Convex credentials contract
  * carries string fields only.
+ *
+ * Two completion paths exist by design:
+ *  1. popup callback (normal): Telegram calls `cb(user)` in the opener;
+ *  2. URL-hash return (fallback): Telegram may instead append the same signed
+ *     fields as `#key=value` pairs on this page - the OAuth return path. This
+ *     matters inside iframes, where the popup→opener message can be dropped
+ *     by the embedding shell. Auth.tsx parses that hash and feeds it through
+ *     the same normalization here.
  */
 
 export interface TelegramWidgetPayload {
@@ -79,7 +87,12 @@ function loadTelegramWidgetScript(): Promise<void> {
   return widgetScriptPromise;
 }
 
-function normalizePayload(
+/**
+ * Coerce a Telegram widget payload (popup callback object or URL-hash params)
+ * into the string-only shape the Convex credentials provider expects, or null
+ * if it is not a usable payload.
+ */
+export function normalizeTelegramWidgetPayload(
   user: TelegramLoginRawUser,
 ): TelegramWidgetPayload | null {
   if (
@@ -143,7 +156,7 @@ export function TelegramLoginModule({
             onAuth(null);
             return;
           }
-          onAuth(normalizePayload(user));
+          onAuth(normalizeTelegramWidgetPayload(user));
         });
         window.setTimeout(resetBusy, 1500);
       })

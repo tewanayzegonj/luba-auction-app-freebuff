@@ -137,6 +137,14 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 - **Method-step errors are rendered.** During the dead-button bug, the widget's
   error messages were produced but never displayed on the method step — the
   failure was invisible. There is now an explicit error line under the button.
+- **Two completion paths.** Besides the popup callback, Auth.tsx consumes the
+  OAuth-style `#key=value` return (normalized via
+  `normalizeTelegramWidgetPayload`), strips the hash from the URL immediately
+  (single-use capability), and completes sign-in through the same handler.
+  This covers embedding shells that drop the popup→opener message.
+- **Embedded detection.** When the app detects it is inside an iframe, the auth
+  page shows a link to open itself in a top-level tab — the environment where
+  the popup flow verifiably works end to end.
 
 ## 6. The two bugs we hit (so you never repeat them)
 
@@ -161,6 +169,7 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 | "already used" | Payload replay (double-submit or stale retry) | Expected single-use guard; retry fresh |
 | "Telegram sign-in is not configured" | `TELEGRAM_BOT_TOKEN` missing server-side | Add it in the Keys tab |
 | Popup opens but payload never arrives | COOP header blocking popup↔opener messaging (see Telegram docs) | Serve `Cross-Origin-Opener-Policy: same-origin-allow-popups` (or remove the header) |
+| Popup confirms, closes, page unchanged | App runs inside an embedding iframe (preview pane); Telegram's popup→opener hand-off is dropped by the shell | Use the URL-hash return fallback (implemented in Auth.tsx) or open the app in its own tab — the embedded-tip link under the button does this |
 
 Deployment reminders: re-run `/setdomain` for every new origin (preview URLs
 change; production needs its own), and keep the token server-side only.

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/input-otp";
 import {
   TelegramLoginModule,
+  normalizeTelegramWidgetPayload,
   type TelegramWidgetPayload,
 } from "@/components/telegram-login";
 
@@ -27,6 +28,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Gavel,
+  ExternalLink,
   Link2,
   Loader2,
   Mail,
@@ -129,6 +131,15 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const widgetEnabled =
     authMethods?.telegramWidget === true && widgetBotId !== null;
   const [widgetBusy, setWidgetBusy] = useState(false);
+  // Telegram's popup hands its result back to the window that opened it;
+  // embedding shells (like a preview iframe) can drop that hand-off. When
+  // embedded, offer the same app in a top-level tab, where the popup flow
+  // works with no caveats.
+  const [isEmbedded] = useState(() =>
+    typeof window !== "undefined" && window.self !== window.top
+      ? true
+      : false,
+  );
 
   const applyReferral = useMutation(api.growth.applyReferralCode);
 
@@ -267,6 +278,39 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
    * screen as the OTP flows - isAuthenticated performs the redirect once the
    * session is real (navigating earlier makes RequireAuth bounce to /auth).
    */
+  /**
+   * Redirect return path: when the popup's result message cannot reach us
+   * (e.g. the app runs inside an embedding iframe, where Telegram's
+   * popup→opener hand-off can be dropped by the surrounding shell), Telegram
+   * instead returns the user to THIS page with the same signed payload
+   * appended as `#key=value` pairs. Parse it once, strip it from the URL (it
+   * is a single-use capability and must not survive a refresh), and complete
+   * sign-in through the same handler as the popup path.
+   */
+  const [hashConsumed, setHashConsumed] = useState(false);
+  useEffect(() => {
+    if (hashConsumed || !window.location.hash) return;
+    const raw = Object.fromEntries(
+      new URLSearchParams(window.location.hash.replace(/^#/, "")),
+    );
+    if (!("hash" in raw) || !("id" in raw)) return;
+    const payload = normalizeTelegramWidgetPayload(raw);
+    if (payload === null) {
+      setError(
+        "Telegram's confirmation arrived in an unreadable form. Please sign in again.",
+      );
+      return;
+    }
+    setHashConsumed(true);
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+    void handleWidgetAuth(payload);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hashConsumed]);
+
   const handleWidgetAuth = useCallback(
     async (payload: TelegramWidgetPayload | null) => {
       if (payload === null) {
@@ -430,6 +474,22 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         <p role="alert" className="text-center text-sm text-destructive">
                           {error}
                         </p>
+                      )}
+                      {isEmbedded && (
+                        <a
+                          href={
+                            typeof window !== "undefined"
+                              ? window.location.href
+                              : "/auth"
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+                        >
+                          <ExternalLink className="size-3" />
+                          Preview tip: open this page in its own browser tab if
+                          the Telegram popup confirms but nothing happens
+                        </a>
                       )}
                       <div className="flex items-center gap-3" aria-hidden>
                         <div className="h-px flex-1 bg-border" />
