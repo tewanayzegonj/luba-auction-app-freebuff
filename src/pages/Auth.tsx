@@ -16,8 +16,6 @@ import {
 } from "@/components/ui/input-otp";
 import {
   TelegramLoginModule,
-  TG_PKCE_KEY,
-  TG_STATE_KEY,
   type TelegramOidcPayload,
   type TelegramWidgetPayload,
 } from "@/components/telegram-login";
@@ -158,22 +156,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
    * token path.
    */
   const completeCodeExchange = useCallback(
-    async (code: string): Promise<void> => {
-      let verifier = "";
-      try {
-        verifier = sessionStorage.getItem(TG_PKCE_KEY) ?? "";
-        sessionStorage.removeItem(TG_PKCE_KEY);
-        sessionStorage.removeItem(TG_STATE_KEY);
-      } catch {
-        verifier = "";
-      }
+    async (code: string, state: string): Promise<void> => {
       setWidgetBusy(true);
       setError(null);
       try {
         const { idToken } = await exchangeCode({
           code,
+          state,
           redirectUri: window.location.origin + window.location.pathname,
-          codeVerifier: verifier,
         });
         await signIn("telegram-oidc", { id_token: idToken });
         setHandoff(true);
@@ -206,7 +196,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     const readReturn = ():
       | { kind: "widget"; payload: TelegramWidgetPayload }
       | { kind: "oidc"; token: string }
-      | { kind: "code"; code: string }
+      | { kind: "code"; code: string; state: string }
       | { kind: "stale-code" }
       | null => {
       // Classic widget: `#tgAuthResult=<base64(JSON payload)>`.
@@ -234,23 +224,16 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         }
       }
       // New OIDC system: `?code=` (authorization code) + `?state=` per the
-      // standard flow. State must match what we stored when starting the
-      // flow; the code is exchanged server-side for the signed id_token.
+      // standard flow. The server validates state at exchange time (it
+      // issued and stored the matching PKCE verifier) - a forged, stale, or
+      // replayed return is rejected there.
       const qp = new URLSearchParams(window.location.search);
       const code = qp.get("code");
       const state = qp.get("state");
-      let storedState: string | null = null;
-      try {
-        storedState = sessionStorage.getItem(TG_STATE_KEY);
-      } catch {
-        storedState = null;
-      }
-      if (code && state && storedState && state === storedState) {
-        return { kind: "code", code };
+      if (code && state) {
+        return { kind: "code", code, state };
       }
       if (code) {
-        // A code without a matching state is either a very old link or a
-        // forged one - refuse rather than guess.
         return { kind: "stale-code" };
       }
       return null;
@@ -274,10 +257,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       );
       return;
     }
-    // The PKCE verifier lives in THIS window's sessionStorage (it started
-    // the flow), so the exchange happens here even if we're the popup.
+    // The flow state (PKCE verifier) is server-side, so the exchange can
+    // run in any window context.
     if (found.kind === "code") {
-      await completeCodeExchange(found.code);
+      await completeCodeExchange(found.code, found.state);
       return;
     }
     void handleTelegramAuth(

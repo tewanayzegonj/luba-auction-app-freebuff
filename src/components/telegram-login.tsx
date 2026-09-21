@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useLang } from "@/lib/i18n";
 
 import { cn } from "@/lib/utils";
@@ -85,33 +87,12 @@ declare global {
 const LOGIN_SCRIPT_SRC = "https://oauth.telegram.org/js/telegram-login.js";
 const TELEGRAM_OAUTH_ORIGIN = "https://oauth.telegram.org";
 const SCOPES = "openid profile phone";
-/** sessionStorage key for the PKCE verifier awaiting the redirect return. */
-export const TG_PKCE_KEY = "luba.tgOidcVerifier";
-/** sessionStorage key for the CSRF state awaiting the redirect return. */
-export const TG_STATE_KEY = "luba.tgOidcState";
 
 /** base64url helpers for the PKCE challenge pair. */
 function base64UrlEncode(bytes: Uint8Array): string {
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-async function createPkcePair(): Promise<{ verifier: string; challenge: string }> {
-  const random = new Uint8Array(32);
-  crypto.getRandomValues(random);
-  const verifier = base64UrlEncode(random);
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(verifier),
-  );
-  return { verifier, challenge: base64UrlEncode(new Uint8Array(digest)) };
-}
-
-function randomState(): string {
-  const random = new Uint8Array(16);
-  crypto.getRandomValues(random);
-  return base64UrlEncode(random);
 }
 
 let loginScriptPromise: Promise<void> | null = null;
@@ -142,33 +123,13 @@ function loadTelegramLoginScript(): Promise<void> {
   return loginScriptPromise;
 }
 
-/**
- * Build the hosted login URL for the standard Authorization Code flow with
- * PKCE — the flow Telegram's switched-on OIDC system serves with the modern
- * login page. `redirect_uri` must match a Redirect URI registered in
- * BotFather EXACTLY, otherwise Telegram answers "redirect_uri required".
- */
-async function buildAuthUrl(clientId: number, lang: string): Promise<string> {
-  const { verifier, challenge } = await createPkcePair();
-  const state = randomState();
-  try {
-    sessionStorage.setItem(TG_PKCE_KEY, verifier);
-    sessionStorage.setItem(TG_STATE_KEY, state);
-  } catch {
-    // Storage disabled: the redirect return will fail - report clearly.
-  }
-  const redirectUri = window.location.origin + window.location.pathname;
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id: String(clientId),
-    redirect_uri: redirectUri,
-    scope: SCOPES,
-    state,
-    code_challenge: challenge,
-    code_challenge_method: "S256",
-    lang,
-  });
-  return `${TELEGRAM_OAUTH_ORIGIN}/auth?${params.toString()}`;
+/** S256 PKCE challenge from a verifier string. */
+async function challengeFromVerifier(verifier: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(verifier),
+  );
+  return base64UrlEncode(new Uint8Array(digest));
 }
 
 
@@ -193,8 +154,9 @@ export function TelegramLoginModule({
   disabled = false,
 }: TelegramLoginModuleProps) {
   const { t } = useLang();
+  const startFlow = useMutation(api.auth.telegramFlow.startTelegramFlow);
   const [opening, setOpening] = useState(false);
-  // Guards against the user double-tapping before the popup opens.
+  // Guards against the user double-tapping before the navigation starts.
   const busyRef = useRef(false);
   // Keep the latest callbacks without re-creating the message listener.
   const onAuthRef = useRef(onAuth);
@@ -266,13 +228,44 @@ export function TelegramLoginModule({
       return;
     }
 
-    // Regular browser: standard OIDC code flow — navigate to Telegram's
-    // login, and Telegram redirects back with ?code= which Auth.tsx
-    // exchanges for the signed token (server-side, with the PKCE verifier
-    // stored above).
-    void buildAuthUrl(clientId, "en")
-      .then((authUrl) => {
-        window.location.href = authUrl;
+    // Regular browser (and the preview iframe): standard OIDC code flow.
+    // Generate verifier+state, register them server-side, then navigate.
+    // When running INSIDE an iframe (preview pane), navigate the TOP window:
+    // Telegram's login page refuses to render in frames
+    // (X-Frame-Options: SAMEORIGIN → "refused to connect"), and the top
+    // frame is the app's real browser context. Otherwise navigate in place.
+    const random = new Uint8Array(32);
+    crypto.getRandomValues(random);
+    const verifier = base64UrlEncode(random);
+    const stateRandom = new Uint8Array(16);
+    crypto.getRandomValues(stateRandom);
+    const state = base64UrlEncode(stateRandom);
+
+    startFlow({ state, verifier })
+      .then(() => challengeFromVerifier(verifier))
+      .then((challenge) => {
+        const redirectUri = window.location.origin + window.location.pathname;
+        const params = new URLSearchParams({
+          response_type: "code",
+          client_id: String(clientId),
+          redirect_uri: redirectUri,
+          scope: SCOPES,
+          state,
+          code_challenge: challenge,
+          code_challenge_method: "S256",
+          lang: "en",
+        });
+        const authUrl = `${TELEGRAM_OAUTH_ORIGIN}/auth?${params.toString()}`;
+        const top = window.top;
+        const inIframe =
+          typeof top !== "undefined" && top !== null && top !== window.self;
+        if (inIframe) {
+          // Escape the embedding frame: Telegram refuses to render inside
+          // iframes, so the login must happen in the top-level context.
+          top!.location.href = authUrl;
+        } else {
+          window.location.href = authUrl;
+        }
       })
       .catch(() => {
         resetBusy();
@@ -280,7 +273,7 @@ export function TelegramLoginModule({
           "Couldn't start Telegram sign-in just now. Please try again.",
         );
       });
-  }, [clientId, disabled]);
+  }, [clientId, disabled, startFlow]);
 
   return (
     <button

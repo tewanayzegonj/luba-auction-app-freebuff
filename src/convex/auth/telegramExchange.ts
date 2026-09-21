@@ -3,6 +3,7 @@
 import axios from "axios";
 import { v } from "convex/values";
 import { action } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 /**
  * Exchange a Telegram OIDC authorization code for the signed id_token.
@@ -25,10 +26,23 @@ import { action } from "../_generated/server";
 export const exchangeTelegramCode = action({
   args: {
     code: v.string(),
+    state: v.string(),
     redirectUri: v.string(),
-    codeVerifier: v.string(),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
+    // CSRF + verifier lookup: consume the server-stored flow state keyed by
+    // this exact state value. Unknown/expired/already-used states are
+    // rejected before any network call.
+    const codeVerifier = await ctx.runMutation(
+      internal.auth.telegramFlow.consumeTelegramFlowState,
+      { state: args.state },
+    );
+    if (!codeVerifier) {
+      throw new Error(
+        "This Telegram confirmation link is invalid or has expired. Please tap Continue with Telegram again.",
+      );
+    }
+
     const botToken = process.env.TELEGRAM_BOT_TOKEN ?? "";
     const tokenPrefix = botToken.split(":")[0] ?? "";
     const clientId =
@@ -53,7 +67,7 @@ export const exchangeTelegramCode = action({
       code: args.code,
       redirect_uri: args.redirectUri,
       client_id: clientId,
-      code_verifier: args.codeVerifier,
+      code_verifier: codeVerifier,
     });
 
     let idToken: unknown;

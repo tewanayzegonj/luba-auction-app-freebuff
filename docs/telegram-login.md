@@ -185,16 +185,27 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 **FINAL ARCHITECTURE (after switching the bot to OpenID Connect):** the
 button uses the **standard Authorization Code flow with PKCE** — the only
 flow the switched-on system serves with the modern login page. Click →
-full-page navigation to `oauth.telegram.org/auth` with
-`response_type=code`, `code_challenge` (S256), `state`, and `redirect_uri`
-(origin + `/auth`, which must be registered in BotFather **exactly**).
-Telegram redirects back to `/auth?code=…&state=…`; the page validates
-`state` against sessionStorage, strips the URL, and calls the Convex action
-`auth/telegramExchange.exchangeTelegramCode`, which POSTs to
+the flow's `verifier` + `state` are stored SERVER-SIDE
+(`auth/telegramFlow.startTelegramFlow`, reuse of `idempotencyKeys`) →
+navigation to `oauth.telegram.org/auth` with `response_type=code`,
+`code_challenge` (S256), `state`, and `redirect_uri` (origin + `/auth`,
+which must be registered in BotFather **exactly**). **If the app is running
+inside an iframe (the preview pane), the TOP window navigates** — Telegram
+sends `X-Frame-Options: SAMEORIGIN` and refuses to render in frames
+("refused to connect"), so the login always happens in the real browser
+tab. Telegram redirects back to `/auth?code=…&state=…`; the page strips the
+URL and calls the Convex action `auth/telegramExchange.exchangeTelegramCode`,
+which consumes the server-stored flow state (single-use; unknown/expired
+states rejected — this is also the CSRF check), then POSTs to
 `https://oauth.telegram.org/token` with **Basic auth (client_id:
 client_secret)** and the PKCE verifier. The returned `id_token` is verified
 by the `telegram-oidc` provider (JWKS) and the session starts — same as
 every other path.
+
+Why server-side flow state: the round-trip crosses tab/frame boundaries
+(preview iframe → Telegram tab → back into the top frame), and browser
+sessionStorage cannot bridge that — it stranded an earlier version of this
+flow. The database state also gives a proper consume-once guarantee.
 
 **Keys:**
 - `TELEGRAM_BOT_TOKEN` — bot identity (its numeric prefix is the default
