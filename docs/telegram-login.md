@@ -182,17 +182,37 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 - The bot ID arrives from the server (`authConfig.getAuthMethods`) — the
   client never parses the token. (`telegramWidget` is the flag's historical
   name; it simply means "a bot token is configured".)
-- `handleWidgetAuth` calls `signIn("telegram-oidc", { id_token })`, then
-  shows a quiet hand-off screen; navigation happens when Convex Auth's
-  `isAuthenticated` flips (navigating earlier makes RequireAuth bounce back
-  to /auth).
+**Three completion paths, one handler.** However Telegram's page finishes,
+the result reaches `handleTelegramAuth` in `Auth.tsx`, which routes by
+payload shape: `id_token` → `telegram-oidc` provider (JWKS-verified JWT);
+`{id, auth_date, hash, ...}` → `telegram-widget` provider (HMAC-verified
+classic payload). The paths:
+
+1. **In-app (Telegram's own browser):** the official library drives the
+   native sheet and returns the `id_token` via its callback.
+2. **Popup postMessage / popup return:** the popup completes, Telegram posts
+   `auth_result` to the opener (library contract), OR Telegram **redirects
+   the popup itself** back to `/auth` with `#tgAuthResult=<base64>` (classic
+   contract). The redirect consumer detects it's inside a popup, forwards
+   the result to the opener via `postMessage({type:'luba-telegram-auth'})`
+   (same-origin checked), and closes itself. The opener's listener hands it
+   to the same handler. This popup-redirects-back behavior is exactly what
+   the user's environment exercises — it is why accepting the login used to
+   "reload the sign-in page" (the popup loading /auth with the result in its
+   URL, previously ignored).
+3. **Top-level redirect:** when the page itself was navigated (no popup),
+   the consumer signs in directly in that window.
+
+The consumer strips the credential from the URL **before** sign-in
+(single-use; refresh/re-share must not re-consume) and is ref-guarded
+against React strict-mode double-invocation, which would trip the server's
+replay guard.
+
 - **Method-step errors are rendered** under the button, with friendly copy
   for the common cases: replayed/expired token, rate limit, generic failure.
 - **Embedded detection.** When the app detects it is inside an iframe (the
   preview pane), the auth page shows a link to open itself in a top-level
-  tab — the environment where the popup flow verifiably works end to end.
-  Embedding shells can drop the popup→opener hand-off; the fallback link
-  gives users a reliable escape hatch.
+  tab — a reliable escape hatch when the embedding shell interferes.
 
 ## 6. The bugs we hit (so you never repeat them)
 
@@ -233,7 +253,7 @@ const widgetEnabled = authMethods?.telegramWidget === true && widgetBotId !== nu
 | "…already used" | Token replay (double-submit or stale retry) | Expected single-use guard; sign in again |
 | "Telegram sign-in is not configured" | `TELEGRAM_BOT_TOKEN` missing server-side | Add it in the Keys tab |
 | "…could not be matched to a trusted key" | Telegram rotated signing keys mid-flight | Transient — retry; the JWKS cache refreshes automatically |
-| Popup confirms, closes, page unchanged | App runs inside an embedding iframe; the popup→opener hand-off is dropped | Open the app in its own tab (the embedded tip link) |
+| Popup confirms, Telegram messages the user, page unchanged | Result returned as a **redirect to /auth inside the popup** with `#tgAuthResult=…` — the page previously ignored it | Fixed: the redirect consumer forwards the popup's result to the opener (`luba-telegram-auth` postMessage) or signs in directly; see §5 completion paths |
 
 Deployment reminders: re-run `/setdomain` for every new origin (preview URLs
 change; production needs its own), and keep the token server-side only.

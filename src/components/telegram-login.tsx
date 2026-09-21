@@ -32,6 +32,15 @@ export interface TelegramOidcPayload {
   id_token: string;
 }
 
+/**
+ * The classic widget's signed payload (id, first_name, auth_date, hash, …).
+ * All values are forwarded verbatim and verified server-side via HMAC; the
+ * client never trusts or transforms them beyond string coercion.
+ */
+export interface TelegramWidgetPayload {
+  [field: string]: string;
+}
+
 /** Decoded claims we may receive for display (informational only). */
 export interface TelegramOidcClaims {
   sub?: string;
