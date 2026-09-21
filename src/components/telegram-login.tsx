@@ -5,124 +5,126 @@ import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /**
- * Telegram Login - the one-tap popup sign-in.
+ * Telegram Login — Telegram's CURRENT official login flow (the one with the
+ * "Log in to <site>" page, phone-number option, and QR code — see
+ * https://core.telegram.org/bots/telegram-login).
  *
- * Loads Telegram's official widget script (once per page load) and calls its
- * programmatic API, Telegram.Login.auth({ bot_id, request_access }, cb),
- * behind a branded button of our own. The script opens oauth.telegram.org in
- * a popup, collects the user's confirmation, and hands us the signed payload.
- * The payload's hash is verified SERVER-SIDE (convex/auth/telegramWidget.ts) -
- * this module trusts nothing and forwards exactly what Telegram sent.
+ * How it works:
+ * - We load Telegram's official library (telegram-login.js) and call
+ *   Telegram.Login.auth({ client_id, scope }, cb).
+ * - client_id is the bot's NUMERIC ID (same number as the classic widget's
+ *   bot_id) — the popup throws "client_id is required" otherwise.
+ * - scope "openid profile" returns name/username/photo; "phone" additionally
+ *   asks the user's consent for the phone number; "telegram:bot_access"
+ *   lets our bot message the user (enables outbid/winner alerts).
+ * - Telegram hosts the whole experience on oauth.telegram.org (or natively
+ *   inside the Telegram app browser). On success we receive an OIDC
+ *   **id_token** (JWT) plus its decoded `user` claims.
+ * - The JWT is verified SERVER-SIDE (convex/auth/telegramOidc.ts) against
+ *   Telegram's published JWKS. The client forwards it verbatim.
  *
- * The API takes the bot's NUMERIC ID (the public part of the bot token before
- * the colon), not its username - "Bot id required" is thrown otherwise.
  * Values are normalized to strings because the Convex credentials contract
  * carries string fields only.
- *
- * Two completion paths exist by design:
- *  1. popup callback (normal): Telegram calls `cb(user)` in the opener;
- *  2. URL-hash return (fallback): Telegram may instead append the same signed
- *     fields as `#key=value` pairs on this page - the OAuth return path. This
- *     matters inside iframes, where the popup→opener message can be dropped
- *     by the embedding shell. Auth.tsx parses that hash and feeds it through
- *     the same normalization here.
  */
 
-export interface TelegramWidgetPayload {
-  id: string;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
-  auth_date: string;
-  hash: string;
+export interface TelegramOidcPayload {
+  /** The raw OIDC id_token (JWT) — verified server-side, never trusted here. */
+  id_token: string;
 }
 
-interface TelegramLoginRawUser {
-  id?: number | string;
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
-  auth_date?: number | string;
-  hash?: string;
+/** Decoded claims we may receive for display (informational only). */
+export interface TelegramOidcClaims {
+  sub?: string;
+  name?: string;
+  preferred_username?: string;
+  picture?: string;
+  phone_number?: string;
+  [key: string]: unknown;
+}
+
+interface TelegramLoginResult {
+  id_token?: string;
+  user?: TelegramOidcClaims;
+  error?: string;
+}
+
+interface TelegramLoginRawResult {
+  id_token?: unknown;
+  user?: Record<string, unknown>;
+  error?: unknown;
 }
 
 declare global {
   interface Window {
     Telegram?: {
       Login?: {
-        auth?: (
-          options: { bot_id: number; request_access?: boolean },
-          callback: (user: TelegramLoginRawUser | false) => void,
+        init?: (
+          options: {
+            client_id: number | string;
+            scope?: string[];
+            lang?: string;
+            nonce?: string;
+          },
+          callback?: (result: TelegramLoginResult) => void,
         ) => void;
+        open?: (callback?: (result: TelegramLoginResult) => void) => void;
+        auth?: (
+          options: {
+            client_id: number | string;
+            scope?: string[];
+            lang?: string;
+            nonce?: string;
+          },
+          callback: (result: TelegramLoginResult) => void,
+        ) => void;
+        close?: () => void;
       };
     };
   }
 }
 
-const WIDGET_SCRIPT_SRC = "https://telegram.org/js/telegram-widget.js?22";
+const LOGIN_SCRIPT_SRC = "https://oauth.telegram.org/js/telegram-login.js";
 
-let widgetScriptPromise: Promise<void> | null = null;
+let loginScriptPromise: Promise<void> | null = null;
 
-function loadTelegramWidgetScript(): Promise<void> {
+function loadTelegramLoginScript(): Promise<void> {
   if (typeof document === "undefined") {
     return Promise.reject(new Error("script-load-failed"));
   }
   if (window.Telegram?.Login?.auth) return Promise.resolve();
-  if (widgetScriptPromise === null) {
-    widgetScriptPromise = new Promise<void>((resolve, reject) => {
+  if (loginScriptPromise === null) {
+    loginScriptPromise = new Promise<void>((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = WIDGET_SCRIPT_SRC;
+      script.src = LOGIN_SCRIPT_SRC;
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => {
         // Allow a later retry - the failed promise must not be cached.
-        widgetScriptPromise = null;
+        loginScriptPromise = null;
         reject(new Error("script-load-failed"));
       };
       document.head.appendChild(script);
     });
   }
-  return widgetScriptPromise;
+  return loginScriptPromise;
 }
 
-/**
- * Coerce a Telegram widget payload (popup callback object or URL-hash params)
- * into the string-only shape the Convex credentials provider expects, or null
- * if it is not a usable payload.
- */
-export function normalizeTelegramWidgetPayload(
-  user: TelegramLoginRawUser,
-): TelegramWidgetPayload | null {
-  if (
-    typeof user.id === "number" ||
-    (typeof user.id === "string" && /^\d+$/.test(user.id))
-  ) {
-    return {
-      id: String(user.id),
-      first_name: typeof user.first_name === "string" ? user.first_name : "",
-      ...(typeof user.last_name === "string" ? { last_name: user.last_name } : {}),
-      ...(typeof user.username === "string" ? { username: user.username } : {}),
-      ...(typeof user.photo_url === "string" ? { photo_url: user.photo_url } : {}),
-      auth_date: String(user.auth_date ?? ""),
-      hash: typeof user.hash === "string" ? user.hash : "",
-    };
-  }
-  return null;
+/** The callback result can be a result object or an error object; normalize. */
+function isUsableIdToken(value: unknown): value is string {
+  return typeof value === "string" && value.split(".").length === 3;
 }
 
 interface TelegramLoginModuleProps {
-  /** The bot's numeric ID - exposed publicly by authConfig.getAuthMethods. */
-  botId: number;
-  /** Signed payload on success; null when the popup was closed without signing in. */
-  onAuth: (payload: TelegramWidgetPayload | null) => void;
+  /** The bot's numeric ID (OIDC client_id) - exposed by authConfig.getAuthMethods. */
+  clientId: number;
+  /** id_token payload on success; null when the popup was closed without signing in. */
+  onAuth: (payload: TelegramOidcPayload | null) => void;
   onError: (message: string) => void;
   disabled?: boolean;
 }
 
 export function TelegramLoginModule({
-  botId,
+  clientId,
   onAuth,
   onError,
   disabled = false,
@@ -134,40 +136,61 @@ export function TelegramLoginModule({
 
   const handleOneTap = useCallback(() => {
     if (disabled || busyRef.current) return;
-    if (!Number.isFinite(botId) || botId <= 0) {
+    if (!Number.isFinite(clientId) || clientId <= 0) {
       onError("Telegram sign-in is not configured right now.");
       return;
     }
     busyRef.current = true;
     setOpening(true);
-    void loadTelegramWidgetScript()
+    const resetBusy = () => {
+      busyRef.current = false;
+      setOpening(false);
+    };
+    void loadTelegramLoginScript()
       .then(() => {
         const auth = window.Telegram?.Login?.auth;
         if (!auth) throw new Error("script-load-failed");
-        // Restores the button so a cancelled popup leaves the UI clean; the
-        // callback still fires later if the user goes on to confirm.
-        const resetBusy = () => {
-          busyRef.current = false;
-          setOpening(false);
-        };
-        auth({ bot_id: botId, request_access: true }, (user) => {
-          resetBusy();
-          if (user === false) {
-            onAuth(null);
-            return;
-          }
-          onAuth(normalizeTelegramWidgetPayload(user));
-        });
-        window.setTimeout(resetBusy, 1500);
+        auth(
+          {
+            client_id: clientId,
+            // Matches Telegram's own login page: name/username/photo, the
+            // phone number (with explicit consent), and permission for our
+            // bot to message the user (notification bridge).
+            scope: ["openid", "profile", "phone", "telegram:bot_access"],
+            lang: "en",
+          },
+          (result) => {
+            resetBusy();
+            if (!result || typeof result !== "object") {
+              onAuth(null);
+              return;
+            }
+            if (result.error) {
+              if (result.error !== "popup_closed") {
+                onError(
+                  `Telegram sign-in failed: ${String(result.error)}. Please try again.`,
+                );
+              }
+              onAuth(null);
+              return;
+            }
+            if (!isUsableIdToken(result.id_token)) {
+              onError(
+                "Telegram's confirmation arrived in an unreadable form. Please try again.",
+              );
+              return;
+            }
+            onAuth({ id_token: result.id_token });
+          },
+        );
       })
       .catch(() => {
-        busyRef.current = false;
-        setOpening(false);
+        resetBusy();
         onError(
           "Couldn't reach Telegram just now. Check your connection and try again.",
         );
       });
-  }, [botId, disabled, onAuth, onError]);
+  }, [clientId, disabled, onAuth, onError]);
 
   return (
     <button

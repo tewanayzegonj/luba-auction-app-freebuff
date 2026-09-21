@@ -16,8 +16,7 @@ import {
 } from "@/components/ui/input-otp";
 import {
   TelegramLoginModule,
-  normalizeTelegramWidgetPayload,
-  type TelegramWidgetPayload,
+  type TelegramOidcPayload,
 } from "@/components/telegram-login";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -279,40 +278,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
    * session is real (navigating earlier makes RequireAuth bounce to /auth).
    */
   /**
-   * Redirect return path: when the popup's result message cannot reach us
-   * (e.g. the app runs inside an embedding iframe, where Telegram's
-   * popup→opener hand-off can be dropped by the surrounding shell), Telegram
-   * instead returns the user to THIS page with the same signed payload
-   * appended as `#key=value` pairs. Parse it once, strip it from the URL (it
-   * is a single-use capability and must not survive a refresh), and complete
-   * sign-in through the same handler as the popup path.
+   * Complete a Telegram OIDC sign-in: forward the id_token verbatim to the
+   * Convex credentials provider, which verifies the JWT against Telegram's
+   * published keys. On success we land on the same hand-off screen as the
+   * OTP flows - isAuthenticated performs the redirect once the session is
+   * real (navigating earlier makes RequireAuth bounce back to /auth).
    */
-  const [hashConsumed, setHashConsumed] = useState(false);
-  useEffect(() => {
-    if (hashConsumed || !window.location.hash) return;
-    const raw = Object.fromEntries(
-      new URLSearchParams(window.location.hash.replace(/^#/, "")),
-    );
-    if (!("hash" in raw) || !("id" in raw)) return;
-    const payload = normalizeTelegramWidgetPayload(raw);
-    if (payload === null) {
-      setError(
-        "Telegram's confirmation arrived in an unreadable form. Please sign in again.",
-      );
-      return;
-    }
-    setHashConsumed(true);
-    window.history.replaceState(
-      null,
-      "",
-      window.location.pathname + window.location.search,
-    );
-    void handleWidgetAuth(payload);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hashConsumed]);
-
   const handleWidgetAuth = useCallback(
-    async (payload: TelegramWidgetPayload | null) => {
+    async (payload: TelegramOidcPayload | null) => {
       if (payload === null) {
         // The user closed Telegram's popup - not an error, just a no-op.
         return;
@@ -320,14 +293,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setWidgetBusy(true);
       setError(null);
       try {
-        await signIn("telegram-widget", {
-          id: payload.id,
-          first_name: payload.first_name,
-          ...(payload.last_name !== undefined ? { last_name: payload.last_name } : {}),
-          ...(payload.username !== undefined ? { username: payload.username } : {}),
-          ...(payload.photo_url !== undefined ? { photo_url: payload.photo_url } : {}),
-          auth_date: payload.auth_date,
-          hash: payload.hash,
+        await signIn("telegram-oidc", {
+          id_token: payload.id_token,
         });
         setHandoff(true);
         setTimeout(() => setHandoff(false), 8000);
@@ -457,7 +424,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   {widgetEnabled && (
                     <div className="flex flex-col gap-3">
                       <TelegramLoginModule
-                        botId={widgetBotId ?? 0}
+                        clientId={widgetBotId ?? 0}
                         onAuth={(payload) => void handleWidgetAuth(payload)}
                         onError={(message) => setError(message)}
                         disabled={widgetBusy || isLoading}
